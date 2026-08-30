@@ -1,6 +1,9 @@
 package com.example.chaea.controllers;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -9,6 +12,7 @@ import org.slf4j.LoggerFactory;
 //import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,17 +41,50 @@ public class AuthController {
     
     @Autowired
     private UsuarioRepository usuarioRepository;
-    
+
+    @Value("${cors.allowed-origins}")
+    private String allowedOrigins;
+
     @GetMapping("/")
     public String index() {
         return "index"; // Return index.html
     }
-        
+
+    /**
+     * El parámetro redirect_to llega del cliente a través del state de OAuth2 y se
+     * usa como destino de una redirección que lleva el token. Sin lista blanca es un
+     * open redirect: basta un enlace para entregar el JWT de un usuario a otro
+     * dominio. Se acepta únicamente si su origen está en cors.allowed-origins.
+     */
+    private boolean esRedirectPermitido(String redirectTo) {
+        if (redirectTo == null || redirectTo.isBlank()) {
+            return false;
+        }
+        try {
+            URI uri = new URI(redirectTo);
+            if (uri.getScheme() == null || uri.getHost() == null) {
+                return false;
+            }
+            String origen = uri.getScheme() + "://" + uri.getHost() + (uri.getPort() == -1 ? "" : ":" + uri.getPort());
+            return Arrays.stream(allowedOrigins.split(",")).map(String::trim)
+                    .map(o -> o.endsWith("/") ? o.substring(0, o.length() - 1) : o).filter(o -> !o.isEmpty())
+                    .anyMatch(o -> o.equalsIgnoreCase(origen));
+        } catch (URISyntaxException e) {
+            return false;
+        }
+    }
+
     @GetMapping("/login/success/estud")
     public void loginSuccessEstudiante(HttpServletResponse response, HttpServletRequest request,
             OAuth2AuthenticationToken authentication, @RequestParam String redirect_to) throws IOException {
+        if (!esRedirectPermitido(redirect_to)) {
+            logger.warn("redirect_to rechazado: {}", redirect_to);
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "redirect_to no permitido");
+            return;
+        }
+
         String email = authentication.getPrincipal().getAttribute("email");
-        
+
         Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(email);
         Usuario usuario;
         logger.info("will redirecto to " + redirect_to);
@@ -75,8 +112,14 @@ public class AuthController {
     @GetMapping("/login/success/prof")
     public void loginSuccessProfesor(OAuth2AuthenticationToken authentication, HttpServletResponse response,
             @RequestParam String redirect_to) throws IOException {
+        if (!esRedirectPermitido(redirect_to)) {
+            logger.warn("redirect_to rechazado: {}", redirect_to);
+            response.sendError(HttpServletResponse.SC_BAD_REQUEST, "redirect_to no permitido");
+            return;
+        }
+
         String email = authentication.getPrincipal().getAttribute("email");
-        
+
         Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(email);
         Usuario usuario;
         if (usuarioOpt.isEmpty()) {
