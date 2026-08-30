@@ -14,6 +14,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.NoHandlerFoundException;
 
 import com.example.chaea.dto.ApiError;
 
@@ -83,6 +84,18 @@ public class GlobalExceptionHandler {
         logger.warn("[{}] Acceso denegado en {}", traceId, request.getRequestURI());
         return construir(ErrorCode.ACCESO_DENEGADO, "No tienes permisos para realizar esta acción.", null, traceId,
                 request);
+    }
+
+    /**
+     * Una ruta inexistente es un error del cliente, no un fallo del servidor. Sin
+     * este handler cae en handleInesperado y devuelve 500 con un traceId, que
+     * sugiere una avería donde solo hay una URL mal escrita.
+     */
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ResponseEntity<ApiError> handleRutaInexistente(NoHandlerFoundException ex, HttpServletRequest request) {
+        String traceId = nuevoTraceId();
+        logger.warn("[{}] Ruta inexistente: {} {}", traceId, ex.getHttpMethod(), ex.getRequestURL());
+        return construir(ErrorCode.RECURSO_NO_ENCONTRADO, "La ruta solicitada no existe.", null, traceId, request);
     }
 
     @ExceptionHandler(Exception.class)
