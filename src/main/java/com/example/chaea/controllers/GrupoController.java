@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,6 +32,8 @@ import com.example.chaea.entities.Grupo;
 import com.example.chaea.entities.Profesor;
 import com.example.chaea.entities.ResultadoCuestionario;
 import com.example.chaea.entities.UsuarioEstado;
+import com.example.chaea.exceptions.AppException;
+import com.example.chaea.exceptions.ErrorCode;
 import com.example.chaea.repositories.EstudianteRepository;
 import com.example.chaea.repositories.GrupoRepository;
 import com.example.chaea.repositories.ResultadoCuestionarioRepository;
@@ -276,6 +279,7 @@ public class GrupoController {
     // Método para eliminar estudiantes de un grupo
     @DeleteMapping("/{id}/estudiantes")
     @PreAuthorize("hasRole('PROFESOR') or hasRole('ADMINISTRADOR')")
+    @Transactional
     public ResponseEntity<?> eliminarEstudiantesDelGrupo(@PathVariable int id, @RequestBody List<String> emails) {
         Profesor profesor = (Profesor) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         Optional<Grupo> grupoOptional = grupoRepository.findByProfesorAndId(profesor, id);
@@ -283,24 +287,31 @@ public class GrupoController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Grupo no encontrado con el ID: " + id);
         }
         Grupo grupo = grupoOptional.get();
+
+        // Validar antes de escribir: antes se hacia saveAll() y despues se comprobaba
+        // la lista de no encontrados, asi que un correo invalido dejaba a los demas
+        // ya desvinculados en base de datos y devolvia 400 al cliente.
         List<String> emailsNoEncontrados = new ArrayList<>();
         Set<Estudiante> estudiantes = new HashSet<>();
         for (String email : emails) {
             Optional<Estudiante> estudianteOpt = estudianteRepository.findById(email);
-            if (!estudianteOpt.isPresent()) {
-                emailsNoEncontrados.add(email);
+            if (estudianteOpt.isPresent()) {
+                estudiantes.add(estudianteOpt.get());
             } else {
-                Estudiante estudiante = estudianteOpt.get();
-                grupo.getEstudiantes().remove(estudiante);
-                estudiante.getGrupos().remove(grupo);
-                estudiantes.add(estudiante);
+                emailsNoEncontrados.add(email);
             }
         }
-        estudianteRepository.saveAll(estudiantes);
+
         if (!emailsNoEncontrados.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Estudiantes no encontrados con los correos: " + emailsNoEncontrados.toString());
+            throw new AppException(ErrorCode.ESTUDIANTES_NO_ENCONTRADOS,
+                    "No existen estudiantes con los correos: " + emailsNoEncontrados);
         }
+
+        for (Estudiante estudiante : estudiantes) {
+            grupo.getEstudiantes().remove(estudiante);
+            estudiante.getGrupos().remove(grupo);
+        }
+        estudianteRepository.saveAll(estudiantes);
         return ResponseEntity.ok(grupoRepository.save(grupo)); // Actualizar el grupo
     }
 }
