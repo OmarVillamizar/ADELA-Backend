@@ -15,9 +15,10 @@ import com.example.chaea.entities.ResultadoCuestionario;
 
 public interface ResultadoCuestionarioRepository extends JpaRepository<ResultadoCuestionario, Long> {
     
-	// Método para encontrar un ResultadoCuestionario por Cuestionario, Estudiante y
-    // fechaResolucion null
-    Optional<ResultadoCuestionario> findByCuestionarioAndEstudianteAndFechaResolucionIsNull(Cuestionario cuestionario,
+	// Método para encontrar las asignaciones pendientes de un Cuestionario para un
+    // Estudiante. Devuelve una lista porque el mismo cuestionario puede estar
+    // asignado al estudiante en varios grupos a la vez.
+    List<ResultadoCuestionario> findByCuestionarioAndEstudianteAndFechaResolucionIsNull(Cuestionario cuestionario,
             Estudiante estudiante);
     Optional<ResultadoCuestionario> findByCuestionarioAndEstudianteAndGrupo(
     	    Cuestionario cuestionario, 

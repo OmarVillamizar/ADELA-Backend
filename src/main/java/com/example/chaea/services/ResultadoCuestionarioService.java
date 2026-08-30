@@ -75,10 +75,7 @@ public class ResultadoCuestionarioService {
         Cuestionario cuestionario = cuestionarioRepository.findById(cuestionarioId)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el cuestionario con id " + cuestionarioId));
         
-        ResultadoCuestionario resC = resultadoCuestionarioRepository
-                .findByCuestionarioAndEstudianteAndFechaResolucionIsNull(cuestionario, estudiante)
-                .orElseThrow(() -> new EntityNotFoundException("Al estudiante " + estudiante.getEmail()
-                        + " no se le fue asignado el cuestionario " + cuestionario.getId()));
+        ResultadoCuestionario resC = resolverAsignacion(info, cuestionario, estudiante);
         
         if (resC.isBloqueado()) {
             throw new RuntimeException("Este cuestionario está bloqueado y no se puede responder.");
@@ -123,6 +120,46 @@ public class ResultadoCuestionarioService {
         return resultadoCuestionarioRepository.save(resC);
     }
     
+    /**
+     * Determina que asignacion (ResultadoCuestionario) se esta respondiendo. Un
+     * estudiante puede tener el mismo cuestionario asignado en varios grupos, por lo
+     * que el par (cuestionario, estudiante) no identifica una sola asignacion.
+     */
+    private ResultadoCuestionario resolverAsignacion(RespuestaCuestionarioDTO info, Cuestionario cuestionario,
+            Estudiante estudiante) {
+        Long resultadoId = info.getResultadoCuestionarioId();
+        
+        if (resultadoId != null) {
+            ResultadoCuestionario resC = resultadoCuestionarioRepository.findById(resultadoId)
+                    .orElseThrow(() -> new EntityNotFoundException("No existe la asignacion con id " + resultadoId));
+            if (!resC.getEstudiante().getEmail().equalsIgnoreCase(estudiante.getEmail())) {
+                throw new EntityNotFoundException(
+                        "La asignacion " + resultadoId + " no pertenece al estudiante " + estudiante.getEmail());
+            }
+            if (!resC.getCuestionario().getId().equals(cuestionario.getId())) {
+                throw new RuntimeException(
+                        "La asignacion " + resultadoId + " no corresponde al cuestionario " + cuestionario.getId());
+            }
+            if (resC.getFechaResolucion() != null) {
+                throw new RuntimeException("La asignacion " + resultadoId + " ya fue respondida.");
+            }
+            return resC;
+        }
+        
+        List<ResultadoCuestionario> pendientes = resultadoCuestionarioRepository
+                .findByCuestionarioAndEstudianteAndFechaResolucionIsNull(cuestionario, estudiante);
+        
+        if (pendientes.isEmpty()) {
+            throw new EntityNotFoundException("Al estudiante " + estudiante.getEmail()
+                    + " no se le fue asignado el cuestionario " + cuestionario.getId());
+        }
+        if (pendientes.size() > 1) {
+            throw new RuntimeException("El cuestionario " + cuestionario.getId()
+                    + " esta asignado en varios grupos; indica resultadoCuestionarioId para saber cual responder.");
+        }
+        return pendientes.get(0);
+    }
+    
     public List<Cuestionario> obtenerCuestionariosPorGrupo(Integer grupoId) {
         Grupo grupo = grupoRepository.findById(grupoId)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el grupo con id " + grupoId));
@@ -140,9 +177,9 @@ public class ResultadoCuestionarioService {
     }
     
     public boolean existeAsignacion(Estudiante estudiante, Cuestionario cuestionario) {
-        return resultadoCuestionarioRepository
+        return !resultadoCuestionarioRepository
             .findByCuestionarioAndEstudianteAndFechaResolucionIsNull(cuestionario, estudiante)
-            .isPresent();
+            .isEmpty();
     }
 
     
@@ -151,7 +188,7 @@ public class ResultadoCuestionarioService {
                 .orElseThrow(() -> new EntityNotFoundException("No existe la opción " + opcionId));
         Pregunta pregunta = opcion.getPregunta();
         Cuestionario cuestionario = resC.getCuestionario();
-        if (pregunta.getCuestionario().getId() != cuestionario.getId()) {
+        if (!pregunta.getCuestionario().getId().equals(cuestionario.getId())) {
             throw new RuntimeException("Inconsistencia: la opcion de id " + opcionId + " no pertenece al cuestionario "
                     + cuestionario.getId());
         }
