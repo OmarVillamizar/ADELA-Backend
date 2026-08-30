@@ -163,8 +163,10 @@ public class CuestionarioController {
     @PreAuthorize("hasRole('PROFESOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<?> obtenerReporteEstudiante(@PathVariable Long idCuestionarioResuelto) {
         try {
+            Profesor profesor = (Profesor) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
             return new ResponseEntity<>(
-                    resultadoCuestionarioService.obtenerResultadoCuestionario(idCuestionarioResuelto), HttpStatus.OK);
+                    resultadoCuestionarioService.obtenerResultadoCuestionario(idCuestionarioResuelto, profesor),
+                    HttpStatus.OK);
         } catch (EntityNotFoundException e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
         } catch (Exception e) {
@@ -176,7 +178,9 @@ public class CuestionarioController {
     @PreAuthorize("hasRole('PROFESOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<?> obtenerCuestionariosGrupo(@PathVariable Integer idGrupo) {
         try {
-            return new ResponseEntity<>(resultadoCuestionarioService.obtenerPorGrupo(idGrupo), HttpStatus.OK);
+            Profesor profesor = (Profesor) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+            return new ResponseEntity<>(resultadoCuestionarioService.obtenerPorGrupo(idGrupo, profesor),
+                    HttpStatus.OK);
         } catch (EntityNotFoundException e) {
             return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
         } catch (Exception e) {

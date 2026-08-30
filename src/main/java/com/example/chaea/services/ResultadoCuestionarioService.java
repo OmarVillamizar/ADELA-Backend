@@ -313,19 +313,44 @@ public class ResultadoCuestionarioService {
         return lcdto;
     }
     
-    public ResultCuestCompletoDTO obtenerResultadoCuestionario(Long cuestionarioResueltoId) {
+    /**
+     * Comprueba que el grupo exista y pertenezca al profesor indicado. Una
+     * asignación sin grupo no tiene profesor propietario, así que se deniega.
+     */
+    private void verificarPropiedad(Grupo grupo, Profesor profesor) {
+        if (grupo == null) {
+            throw new EntityNotFoundException("La asignación no está vinculada a ningún grupo.");
+        }
+        if (!grupo.getProfesor().getEmail().equalsIgnoreCase(profesor.getEmail())) {
+            throw new EntityNotFoundException("El grupo no pertenece a este profesor.");
+        }
+    }
+
+    public ResultCuestCompletoDTO obtenerResultadoCuestionario(Long cuestionarioResueltoId, Profesor profesor) {
         ResultadoCuestionario resC = resultadoCuestionarioRepository.findById(cuestionarioResueltoId).orElseThrow(
                 () -> new EntityNotFoundException("El resultado de id " + cuestionarioResueltoId + " no existe"));
-        return obtenerResultadoCuestionario(cuestionarioResueltoId, resC.getEstudiante());
+        verificarPropiedad(resC.getGrupo(), profesor);
+        return construirResultado(resC);
     }
-    
+
     public ResultCuestCompletoDTO obtenerResultadoCuestionario(Long cuestionarioResueltoId, Estudiante estudiante) {
-        ResultCuestCompletoDTO res = new ResultCuestCompletoDTO();
-        
         ResultadoCuestionario resC = resultadoCuestionarioRepository.findById(cuestionarioResueltoId)
                 .orElseThrow(() -> new EntityNotFoundException(
-                        "El resultado de id " + cuestionarioResueltoId + " no pertenece al estudiante o no existe"));
-        
+                        "El resultado de id " + cuestionarioResueltoId + " no existe"));
+
+        if (!resC.getEstudiante().getEmail().equalsIgnoreCase(estudiante.getEmail())) {
+            throw new EntityNotFoundException("El resultado de id " + cuestionarioResueltoId
+                    + " no pertenece al estudiante " + estudiante.getEmail());
+        }
+
+        return construirResultado(resC);
+    }
+
+    private ResultCuestCompletoDTO construirResultado(ResultadoCuestionario resC) {
+        ResultCuestCompletoDTO res = new ResultCuestCompletoDTO();
+
+        Long cuestionarioResueltoId = resC.getId();
+
         if (resC.getFechaResolucion() == null) {
             throw new EntityNotFoundException("El id " + cuestionarioResueltoId
                     + " corresponde a una aplicación de un cuestionario que no se ha completado");
@@ -393,9 +418,7 @@ public class ResultadoCuestionarioService {
         Grupo grupo = grupoRepository.findById(grupoId)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el grupo con id " + grupoId));
         
-        if (!grupo.getProfesor().getEmail().equalsIgnoreCase(profesor.getEmail())) {
-            throw new EntityNotFoundException("El grupo no pertenece a este profesor.");
-        }
+        verificarPropiedad(grupo, profesor);
         
         List<ResultadoCuestionario> rcs = resultadoCuestionarioRepository.findByGrupoAndCuestionario(grupo,
                 cuestionario);
@@ -416,9 +439,7 @@ public class ResultadoCuestionarioService {
         Grupo grupo = grupoRepository.findById(grupoId)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el grupo con id " + grupoId));
         
-        if (!grupo.getProfesor().getEmail().equalsIgnoreCase(profesor.getEmail())) {
-            throw new EntityNotFoundException("El grupo no pertenece a este profesor.");
-        }
+        verificarPropiedad(grupo, profesor);
         
         List<ResultadoCuestionario> rcs = resultadoCuestionarioRepository.findByGrupoAndCuestionario(grupo,
                 cuestionario);
@@ -477,10 +498,12 @@ public class ResultadoCuestionarioService {
         return res;
     }
     
-    public List<ResultadoGrupoResumidoDTO> obtenerPorGrupo(Integer grupoId) {
+    public List<ResultadoGrupoResumidoDTO> obtenerPorGrupo(Integer grupoId, Profesor profesor) {
         Grupo grupo = grupoRepository.findById(grupoId)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el grupo con id " + grupoId));
-        
+
+        verificarPropiedad(grupo, profesor);
+
         List<ResultadoCuestionario> cuestos = resultadoCuestionarioRepository.findByGrupo(grupo);
         
         List<ResultadoGrupoResumidoDTO> res = new LinkedList<>();
