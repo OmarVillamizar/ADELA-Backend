@@ -45,7 +45,9 @@ public class JwtUtil {
     }
     
     private String createToken(Usuario userDetails) {
-        return Jwts.builder().claim("user", userDetails).subject(userDetails.getEmail())
+        // El payload de un JWT es base64, no cifrado: no se incluye la entidad Usuario.
+        // JwtFilter recarga el usuario desde base de datos en cada petición usando el subject.
+        return Jwts.builder().subject(userDetails.getEmail())
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + (1000 * 60 * 60 * HOURS))).signWith(getSignInKey())
                 .compact();
