@@ -35,12 +35,14 @@ spring:
                       jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
 cors:
   allowed-origins: ${ALLOWED_ORIGINS}
+# Documentación desactivada por defecto: publica el mapa completo de la API.
+# Poner SWAGGER_ENABLED=true solo en entornos de desarrollo.
 springdoc:
     api-docs:
-        enabled: true
+        enabled: ${SWAGGER_ENABLED:false}
         path: /api-docs
     swagger-ui:
-        enabled: true
+        enabled: ${SWAGGER_ENABLED:false}
         path: /docs/swagger-ui.html
         
 server:
