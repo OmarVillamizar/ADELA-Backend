@@ -21,11 +21,16 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.chaea.dto.ProfesorDTO;
 import com.example.chaea.entities.Profesor;
 import com.example.chaea.entities.ProfesorEstado;
+import com.example.chaea.entities.Rol;
 import com.example.chaea.entities.Usuario;
 import com.example.chaea.entities.UsuarioEstado;
+import com.example.chaea.exceptions.AppException;
+import com.example.chaea.exceptions.ErrorCode;
 import com.example.chaea.repositories.ProfesorRepository;
 import com.example.chaea.repositories.RolRepository;
 import com.example.chaea.repositories.UsuarioRepository;
+
+import jakarta.persistence.EntityNotFoundException;
 
 @RestController
 @RequestMapping("/api/profesores")
@@ -87,17 +92,28 @@ public class ProfesorController {
         return ResponseEntity.ok(profesorOptional.get());
     }
     
+    /**
+     * Retira la aprobación del profesor: vuelve a la lista de pendientes, donde el
+     * administrador puede reactivarlo o rechazarlo.
+     *
+     * estadoProfesor es el eje del flujo de administración (aprobado / pendiente);
+     * estado refleja si el propio profesor completó su perfil. Antes este método
+     * tocaba estado, que no es lo que decide el acceso, y además nunca llamaba a
+     * save(), así que respondía éxito sin persistir nada.
+     */
     @DeleteMapping("/deactivate/{email}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<?> eliminarProfesor(@PathVariable String email) {
-        Optional<Profesor> profesorOptional = profesorRepository.findById(email);
-        if (!profesorOptional.isPresent()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Profesor no encontrado con el correo: " + email);
+        Profesor profesor = profesorRepository.findById(email)
+                .orElseThrow(() -> new EntityNotFoundException("Profesor no encontrado con el correo: " + email));
+
+        if (profesor.getEstadoProfesor() == ProfesorEstado.INACTIVA) {
+            throw new AppException(ErrorCode.CUENTA_NO_ACTIVA, "La cuenta de " + email + " ya está inactiva.");
         }
-        Profesor profesor = profesorOptional.get();
-        
-        profesor.setEstado(UsuarioEstado.INACTIVA);
-        return ResponseEntity.ok().body("Profesor eliminado exitosamente.");
+
+        profesor.setEstadoProfesor(ProfesorEstado.INACTIVA);
+        profesorRepository.save(profesor);
+        return ResponseEntity.ok().body("Profesor desactivado exitosamente.");
     }
     
     @PutMapping("/activate/{email}")
@@ -115,7 +131,7 @@ public class ProfesorController {
         }
         
         profesor.setEstadoProfesor(ProfesorEstado.ACTIVA);
-        profesor.setRol(rolRepository.findByDescripcion("PROFESOR").get());
+        profesor.setRol(rolPorDescripcion("PROFESOR"));
         return ResponseEntity.ok(profesorRepository.save(profesor));
     }
     
@@ -134,7 +150,7 @@ public class ProfesorController {
                     .body("Cuenta de profesor no está activa, no se puede hacer administrador: " + email);
         }
         
-        profesor.setRol(rolRepository.findByDescripcion("ADMINISTRADOR").get());
+        profesor.setRol(rolPorDescripcion("ADMINISTRADOR"));
         return ResponseEntity.ok(profesorRepository.save(profesor));
     }
     
@@ -159,28 +175,37 @@ public class ProfesorController {
                     .body("Cuenta de profesor no está activa, no se puede hacer administrador: " + email);
         }
         
-        profesor.setRol(rolRepository.findByDescripcion("PROFESOR").get());
+        profesor.setRol(rolPorDescripcion("PROFESOR"));
         return ResponseEntity.ok(profesorRepository.save(profesor));
     }
     
+    /**
+     * Rechaza una solicitud pendiente. Comprueba estadoProfesor, que es lo que la
+     * pantalla de administración usa para listar los pendientes: antes miraba
+     * estado, que en un profesor recién registrado vale INCOMPLETA y nunca
+     * INACTIVA, así que la guarda rechazaba siempre y el flujo era inalcanzable.
+     */
     @DeleteMapping("/reject/{email}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<?> rechazarSolicitudCuentaProfesor(@PathVariable String email) {
-        Optional<Profesor> profesorOptional = profesorRepository.findById(email);
-        if (!profesorOptional.isPresent()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Profesor no encontrado con el correo: " + email);
+        Profesor profesor = profesorRepository.findById(email)
+                .orElseThrow(() -> new EntityNotFoundException("Profesor no encontrado con el correo: " + email));
+
+        if (profesor.getEstadoProfesor() != ProfesorEstado.INACTIVA) {
+            throw new AppException(ErrorCode.CUENTA_NO_RECHAZABLE,
+                    "La cuenta de " + email + " está aprobada; desactívala antes de rechazarla.");
         }
-        
-        Profesor profesor = profesorOptional.get();
-        
-        if (profesor.getEstado() != UsuarioEstado.INACTIVA) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Cuenta de profesor activa, no se puede rechazar: " + email);
-        }
+
         profesorRepository.delete(profesor);
-        return ResponseEntity.ok("Soliciutd de profesor rechazada");
+        return ResponseEntity.ok("Solicitud de profesor rechazada");
     }
     
+    private Rol rolPorDescripcion(String descripcion) {
+        return rolRepository.findByDescripcion(descripcion)
+                .orElseThrow(() -> new AppException(ErrorCode.ROL_NO_CONFIGURADO,
+                        "El rol " + descripcion + " no está configurado en el sistema."));
+    }
+
     @PutMapping
     @PreAuthorize("hasRole('PROFESOR') or hasRole('PROFESOR_INCOMPLETO') or hasRole('PROFESOR_INACTIVO') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<?> actualizarProfesor(@RequestBody ProfesorDTO profesorDTO) {
