@@ -2,6 +2,7 @@ package com.example.chaea.controllers;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -19,8 +20,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.example.chaea.dto.EstudianteDTO;
 import com.example.chaea.entities.Estudiante;
+import com.example.chaea.entities.Usuario;
 import com.example.chaea.entities.UsuarioEstado;
+import com.example.chaea.exceptions.AppException;
+import com.example.chaea.exceptions.ErrorCode;
 import com.example.chaea.repositories.EstudianteRepository;
+import com.example.chaea.repositories.UsuarioRepository;
 
 @RestController
 @RequestMapping("/api/estudiantes")
@@ -28,6 +33,9 @@ public class EstudianteController {
     
     @Autowired
     private EstudianteRepository estudianteRepository;
+
+    @Autowired
+    private UsuarioRepository usuarioRepository;
         
     @GetMapping("/omero")
     @PreAuthorize("hasRole('ESTUDIANTE')")
@@ -122,6 +130,15 @@ public class EstudianteController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Estudiante no encontrado con el correo: " + email);
         }
         
+        // Usuario.codigo es unique: sin esta comprobacion la violacion de constraint
+        // salia como 500. ProfesorController ya la hacia; aqui faltaba.
+        Optional<Usuario> conMismoCodigo = usuarioRepository.findByCodigo(estudianteDTO.getCodigo());
+        if (conMismoCodigo.isPresent() && !conMismoCodigo.get().getEmail().equalsIgnoreCase(email)) {
+            throw new AppException(ErrorCode.CODIGO_DUPLICADO,
+                    "El código " + estudianteDTO.getCodigo() + " ya está registrado por otro usuario.",
+                    Map.of("codigo", "Ya está en uso"));
+        }
+
         Estudiante estudianteExistente = estudianteOptional.get();
         estudianteExistente.setCodigo(estudianteDTO.getCodigo());
         estudianteExistente.setGenero(estudianteDTO.getGenero());
