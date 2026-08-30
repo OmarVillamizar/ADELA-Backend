@@ -36,6 +36,8 @@ import com.example.chaea.entities.Pregunta;
 import com.example.chaea.entities.Profesor;
 import com.example.chaea.entities.ResultadoCuestionario;
 import com.example.chaea.entities.ResultadoPregunta;
+import com.example.chaea.exceptions.AppException;
+import com.example.chaea.exceptions.ErrorCode;
 import com.example.chaea.repositories.CuestionarioRepository;
 import com.example.chaea.repositories.EstudianteRepository;
 import com.example.chaea.repositories.GrupoRepository;
@@ -78,7 +80,8 @@ public class ResultadoCuestionarioService {
         ResultadoCuestionario resC = resolverAsignacion(info, cuestionario, estudiante);
         
         if (resC.isBloqueado()) {
-            throw new RuntimeException("Este cuestionario está bloqueado y no se puede responder.");
+            throw new AppException(ErrorCode.CUESTIONARIO_BLOQUEADO,
+                    "Este cuestionario está bloqueado y no se puede responder.");
         }
         
         resC.setFechaResolucion(Date.valueOf(LocalDate.now()));
@@ -96,8 +99,9 @@ public class ResultadoCuestionarioService {
             ResultadoPregunta rp = responderPregunta(opcionId, resC);
             Long preguntaId = rp.getOpcion().getPregunta().getId();
             if (answered.containsKey(preguntaId) && !rp.getOpcion().getPregunta().isOpcionMultiple()) {
-                throw new RuntimeException("La pregunta " + answered.get(preguntaId).getOrden()
-                        + " tuvo mas de una opcion seleccionada(" + rp.getOpcion().getOrden() + ").");
+                throw new AppException(ErrorCode.OPCION_DUPLICADA,
+                        "La pregunta " + answered.get(preguntaId).getOrden()
+                                + " admite una sola respuesta y llegó más de una.");
             }
             answered.put(preguntaId, rp.getOpcion().getPregunta());
             unAnswered.remove(preguntaId);
@@ -113,7 +117,8 @@ public class ResultadoCuestionarioService {
             if (result.length() > 0) {
                 result.setLength(result.length() - 2);
             }
-            throw new RuntimeException("Las preguntas " + result + " no fueron respondidas");
+            throw new AppException(ErrorCode.PREGUNTAS_SIN_RESPONDER,
+                    "Faltan por responder las preguntas " + result + ".");
         }
         
         resultadoPreguntaRepository.saveAll(resultadoPreguntas);
@@ -137,11 +142,13 @@ public class ResultadoCuestionarioService {
                         "La asignacion " + resultadoId + " no pertenece al estudiante " + estudiante.getEmail());
             }
             if (!resC.getCuestionario().getId().equals(cuestionario.getId())) {
-                throw new RuntimeException(
-                        "La asignacion " + resultadoId + " no corresponde al cuestionario " + cuestionario.getId());
+                throw new AppException(ErrorCode.ASIGNACION_NO_CORRESPONDE,
+                        "La asignación " + resultadoId + " no corresponde al cuestionario " + cuestionario.getId()
+                                + ".");
             }
             if (resC.getFechaResolucion() != null) {
-                throw new RuntimeException("La asignacion " + resultadoId + " ya fue respondida.");
+                throw new AppException(ErrorCode.ASIGNACION_YA_RESPONDIDA,
+                        "Este cuestionario ya fue respondido.");
             }
             return resC;
         }
@@ -154,8 +161,8 @@ public class ResultadoCuestionarioService {
                     + " no se le fue asignado el cuestionario " + cuestionario.getId());
         }
         if (pendientes.size() > 1) {
-            throw new RuntimeException("El cuestionario " + cuestionario.getId()
-                    + " esta asignado en varios grupos; indica resultadoCuestionarioId para saber cual responder.");
+            throw new AppException(ErrorCode.ASIGNACION_AMBIGUA, "El cuestionario " + cuestionario.getId()
+                    + " está asignado en varios grupos; indica resultadoCuestionarioId para saber cuál responder.");
         }
         return pendientes.get(0);
     }
@@ -189,8 +196,8 @@ public class ResultadoCuestionarioService {
         Pregunta pregunta = opcion.getPregunta();
         Cuestionario cuestionario = resC.getCuestionario();
         if (!pregunta.getCuestionario().getId().equals(cuestionario.getId())) {
-            throw new RuntimeException("Inconsistencia: la opcion de id " + opcionId + " no pertenece al cuestionario "
-                    + cuestionario.getId());
+            throw new AppException(ErrorCode.OPCION_INCONSISTENTE, "La opción " + opcionId
+                    + " no pertenece al cuestionario " + cuestionario.getId() + ".");
         }
         ResultadoPregunta rp = new ResultadoPregunta();
         rp.setCuestionario(resC);
@@ -352,8 +359,8 @@ public class ResultadoCuestionarioService {
         Long cuestionarioResueltoId = resC.getId();
 
         if (resC.getFechaResolucion() == null) {
-            throw new EntityNotFoundException("El id " + cuestionarioResueltoId
-                    + " corresponde a una aplicación de un cuestionario que no se ha completado");
+            throw new AppException(ErrorCode.CUESTIONARIO_SIN_RESOLVER,
+                    "Este cuestionario todavía no ha sido respondido.");
         }
         
         Cuestionario c = resC.getCuestionario();
@@ -487,8 +494,12 @@ public class ResultadoCuestionarioService {
             }
         }
         
-        for (CategoriaResultadoDTO rca : mp.values()) {
-            rca.setValor(rca.getValor() / Double.valueOf(cnt));
+        // Sin resultados resueltos no hay promedio que calcular: dividir por cero
+        // produce NaN, que Jackson no serializa y convierte la respuesta en un 500.
+        if (cnt > 0) {
+            for (CategoriaResultadoDTO rca : mp.values()) {
+                rca.setValor(rca.getValor() / cnt);
+            }
         }
         
         res.setCategorias(categorias);
