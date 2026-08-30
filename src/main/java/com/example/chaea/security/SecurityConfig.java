@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -51,6 +52,11 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http,
             ClientRegistrationRepository clientRegistrationRepository) throws Exception {
         http.csrf(csrf -> csrf.disable())
+                // La configuracion CORS vive en WebConfig, pero addCorsMappings se aplica en
+                // el DispatcherServlet, es decir despues de esta cadena de filtros. Sin
+                // habilitarla aqui el preflight OPTIONS llega a anyRequest().authenticated()
+                // y responde 401: el navegador cancela toda peticion que lleve Authorization.
+                .cors(Customizer.withDefaults())
                 .authorizeHttpRequests(authorize -> authorize
                         // Público: raíz, sondas de salud y el arranque del flujo OAuth2.
                         // /error es necesario porque Spring Security 6 filtra también el
