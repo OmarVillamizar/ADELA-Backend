@@ -1,10 +1,14 @@
 package com.example.chaea.security;
 
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +27,10 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.example.chaea.dto.ApiError;
+import com.example.chaea.exceptions.ErrorCode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -30,10 +38,15 @@ import jakarta.servlet.http.HttpServletResponse;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
-    
+
+    private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
+
     @Autowired
     private JwtFilter jwtFilter;
-    
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity http,
             ClientRegistrationRepository clientRegistrationRepository) throws Exception {
@@ -53,9 +66,19 @@ public class SecurityConfig {
                         // /auth/login/success/** queda cubierto por la sesión que crea oauth2Login.
                         .anyRequest().authenticated())
                 .exceptionHandling(exc -> exc.authenticationEntryPoint((request, response, authException) -> {
-                    System.out.println("Auth  exception: ");
-                    authException.printStackTrace();
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                    // Mismo cuerpo que GlobalExceptionHandler: un único formato de error
+                    // en toda la API, también para el 401 que emite la cadena de filtros.
+                    String traceId = UUID.randomUUID().toString().substring(0, 8);
+                    logger.warn("[{}] Petición sin autenticar a {}: {}", traceId, request.getRequestURI(),
+                            authException.getMessage());
+
+                    ApiError body = new ApiError(Instant.now(), HttpServletResponse.SC_UNAUTHORIZED,
+                            ErrorCode.NO_AUTENTICADO.name(), "Necesitas iniciar sesión para acceder a este recurso.",
+                            null, traceId, request.getRequestURI());
+
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json;charset=UTF-8");
+                    objectMapper.writeValue(response.getWriter(), body);
                 }))
                 .oauth2Login(oauth2 -> oauth2
                         .authorizationEndpoint(authorization -> authorization.authorizationRequestResolver(

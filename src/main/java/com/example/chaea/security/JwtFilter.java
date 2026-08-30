@@ -1,10 +1,14 @@
 package com.example.chaea.security;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -20,7 +24,12 @@ import com.example.chaea.entities.Usuario;
 import com.example.chaea.entities.UsuarioEstado;
 import com.example.chaea.repositories.UsuarioRepository;
 
+import com.example.chaea.dto.ApiError;
+import com.example.chaea.exceptions.ErrorCode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.security.SignatureException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -29,13 +38,18 @@ import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class JwtFilter extends OncePerRequestFilter {
-    
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtFilter.class);
+
     @Autowired
     private JwtUtil jwtUtil;
-    
+
     @Autowired
     private UsuarioRepository usuarioRepository;
-    
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
@@ -94,16 +108,36 @@ public class JwtFilter extends OncePerRequestFilter {
             }
             filterChain.doFilter(request, response);
         } catch (SignatureException e) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("Invalid JWT token");
+            responder(request, response, ErrorCode.TOKEN_FIRMA_INVALIDA, "La firma del token no es válida.", e);
         } catch (ExpiredJwtException e) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write(e.getMessage());
+            responder(request, response, ErrorCode.TOKEN_EXPIRADO, "Tu sesión expiró. Inicia sesión de nuevo.", e);
+        } catch (MalformedJwtException | IllegalArgumentException e) {
+            // Caso típico: pegar "Bearer <token>" en el diálogo Authorize de Swagger,
+            // que ya antepone "Bearer " por su cuenta y deja el prefijo duplicado.
+            responder(request, response, ErrorCode.TOKEN_MALFORMADO,
+                    "El token no tiene un formato válido. Envíalo sin el prefijo 'Bearer'.", e);
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            e.printStackTrace();
-            response.getWriter().write("Error in JWT token filter: " + e.getMessage());
+            responder(request, response, ErrorCode.ERROR_INTERNO, "Ocurrió un error inesperado al validar la sesión.",
+                    e);
         }
-        
+
+    }
+
+    /**
+     * Escribe el mismo cuerpo que GlobalExceptionHandler. El filtro queda fuera del
+     * @RestControllerAdvice, así que serializa por su cuenta para que el cliente vea
+     * un único formato de error en toda la API.
+     */
+    private void responder(HttpServletRequest request, HttpServletResponse response, ErrorCode code, String mensaje,
+            Exception causa) throws IOException {
+        String traceId = UUID.randomUUID().toString().substring(0, 8);
+        logger.warn("[{}] {} en {}: {}", traceId, code, request.getRequestURI(), causa.getMessage());
+
+        ApiError body = new ApiError(Instant.now(), code.getStatus().value(), code.name(), mensaje, null, traceId,
+                request.getRequestURI());
+
+        response.setStatus(code.getStatus().value());
+        response.setContentType("application/json;charset=UTF-8");
+        objectMapper.writeValue(response.getWriter(), body);
     }
 }
