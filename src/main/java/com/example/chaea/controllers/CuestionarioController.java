@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.chaea.dto.CuestionarioDTO;
+import com.example.chaea.dto.CuestionarioParaResponderDTO;
 import com.example.chaea.dto.RequestEstudianteEmail;
 import com.example.chaea.dto.RespuestaCuestionarioDTO;
 import com.example.chaea.entities.Cuestionario;
@@ -52,10 +53,16 @@ public class CuestionarioController {
         return ResponseEntity.ok(cuestionarioService.getCuestionarios());
     }
 
+    /**
+     * Devuelve el cuestionario sin el baremo. Antes serializaba la entidad completa,
+     * incluido Opcion.valor, así que el estudiante veía cuánto puntúa cada respuesta
+     * antes de contestar.
+     */
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('PROFESOR') or hasRole('ESTUDIANTE')")
     public ResponseEntity<?> obtenerCuestionario(@PathVariable Long id) {
-        return ResponseEntity.ok(cuestionarioService.getCuestionarioPorId(id));
+        Cuestionario cuestionario = cuestionarioService.getCuestionarioPorId(id);
+        return ResponseEntity.ok(CuestionarioParaResponderDTO.from(cuestionario));
     }
 
     @DeleteMapping("/{id}")
