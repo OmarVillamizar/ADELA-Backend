@@ -249,16 +249,31 @@ public class ResultadoCuestionarioService {
     }
 
     
+    /**
+     * Asigna el cuestionario a todos los estudiantes del grupo, saltando a quienes
+     * ya lo tienen asignado en ese mismo grupo.
+     *
+     * Sin esa comprobación, dos clics en el botón de asignar dejaban al estudiante
+     * con dos asignaciones pendientes idénticas, que es justo la condición que hacía
+     * fallar la entrega de respuestas con un 400 (ver docs/fixedbugs.md). Los otros
+     * dos caminos de asignación ya comprobaban duplicados; este no.
+     */
+    @Transactional
     public void asignarCuestionarioAGrupo(Long cuestionarioId, Integer grupoId) {
         Cuestionario cuestionario = cuestionarioRepository.findById(cuestionarioId)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el cuestionario con id " + cuestionarioId));
-        
+
         Grupo grupo = grupoRepository.findById(grupoId)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el grupo con id " + grupoId));
-        
+
         Set<Estudiante> estudiantes = grupo.getEstudiantes();
         List<ResultadoCuestionario> asignaciones = new LinkedList<>();
         for (Estudiante estudiante : estudiantes) {
+            boolean yaAsignado = resultadoCuestionarioRepository
+                    .findByCuestionarioAndEstudianteAndGrupo(cuestionario, estudiante, grupo).isPresent();
+            if (yaAsignado) {
+                continue;
+            }
             ResultadoCuestionario rc = new ResultadoCuestionario();
             rc.setCuestionario(cuestionario);
             rc.setEstudiante(estudiante);
