@@ -39,9 +39,19 @@ public class SecurityConfig {
             ClientRegistrationRepository clientRegistrationRepository) throws Exception {
         http.csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/", "/docs/**", "/api-docs/**", "/swagger-ui/**", "/health/**", "/login/**",
-                                "/oauth2/**", "/api/**")
-                        .permitAll().requestMatchers("/test/**").authenticated().anyRequest().authenticated())
+                        // Público: raíz, sondas de salud y el arranque del flujo OAuth2.
+                        // /error es necesario porque Spring Security 6 filtra también el
+                        // dispatch ERROR: sin permitirlo, cualquier fallo en una petición sin
+                        // autenticar se convierte en una respuesta confusa.
+                        .requestMatchers("/", "/error", "/health/**", "/login/**", "/oauth2/**").permitAll()
+                        // Documentación: en producción springdoc la desactiva por completo
+                        // (springdoc.*.enabled, ver application.yaml), así que estos matchers
+                        // solo tienen efecto en los entornos donde sigue publicada.
+                        .requestMatchers("/docs/**", "/api-docs/**", "/swagger-ui/**").permitAll()
+                        // Todo lo demás exige autenticación. /api/** ya no está en la lista
+                        // blanca: olvidar un @PreAuthorize deja el endpoint cerrado, no abierto.
+                        // /auth/login/success/** queda cubierto por la sesión que crea oauth2Login.
+                        .anyRequest().authenticated())
                 .exceptionHandling(exc -> exc.authenticationEntryPoint((request, response, authException) -> {
                     System.out.println("Auth  exception: ");
                     authException.printStackTrace();

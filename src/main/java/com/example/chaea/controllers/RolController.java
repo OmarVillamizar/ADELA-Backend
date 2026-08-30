@@ -5,6 +5,7 @@ import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +26,7 @@ public class RolController {
     
     // Crear un nuevo rol
     @PostMapping
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<Rol> crearRol(@RequestBody Rol rol) {
         Rol nuevoRol = rolRepository.save(rol);
         return ResponseEntity.ok(nuevoRol);
@@ -32,6 +34,7 @@ public class RolController {
     
     // Ver todos los roles
     @GetMapping
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<List<Rol>> verRoles() {
         List<Rol> roles = rolRepository.findAll();
         if (roles.isEmpty()) {
@@ -42,6 +45,7 @@ public class RolController {
     
     // Borrar rol por ID
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<Void> borrarRolPorId(@PathVariable int id) {
         Optional<Rol> rolOpt = rolRepository.findById(id);
         if (!rolOpt.isPresent()) {
