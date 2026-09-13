@@ -49,6 +49,11 @@ import com.example.chaea.repositories.ResultadoPreguntaRepository;
 import jakarta.persistence.EntityNotFoundException;
 
 @Service
+/**
+ * Las lecturas van marcadas @Transactional(readOnly = true): navegan relaciones
+ * LAZY y hasta ahora solo funcionaban porque open-in-view mantenia la sesion
+ * abierta durante el render, reteniendo la conexion mas alla del servicio.
+ */
 public class ResultadoCuestionarioService {
     @Autowired
     private ResultadoCuestionarioRepository resultadoCuestionarioRepository;
@@ -167,6 +172,7 @@ public class ResultadoCuestionarioService {
         return pendientes.get(0);
     }
     
+    @Transactional(readOnly = true)
     public List<Cuestionario> obtenerCuestionariosPorGrupo(Integer grupoId) {
         Grupo grupo = grupoRepository.findById(grupoId)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el grupo con id " + grupoId));
@@ -183,6 +189,7 @@ public class ResultadoCuestionarioService {
         return new LinkedList<>(cuestionarios);
     }
     
+    @Transactional(readOnly = true)
     public boolean existeAsignacion(Estudiante estudiante, Cuestionario cuestionario) {
         return !resultadoCuestionarioRepository
             .findByCuestionarioAndEstudianteAndFechaResolucionIsNull(cuestionario, estudiante)
@@ -206,6 +213,7 @@ public class ResultadoCuestionarioService {
         return rp;
     }
     
+    @Transactional
     public void asignarCuestionariosAsignadosAlGrupoAEstudiantesNuevos(Grupo grupo, Set<Estudiante> nuevosEstudiantes) {
         // Obtener todos los cuestionarios ya asignados al grupo
         List<ResultadoCuestionario> asignacionesExistentes = resultadoCuestionarioRepository.findByGrupo(grupo);
@@ -284,6 +292,7 @@ public class ResultadoCuestionarioService {
         resultadoCuestionarioRepository.saveAll(asignaciones);
     }
     
+    @Transactional
     public void asignarCuestionarioAEstudiante(Long cuestionarioId, String estudianteEmail) {
         Cuestionario cuestionario = cuestionarioRepository.findById(cuestionarioId)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el cuestionario con id " + cuestionarioId));
@@ -300,6 +309,7 @@ public class ResultadoCuestionarioService {
         }
     }
     
+    @Transactional(readOnly = true)
     public ListasCuestionariosDTO obtenerCuestionarios(Estudiante estudiante) {
         List<ResultadoCuestionario> info = resultadoCuestionarioRepository
                 .findByEstudianteAndBloqueadoFalse(estudiante);
@@ -348,6 +358,7 @@ public class ResultadoCuestionarioService {
         }
     }
 
+    @Transactional(readOnly = true)
     public ResultCuestCompletoDTO obtenerResultadoCuestionario(Long cuestionarioResueltoId, Profesor profesor) {
         ResultadoCuestionario resC = resultadoCuestionarioRepository.findById(cuestionarioResueltoId).orElseThrow(
                 () -> new EntityNotFoundException("El resultado de id " + cuestionarioResueltoId + " no existe"));
@@ -355,6 +366,7 @@ public class ResultadoCuestionarioService {
         return construirResultado(resC);
     }
 
+    @Transactional(readOnly = true)
     public ResultCuestCompletoDTO obtenerResultadoCuestionario(Long cuestionarioResueltoId, Estudiante estudiante) {
         ResultadoCuestionario resC = resultadoCuestionarioRepository.findById(cuestionarioResueltoId)
                 .orElseThrow(() -> new EntityNotFoundException(
@@ -433,6 +445,7 @@ public class ResultadoCuestionarioService {
         return res;
     }
     
+    @Transactional
     public void toggleBloqueoCuestionario(Long cuestionarioId, Integer grupoId, Profesor profesor) {
         Cuestionario cuestionario = cuestionarioRepository.findById(cuestionarioId)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el cuestionario con id " + cuestionarioId));
@@ -452,6 +465,7 @@ public class ResultadoCuestionarioService {
         resultadoCuestionarioRepository.saveAll(rcs);
     }
     
+    @Transactional(readOnly = true)
     public ResultadoGrupoDTO obtenerResultadosGrupoCuestionario(Long cuestionarioId, Integer grupoId,
             Profesor profesor) {
         
@@ -524,6 +538,7 @@ public class ResultadoCuestionarioService {
         return res;
     }
     
+    @Transactional(readOnly = true)
     public List<ResultadoGrupoResumidoDTO> obtenerPorGrupo(Integer grupoId, Profesor profesor) {
         Grupo grupo = grupoRepository.findById(grupoId)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el grupo con id " + grupoId));
