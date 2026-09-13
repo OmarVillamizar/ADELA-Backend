@@ -24,4 +24,9 @@ public class ProfesorDTO extends UserDTO {
         this.rol = rol == null ? "INACTIVO" : rol.getDescripcion();
         this.estadoProfesor = profesorEstado;
     }
+
+    public static ProfesorDTO from(Profesor p) {
+        return new ProfesorDTO(p.getEmail(), p.getNombre(), p.getCodigo(), p.getEstado(), p.getCarrera(), p.getRol(),
+                p.getEstadoProfesor());
+    }
 }

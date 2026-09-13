@@ -80,8 +80,8 @@ public class ProfesorController {
     
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
-    public ResponseEntity<List<Profesor>> listarProfesores() {
-        return ResponseEntity.ok(profesorRepository.findAll());
+    public ResponseEntity<List<ProfesorDTO>> listarProfesores() {
+        return ResponseEntity.ok(profesorRepository.findAll().stream().map(ProfesorDTO::from).toList());
     }
     
     @GetMapping("/{email}")
@@ -91,7 +91,7 @@ public class ProfesorController {
         if (!profesorOptional.isPresent()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Profesor no encontrado con el correo: " + email);
         }
-        return ResponseEntity.ok(profesorOptional.get());
+        return ResponseEntity.ok(ProfesorDTO.from(profesorOptional.get()));
     }
     
     /**
@@ -134,7 +134,7 @@ public class ProfesorController {
         
         profesor.setEstadoProfesor(ProfesorEstado.ACTIVA);
         profesor.setRol(rolPorDescripcion("PROFESOR"));
-        return ResponseEntity.ok(profesorRepository.save(profesor));
+        return ResponseEntity.ok(ProfesorDTO.from(profesorRepository.save(profesor)));
     }
     
     @PutMapping("/elevate/{email}")
@@ -153,7 +153,7 @@ public class ProfesorController {
         }
         
         profesor.setRol(rolPorDescripcion("ADMINISTRADOR"));
-        return ResponseEntity.ok(profesorRepository.save(profesor));
+        return ResponseEntity.ok(ProfesorDTO.from(profesorRepository.save(profesor)));
     }
     
     @PutMapping("/demote/{email}")
@@ -178,7 +178,7 @@ public class ProfesorController {
         }
         
         profesor.setRol(rolPorDescripcion("PROFESOR"));
-        return ResponseEntity.ok(profesorRepository.save(profesor));
+        return ResponseEntity.ok(ProfesorDTO.from(profesorRepository.save(profesor)));
     }
     
     /**
@@ -256,7 +256,7 @@ public class ProfesorController {
         profesorExistente.setCodigo(profesorDTO.getCodigo());
         profesorExistente.setEstado(UsuarioEstado.ACTIVA);
         
-        return ResponseEntity.ok(profesorRepository.save(profesorExistente));
+        return ResponseEntity.ok(ProfesorDTO.from(profesorRepository.save(profesorExistente)));
     }
     
 }
