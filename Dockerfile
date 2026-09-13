@@ -14,7 +14,9 @@ RUN mvn dependency:go-offline -B
 COPY src ./src
 
 # Build the application
-RUN mvn clean package -DskipTests
+# Los tests corren en la imagen: son unitarios, sin base de datos ni red, asi que
+# un fallo de los guardas de acceso detiene el build en lugar de publicarse.
+RUN mvn clean package
 
 
 ### STAGE 2:DEPLOY ###
