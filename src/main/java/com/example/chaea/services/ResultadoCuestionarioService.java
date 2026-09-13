@@ -12,7 +12,6 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,33 +47,29 @@ import com.example.chaea.repositories.ResultadoPreguntaRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
 /**
  * Las lecturas van marcadas @Transactional(readOnly = true): navegan relaciones
  * LAZY y hasta ahora solo funcionaban porque open-in-view mantenia la sesion
  * abierta durante el render, reteniendo la conexion mas alla del servicio.
  */
+@RequiredArgsConstructor
 public class ResultadoCuestionarioService {
-    @Autowired
-    private ResultadoCuestionarioRepository resultadoCuestionarioRepository;
+    private final ResultadoCuestionarioRepository resultadoCuestionarioRepository;
     
-    @Autowired
-    private ResultadoPreguntaRepository resultadoPreguntaRepository;
+    private final ResultadoPreguntaRepository resultadoPreguntaRepository;
     
-    @Autowired
-    private CuestionarioRepository cuestionarioRepository;
+    private final CuestionarioRepository cuestionarioRepository;
     
-    @Autowired
-    private PreguntaRepository preguntaRepository;
+    private final PreguntaRepository preguntaRepository;
     
-    @Autowired
-    private OpcionRepository opcionRepository;
+    private final OpcionRepository opcionRepository;
     
-    @Autowired
-    private GrupoRepository grupoRepository;
+    private final GrupoRepository grupoRepository;
     
-    @Autowired
-    private EstudianteRepository estudianteRepository;
+    private final EstudianteRepository estudianteRepository;
     
     @Transactional
     public ResultadoCuestionario responderCuestionario(RespuestaCuestionarioDTO info, Estudiante estudiante) {

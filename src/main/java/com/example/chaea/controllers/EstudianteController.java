@@ -4,7 +4,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,15 +30,16 @@ import com.example.chaea.repositories.UsuarioRepository;
 
 import jakarta.validation.Valid;
 
+import lombok.RequiredArgsConstructor;
+
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/estudiantes")
 public class EstudianteController {
     
-    @Autowired
-    private EstudianteRepository estudianteRepository;
+    private final EstudianteRepository estudianteRepository;
 
-    @Autowired
-    private UsuarioRepository usuarioRepository;
+    private final UsuarioRepository usuarioRepository;
         
     @GetMapping("/omero")
     @PreAuthorize("hasRole('ESTUDIANTE')")

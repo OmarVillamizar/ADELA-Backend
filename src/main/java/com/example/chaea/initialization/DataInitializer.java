@@ -2,7 +2,6 @@ package com.example.chaea.initialization;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -10,13 +9,15 @@ import org.springframework.context.annotation.Configuration;
 import com.example.chaea.entities.Rol;
 import com.example.chaea.repositories.RolRepository;
 
+import lombok.RequiredArgsConstructor;
+
+@RequiredArgsConstructor
 @Configuration
 public class DataInitializer {
     
     private static final Logger logger = LoggerFactory.getLogger(DataInitializer.class);
     
-    @Autowired
-    private RolRepository rolRepository;
+    private final RolRepository rolRepository;
     
     @Bean
     CommandLineRunner initializeRoles() {

@@ -1,6 +1,5 @@
 package com.example.chaea.services;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.example.chaea.dto.OpcionDTO;
@@ -11,18 +10,18 @@ import com.example.chaea.repositories.CategoriaRepository;
 import com.example.chaea.repositories.OpcionRepository;
 import com.example.chaea.repositories.PreguntaRepository;
 
+import lombok.RequiredArgsConstructor;
 
+
+@RequiredArgsConstructor
 @Service
 public class OpcionService {
     
-    @Autowired
-    private CategoriaRepository categoriaRepository;
+    private final CategoriaRepository categoriaRepository;
     
-    @Autowired
-    private PreguntaRepository preguntaRepository;
+    private final PreguntaRepository preguntaRepository;
     
-    @Autowired
-    private OpcionRepository opcionRepository;
+    private final OpcionRepository opcionRepository;
     
     
     public void eliminarOpcion(Opcion opcion) {

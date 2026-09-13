@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +26,8 @@ import com.example.chaea.repositories.ResultadoCuestionarioRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * Lógica de los grupos, extraída de GrupoController.
  *
@@ -38,20 +39,17 @@ import jakarta.persistence.EntityNotFoundException;
  * Todos los métodos resuelven el grupo por findByProfesorAndId, así que un id
  * ajeno es indistinguible de uno inexistente y no revela qué grupos hay.
  */
+@RequiredArgsConstructor
 @Service
 public class GrupoService {
 
-    @Autowired
-    private GrupoRepository grupoRepository;
+    private final GrupoRepository grupoRepository;
 
-    @Autowired
-    private EstudianteRepository estudianteRepository;
+    private final EstudianteRepository estudianteRepository;
 
-    @Autowired
-    private ResultadoCuestionarioService resultadoCuestionarioService;
+    private final ResultadoCuestionarioService resultadoCuestionarioService;
 
-    @Autowired
-    private ResultadoCuestionarioRepository resultadoCuestionarioRepository;
+    private final ResultadoCuestionarioRepository resultadoCuestionarioRepository;
 
     private Grupo delProfesor(int id, Profesor profesor) {
         return grupoRepository.findByProfesorAndId(profesor, id)

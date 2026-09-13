@@ -1,6 +1,5 @@
 package com.example.chaea.controllers;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,21 +24,22 @@ import com.example.chaea.entities.Profesor;
 import com.example.chaea.services.CuestionarioService;
 import com.example.chaea.services.ResultadoCuestionarioService;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * Los try/catch por método desaparecieron: GlobalExceptionHandler traduce
  * EntityNotFoundException a 404 y AppException al status de su ErrorCode. Antes
  * cada bloque devolvía 400 con e.getMessage(), lo que disfrazaba de error de
  * cliente cualquier fallo de infraestructura.
  */
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/cuestionarios")
 public class CuestionarioController {
 
-    @Autowired
-    private CuestionarioService cuestionarioService;
+    private final CuestionarioService cuestionarioService;
 
-    @Autowired
-    private ResultadoCuestionarioService resultadoCuestionarioService;
+    private final ResultadoCuestionarioService resultadoCuestionarioService;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")

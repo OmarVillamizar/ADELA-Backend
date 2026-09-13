@@ -6,7 +6,6 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.TreeMap;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.example.chaea.dto.OpcionDTO;
@@ -19,21 +18,20 @@ import com.example.chaea.repositories.CuestionarioRepository;
 import com.example.chaea.repositories.PreguntaRepository;
 import com.example.chaea.repositories.ResultadoPreguntaRepository;
 
+import lombok.RequiredArgsConstructor;
 
+
+@RequiredArgsConstructor
 @Service
 public class PreguntaService {
     
-    @Autowired
-    private PreguntaRepository preguntaRepository;
+    private final PreguntaRepository preguntaRepository;
     
-    @Autowired
-    private CuestionarioRepository cuestionarioRepository;
+    private final CuestionarioRepository cuestionarioRepository;
     
-    @Autowired
-    private ResultadoPreguntaRepository resultadoPreguntaRepository;
+    private final ResultadoPreguntaRepository resultadoPreguntaRepository;
     
-    @Autowired
-    private OpcionService opcionService;
+    private final OpcionService opcionService;
     
     
     public void eliminarPregunta(Pregunta pregunta) {

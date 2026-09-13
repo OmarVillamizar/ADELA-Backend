@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,20 +22,19 @@ import com.example.chaea.repositories.ResultadoCuestionarioRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 
+import lombok.RequiredArgsConstructor;
+
+@RequiredArgsConstructor
 @Service
 public class CuestionarioService {
     
-    @Autowired
-    private CuestionarioRepository cuestionarioRepository;
+    private final CuestionarioRepository cuestionarioRepository;
     
-    @Autowired
-    private ResultadoCuestionarioRepository resultadoCuestionarioRepository;
+    private final ResultadoCuestionarioRepository resultadoCuestionarioRepository;
     
-    @Autowired
-    private CategoriaService categoriaService;
+    private final CategoriaService categoriaService;
     
-    @Autowired
-    private PreguntaService preguntaService;
+    private final PreguntaService preguntaService;
     
     public Cuestionario crearCuestionario(String nombre, String descripcion, String autor, String version,
             String siglas) {

@@ -3,7 +3,6 @@ package com.example.chaea.controllers;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -17,12 +16,14 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.chaea.entities.Rol;
 import com.example.chaea.repositories.RolRepository;
 
+import lombok.RequiredArgsConstructor;
+
+@RequiredArgsConstructor
 @RestController
 @RequestMapping("/api/roles")
 public class RolController {
     
-    @Autowired
-    private RolRepository rolRepository;
+    private final RolRepository rolRepository;
     
     // Crear un nuevo rol
     @PostMapping

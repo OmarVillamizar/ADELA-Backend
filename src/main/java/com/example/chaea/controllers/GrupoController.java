@@ -2,7 +2,6 @@ package com.example.chaea.controllers;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -23,17 +22,19 @@ import com.example.chaea.services.GrupoService;
 
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+import lombok.RequiredArgsConstructor;
+
 /**
  * Solo resuelve el profesor autenticado y delega. La lógica y las fronteras
  * transaccionales viven en GrupoService.
  */
+@RequiredArgsConstructor
 @Tag(name = "Grupos", description = "Gestión de grupos y de sus estudiantes")
 @RestController
 @RequestMapping("/api/grupos")
 public class GrupoController {
 
-    @Autowired
-    private GrupoService grupoService;
+    private final GrupoService grupoService;
 
     private Profesor autenticado() {
         return (Profesor) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
