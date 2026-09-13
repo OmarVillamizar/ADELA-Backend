@@ -1,5 +1,7 @@
 package com.example.chaea.entities;
 
+import java.util.Objects;
+
 import java.util.HashSet;
 import java.util.Set;
 
@@ -16,7 +18,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Setter;
+import lombok.Getter;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
@@ -24,7 +27,9 @@ import lombok.ToString;
 @Entity
 @AllArgsConstructor
 @NoArgsConstructor
-@Data
+@Getter
+@Setter
+@ToString
 public class Pregunta {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -49,4 +54,24 @@ public class Pregunta {
     @ToString.Exclude
     @JsonManagedReference
     private Set<Opcion> opciones = new HashSet<>();
+
+    /**
+     * Identidad por @Id, no por todos los campos. El equals de @Data recorria las
+     * colecciones perezosas (forzando su carga) y hacia "iguales" a dos filas
+     * distintas que coincidieran en el resto de columnas.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (!(o instanceof Pregunta))
+            return false;
+        Pregunta otro = (Pregunta) o;
+        return getId() != null && Objects.equals(getId(), otro.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getId());
+    }
 }

@@ -1,5 +1,7 @@
 package com.example.chaea.entities;
 
+import java.util.Objects;
+
 import jakarta.annotation.Nullable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -9,14 +11,14 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 
 @Entity
-@Data
-@EqualsAndHashCode(callSuper = false)
+@Getter
+@Setter
+@ToString
 @AllArgsConstructor
 @Table(name = "profesor")
 public class Profesor extends Usuario {
@@ -49,5 +51,24 @@ public class Profesor extends Usuario {
         this.estadoProfesor = estadoProfesor;
         this.rol = new Rol();
     }
-    
+
+    /**
+     * BUG-08: @EqualsAndHashCode(callSuper = false) excluia el @Id heredado, asi
+     * que dos profesores distintos con la misma carrera y rol eran "iguales" para
+     * cualquier Set, Map o contains. La identidad es el correo, como en Estudiante.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (!(o instanceof Profesor))
+            return false;
+        Profesor otro = (Profesor) o;
+        return Objects.equals(getEmail(), otro.getEmail());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getEmail());
+    }
 }

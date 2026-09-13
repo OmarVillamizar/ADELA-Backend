@@ -1,5 +1,7 @@
 package com.example.chaea.entities;
 
+import java.util.Objects;
+
 import jakarta.annotation.Nullable;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -10,10 +12,14 @@ import jakarta.persistence.Inheritance;
 import jakarta.persistence.InheritanceType;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
+import lombok.ToString;
+import lombok.Setter;
+import lombok.Getter;
 
 @Entity
-@Data
+@Getter
+@Setter
+@ToString
 @Inheritance(strategy = InheritanceType.JOINED)
 @Table(name = "Usuario")
 public abstract class Usuario {
@@ -69,5 +75,24 @@ public abstract class Usuario {
     public void setCodigo(String codigo) {
         this.codigo = codigo;
     }
-    
+
+    /**
+     * Identidad por @Id, no por todos los campos. El equals de @Data recorria las
+     * colecciones perezosas (forzando su carga) y hacia "iguales" a dos filas
+     * distintas que coincidieran en el resto de columnas.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o)
+            return true;
+        if (!(o instanceof Usuario))
+            return false;
+        Usuario otro = (Usuario) o;
+        return getEmail() != null && Objects.equals(getEmail(), otro.getEmail());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getEmail());
+    }
 }
