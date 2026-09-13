@@ -16,6 +16,19 @@ public class GrupoResumidoDTO {
     private String profesorEmail;
     private int numEstudiantes;
     
+    /**
+     * Constructor para la proyección JPQL de GrupoRepository.resumirPorProfesor.
+     * COUNT devuelve long; el DTO expone int porque es lo que ya consumía el cliente.
+     */
+    public GrupoResumidoDTO(int id, String nombre, String profesorNombre, String profesorEmail,
+            long numEstudiantes) {
+        this.id = id;
+        this.nombre = nombre;
+        this.profesorNombre = profesorNombre;
+        this.profesorEmail = profesorEmail;
+        this.numEstudiantes = (int) numEstudiantes;
+    }
+
     public static GrupoResumidoDTO from(Grupo g) {
         
         GrupoResumidoDTO gt = new GrupoResumidoDTO();

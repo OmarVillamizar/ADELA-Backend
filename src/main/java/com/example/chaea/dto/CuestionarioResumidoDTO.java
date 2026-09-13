@@ -16,6 +16,18 @@ public class CuestionarioResumidoDTO {
     private String version;
     private int numPreguntas;
     
+    /** Constructor para la proyección JPQL de CuestionarioRepository.resumirTodos. */
+    public CuestionarioResumidoDTO(Long id, String nombre, String siglas, String version, String autor,
+            String descripcion, long numPreguntas) {
+        this.id = id;
+        this.nombre = nombre;
+        this.siglas = siglas;
+        this.version = version;
+        this.autor = autor;
+        this.descripcion = descripcion;
+        this.numPreguntas = (int) numPreguntas;
+    }
+
     public static CuestionarioResumidoDTO from(Cuestionario cuestionario) {
         CuestionarioResumidoDTO res = new CuestionarioResumidoDTO();
         res.setAutor(cuestionario.getAutor());

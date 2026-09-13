@@ -2,7 +2,6 @@ package com.example.chaea.services;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -115,22 +114,7 @@ public class CuestionarioService {
     }
     
     public List<CuestionarioResumidoDTO> getCuestionarios() {
-        List<Cuestionario> cuestionarios = cuestionarioRepository.findAll();
-        List<CuestionarioResumidoDTO> cdtos = new LinkedList<>();
-        
-        for (Cuestionario cuestionario : cuestionarios) {
-            CuestionarioResumidoDTO cdto = new CuestionarioResumidoDTO();
-            cdto.setId(cuestionario.getId());
-            cdto.setAutor(cuestionario.getAutor());
-            cdto.setDescripcion(cuestionario.getDescripcion());
-            cdto.setNombre(cuestionario.getNombre());
-            cdto.setSiglas(cuestionario.getSiglas());
-            cdto.setVersion(cuestionario.getVersion());
-            cdto.setNumPreguntas(cuestionario.getPreguntas().size());
-            cdtos.add(cdto);
-        }
-        
-        return cdtos;
+        return cuestionarioRepository.resumirTodos();
     }
     
 }
