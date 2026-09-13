@@ -246,8 +246,9 @@ public class ProfesorController {
 
         Optional<Usuario> existente = usuarioRepository.findByCodigo(profesorDTO.getCodigo());
         if (existente.isPresent() && !existente.get().getEmail().equals(email)) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Ya hay una usuario registrado con el codigo: " + profesorDTO.getCodigo());
+            throw new AppException(ErrorCode.CODIGO_DUPLICADO,
+                    "El código " + profesorDTO.getCodigo() + " ya está registrado por otro usuario.",
+                    Map.of("codigo", "Ya está en uso"));
         }
         
         Profesor profesorExistente = profesorOptional.get();
