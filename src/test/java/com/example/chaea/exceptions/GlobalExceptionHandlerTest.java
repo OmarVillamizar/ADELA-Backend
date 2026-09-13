@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.example.chaea.dto.ApiError;
 
@@ -52,6 +53,19 @@ class GlobalExceptionHandlerTest {
         ResponseEntity<ApiError> res = handler.handleRutaInexistente(
                 new NoHandlerFoundException("GET", "/no/existe", new org.springframework.http.HttpHeaders()),
                 peticion("/no/existe"));
+
+        assertEquals(HttpStatus.NOT_FOUND, res.getStatusCode());
+        assertEquals(ErrorCode.RECURSO_NO_ENCONTRADO.name(), res.getBody().code());
+    }
+
+    @Test
+    @DisplayName("Un recurso estático inexistente también es 404")
+    void recursoEstaticoInexistenteEs404() {
+        // Con el manejador de recursos activo la peticion llega hasta el y lanza
+        // esta excepcion, no NoHandlerFoundException. Quitar @EnableWebMvc lo activo.
+        ResponseEntity<ApiError> res = handler.handleRutaInexistente(
+                new NoResourceFoundException(org.springframework.http.HttpMethod.GET, "/docs/loquesea"),
+                peticion("/docs/loquesea"));
 
         assertEquals(HttpStatus.NOT_FOUND, res.getStatusCode());
         assertEquals(ErrorCode.RECURSO_NO_ENCONTRADO.name(), res.getBody().code());

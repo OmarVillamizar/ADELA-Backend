@@ -15,6 +15,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.example.chaea.dto.ApiError;
 
@@ -100,11 +101,15 @@ public class GlobalExceptionHandler {
      * Una ruta inexistente es un error del cliente, no un fallo del servidor. Sin
      * este handler cae en handleInesperado y devuelve 500 con un traceId, que
      * sugiere una avería donde solo hay una URL mal escrita.
+     *
+     * Hacen falta las dos excepciones: con el manejador de recursos estáticos
+     * activo (el que restaura WebMvcAutoConfiguration al quitar @EnableWebMvc) la
+     * petición llega hasta él y lanza NoResourceFoundException, no la otra.
      */
-    @ExceptionHandler(NoHandlerFoundException.class)
-    public ResponseEntity<ApiError> handleRutaInexistente(NoHandlerFoundException ex, HttpServletRequest request) {
+    @ExceptionHandler({ NoHandlerFoundException.class, NoResourceFoundException.class })
+    public ResponseEntity<ApiError> handleRutaInexistente(Exception ex, HttpServletRequest request) {
         String traceId = nuevoTraceId();
-        logger.warn("[{}] Ruta inexistente: {} {}", traceId, ex.getHttpMethod(), ex.getRequestURL());
+        logger.warn("[{}] Ruta inexistente: {} {}", traceId, request.getMethod(), request.getRequestURI());
         return construir(ErrorCode.RECURSO_NO_ENCONTRADO, "La ruta solicitada no existe.", null, traceId, request);
     }
 

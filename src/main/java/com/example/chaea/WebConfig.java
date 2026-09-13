@@ -7,11 +7,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+/**
+ * Sin @EnableWebMvc: esa anotacion registra WebMvcConfigurationSupport y con ello
+ * desactiva WebMvcAutoConfiguration entera, que es @ConditionalOnMissingBean de
+ * esa clase. Implementar WebMvcConfigurer basta para añadir la config de CORS
+ * conservando los valores por defecto de Spring Boot.
+ */
 @Configuration
-@EnableWebMvc
 public class WebConfig implements WebMvcConfigurer {
     
     Logger logger = LoggerFactory.getLogger(WebConfig.class);
