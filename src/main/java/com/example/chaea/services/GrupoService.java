@@ -128,20 +128,44 @@ public class GrupoService {
         return GrupoDetalleDTO.from(grupoRepository.save(grupo));
     }
 
+    /**
+     * Reemplaza el grupo por lo recibido, que es lo que significa un PUT. Antes solo
+     * añadía: quitar a alguien de la lista no lo sacaba del grupo, así que no había
+     * forma de corregir una matrícula equivocada desde este endpoint. Y sin la
+     * comprobación de nulo que sí hace crear, un cuerpo sin estudiantes reventaba
+     * con NPE y salía como 500.
+     */
     @Transactional
     public GrupoDetalleDTO actualizar(int id, GrupoDTO datos, Profesor profesor) {
+        if (datos.getNombre() == null || datos.getEstudiantes() == null) {
+            throw new AppException(ErrorCode.VALIDACION, "Faltan campos requeridos: nombre y estudiantes.");
+        }
+
         Grupo grupo = delProfesor(id, profesor);
         grupo.setNombre(datos.getNombre());
 
+        Set<Estudiante> deseados = resolverOCrear(datos.getEstudiantes());
+
+        // Los que ya no aparecen salen del grupo y pierden sus asignaciones
+        // pendientes; las resueltas se conservan, como en eliminarEstudiante.
+        Set<Estudiante> aQuitar = new HashSet<>(grupo.getEstudiantes());
+        aQuitar.removeAll(deseados);
+        for (Estudiante estudiante : aQuitar) {
+            desvincular(grupo, estudiante);
+        }
+
         Set<Estudiante> aAgregar = new HashSet<>();
-        for (Estudiante estudiante : resolverOCrear(datos.getEstudiantes())) {
+        for (Estudiante estudiante : deseados) {
             if (!grupo.getEstudiantes().contains(estudiante)) {
                 estudiante.getGrupos().add(grupo);
+                grupo.getEstudiantes().add(estudiante);
                 aAgregar.add(estudiante);
             }
         }
-        grupo.getEstudiantes().addAll(aAgregar);
+
+        estudianteRepository.saveAll(aQuitar);
         estudianteRepository.saveAll(aAgregar);
+        resultadoCuestionarioService.asignarCuestionariosAsignadosAlGrupoAEstudiantesNuevos(grupo, aAgregar);
         return GrupoDetalleDTO.from(grupoRepository.save(grupo));
     }
 
