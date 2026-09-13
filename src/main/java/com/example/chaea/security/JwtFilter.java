@@ -99,7 +99,6 @@ public class JwtFilter extends OncePerRequestFilter {
                     } else {
                         throw new RuntimeException("El usuario no está relacionado a ninguna cuenta");
                     }
-                    // System.out.println(authenticationToken);
                     authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                     

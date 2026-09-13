@@ -438,7 +438,6 @@ public class ResultadoCuestionarioService {
                 preg.put(p.getId(), pr);
             }
         }
-        System.out.println(preg.values());
         res.setCategorias(categorias);
         res.setPreguntas(new LinkedList<>(preg.values()));
         

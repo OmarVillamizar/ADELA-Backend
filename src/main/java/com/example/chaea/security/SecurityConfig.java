@@ -200,11 +200,11 @@ public class SecurityConfig {
             
             // Lógica personalizada para manejar diferentes tipos de usuarios
             if ("profesor".equals(userType)) {
-                System.out.println("Usuario es un profesor");
+                logger.debug("Login OAuth2 de tipo profesor");
                 // Redirigir al dashboard de profesor
                 response.sendRedirect("/auth/login/success/prof?redirect_to=" + redirectTo);
             } else if ("estudiante".equals(userType)) {
-                System.out.println("Usuario es un estudiante");
+                logger.debug("Login OAuth2 de tipo estudiante");
                 // Redirigir al dashboard de estudiante
                 response.sendRedirect("/auth/login/success/estud?redirect_to=" + redirectTo);
             } else {
