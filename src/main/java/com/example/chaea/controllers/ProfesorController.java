@@ -1,6 +1,5 @@
 package com.example.chaea.controllers;
 
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,6 +31,7 @@ import com.example.chaea.repositories.RolRepository;
 import com.example.chaea.repositories.UsuarioRepository;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/profesores")
@@ -177,40 +177,17 @@ public class ProfesorController {
                         "El rol " + descripcion + " no está configurado en el sistema."));
     }
 
-    /** Debe coincidir con @Column(length = 8) en Usuario.codigo. */
-    private static final int LONGITUD_MAX_CODIGO = 8;
-
     @PutMapping
     @PreAuthorize("hasRole('PROFESOR') or hasRole('PROFESOR_INCOMPLETO') or hasRole('PROFESOR_INACTIVO') or hasRole('ADMINISTRADOR')")
-    public ResponseEntity<?> actualizarProfesor(@RequestBody ProfesorDTO profesorDTO) {
+    public ResponseEntity<?> actualizarProfesor(@Valid @RequestBody ProfesorDTO profesorDTO) {
         // Validar formato de correo electrónico
         Profesor prof = (Profesor) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         
         String email = prof.getEmail();
         
-        List<String> errores = new LinkedList<String>();
-        if (profesorDTO.getCodigo() == null) {
-            errores.add("codigo");
-        }
-        if (profesorDTO.getCarrera() == null) {
-            errores.add("carrera");
-        }
-        
-        if (errores.size() > 0) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Profesor presenta errores en los siguientes campos: " + errores.toString());
-        }
         Optional<Profesor> profesorOptional = profesorRepository.findById(email);
         if (!profesorOptional.isPresent()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Profesor : " + email);
-        }
-        // Usuario.codigo es varchar(8): sin esta comprobacion el desbordamiento
-        // llegaba a Postgres y salia como "conflicto con datos ya existentes",
-        // que describe un problema distinto al real.
-        if (profesorDTO.getCodigo().length() > LONGITUD_MAX_CODIGO) {
-            throw new AppException(ErrorCode.VALIDACION,
-                    "El código admite un máximo de " + LONGITUD_MAX_CODIGO + " caracteres.",
-                    Map.of("codigo", "Máximo " + LONGITUD_MAX_CODIGO + " caracteres"));
         }
 
         Optional<Usuario> existente = usuarioRepository.findByCodigo(profesorDTO.getCodigo());

@@ -173,8 +173,6 @@ public class ResultadoCuestionarioService {
     }
     
     @Transactional(readOnly = true)
-    
-    @Transactional(readOnly = true)
     public boolean existeAsignacion(Estudiante estudiante, Cuestionario cuestionario) {
         return !resultadoCuestionarioRepository
             .findByCuestionarioAndEstudianteAndFechaResolucionIsNull(cuestionario, estudiante)

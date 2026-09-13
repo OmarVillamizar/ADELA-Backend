@@ -6,6 +6,7 @@ import com.example.chaea.entities.Estudiante;
 import com.example.chaea.entities.Genero;
 import com.example.chaea.entities.UsuarioEstado;
 
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -15,8 +16,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class EstudianteDTO extends UserDTO {
     
+    @NotNull(message = "El género es obligatorio")
     private Genero genero;
-    
+
+    @NotNull(message = "La fecha de nacimiento es obligatoria")
     private Date fechaNacimiento;
     
     public EstudianteDTO(String email, String nombre, String codigo, UsuarioEstado estado, Genero genero,

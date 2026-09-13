@@ -5,6 +5,7 @@ import com.example.chaea.entities.Profesor;
 import com.example.chaea.entities.Rol;
 import com.example.chaea.entities.UsuarioEstado;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -14,6 +15,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ProfesorDTO extends UserDTO {
     
+    @NotBlank(message = "La carrera es obligatoria")
     private String carrera;
     private String rol;
     private ProfesorEstado estadoProfesor;

@@ -1,6 +1,5 @@
 package com.example.chaea.controllers;
 
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -29,6 +28,8 @@ import com.example.chaea.exceptions.AppException;
 import com.example.chaea.exceptions.ErrorCode;
 import com.example.chaea.repositories.EstudianteRepository;
 import com.example.chaea.repositories.UsuarioRepository;
+
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/estudiantes")
@@ -83,44 +84,19 @@ public class EstudianteController {
     /** Tope duro: el cliente no puede pedir la tabla entera subiendo `size`. */
     private static final int TAM_PAGINA_MAX = 100;
 
-    /** Debe coincidir con @Column(length = 8) en Usuario.codigo. */
-    private static final int LONGITUD_MAX_CODIGO = 8;
-
     @PutMapping
     @PreAuthorize("hasRole('ESTUDIANTE') or hasRole('ESTUDIANTE_INCOMPLETO')")
-    public ResponseEntity<?> actualizarEstudiante(@RequestBody EstudianteDTO estudianteDTO) {
+    public ResponseEntity<?> actualizarEstudiante(@Valid @RequestBody EstudianteDTO estudianteDTO) {
         // Validar formato de correo electrónico
         Estudiante estud = (Estudiante) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         
         String email = estud.getEmail();
 
-        List<String> errores = new LinkedList<String>();
-        if (estudianteDTO.getCodigo() == null) {
-            errores.add("codigo");
-        }
-        if (estudianteDTO.getFechaNacimiento() == null) {
-            errores.add("fecha de nacimiento");
-        }
-        if (estudianteDTO.getGenero() == null) {
-            errores.add("genero");
-        }
-        if (errores.size() > 0) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Estudiante presenta errores en los siguientes campos: " + errores.toString());
-        }
         Optional<Estudiante> estudianteOptional = estudianteRepository.findById(email);
         if (!estudianteOptional.isPresent()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Estudiante no encontrado con el correo: " + email);
         }
         
-        // Usuario.codigo es varchar(8): sin esta comprobacion el desbordamiento
-        // llegaba a Postgres y salia como "conflicto con datos ya existentes",
-        // que describe un problema distinto al real.
-        if (estudianteDTO.getCodigo().length() > LONGITUD_MAX_CODIGO) {
-            throw new AppException(ErrorCode.VALIDACION,
-                    "El código admite un máximo de " + LONGITUD_MAX_CODIGO + " caracteres.",
-                    Map.of("codigo", "Máximo " + LONGITUD_MAX_CODIGO + " caracteres"));
-        }
 
         // Usuario.codigo es unique: sin esta comprobacion la violacion de constraint
         // salia como 500. ProfesorController ya la hacia; aqui faltaba.
