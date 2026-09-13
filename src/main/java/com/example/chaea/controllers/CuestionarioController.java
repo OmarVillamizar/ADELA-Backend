@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.chaea.dto.CuestionarioDTO;
+import com.example.chaea.dto.CuestionarioResumidoDTO;
 import com.example.chaea.dto.CuestionarioParaResponderDTO;
 import com.example.chaea.dto.RequestEstudianteEmail;
 import com.example.chaea.dto.RespuestaCuestionarioDTO;
@@ -43,8 +44,9 @@ public class CuestionarioController {
     @PostMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<?> crearCuestionario(@RequestBody CuestionarioDTO cuestionarioDTO) {
-        Cuestionario cuestionario = cuestionarioService.crearCuestionario(cuestionarioDTO);
-        return ResponseEntity.ok(cuestionario);
+        // Resumen, no la entidad: devolverla entera arrastraba preguntas, opciones y
+        // el baremo completo en la respuesta de creacion.
+        return ResponseEntity.ok(cuestionarioService.crearCuestionarioDTO(cuestionarioDTO));
     }
 
     @GetMapping
@@ -61,8 +63,7 @@ public class CuestionarioController {
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('PROFESOR') or hasRole('ESTUDIANTE')")
     public ResponseEntity<?> obtenerCuestionario(@PathVariable Long id) {
-        Cuestionario cuestionario = cuestionarioService.getCuestionarioPorId(id);
-        return ResponseEntity.ok(CuestionarioParaResponderDTO.from(cuestionario));
+        return ResponseEntity.ok(cuestionarioService.obtenerParaResponder(id));
     }
 
     @DeleteMapping("/{id}")

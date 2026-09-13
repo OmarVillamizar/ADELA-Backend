@@ -103,7 +103,7 @@ public class EstudianteController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Estudiante no encontrado con el correo: " + email);
         }
         
-        return ResponseEntity.ok(estudianteOptional.get());
+        return ResponseEntity.ok(EstudianteDTO.from(estudianteOptional.get()));
     }
     
     /*
@@ -179,7 +179,7 @@ public class EstudianteController {
         estudianteExistente.setFecha_nacimiento(estudianteDTO.getFechaNacimiento());
         estudianteExistente.setEstado(UsuarioEstado.ACTIVA);
         
-        return ResponseEntity.ok(estudianteRepository.save(estudianteExistente));
+        return ResponseEntity.ok(EstudianteDTO.from(estudianteRepository.save(estudianteExistente)));
     }
     
 }

@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.chaea.dto.CategoriaDTO;
 import com.example.chaea.dto.CuestionarioDTO;
+import com.example.chaea.dto.CuestionarioParaResponderDTO;
 import com.example.chaea.dto.CuestionarioResumidoDTO;
 import com.example.chaea.dto.PreguntaDTO;
 import com.example.chaea.entities.Categoria;
@@ -49,6 +50,15 @@ public class CuestionarioService {
         return cuestionarioRepository.save(cuestionario);
     }
     
+    /**
+     * Devuelve el resumen, no la entidad: el conteo de preguntas se calcula dentro
+     * de la transacción, donde la colección todavía se puede recorrer.
+     */
+    @Transactional
+    public CuestionarioResumidoDTO crearCuestionarioDTO(CuestionarioDTO cuestionarioDTO) {
+        return CuestionarioResumidoDTO.from(crearCuestionario(cuestionarioDTO));
+    }
+
     @Transactional
     public Cuestionario crearCuestionario(CuestionarioDTO cuestionarioDTO) {
         Cuestionario cuestionarioSave = new Cuestionario();
@@ -108,6 +118,16 @@ public class CuestionarioService {
         resultadoCuestionarioRepository.deleteByCuestionario(cuestionario);
     }
     
+    /**
+     * Arma el DTO dentro de la transacción. Hacerlo en el controlador recorría
+     * preguntas y opciones con la sesión ya cerrada.
+     */
+    @Transactional(readOnly = true)
+    public CuestionarioParaResponderDTO obtenerParaResponder(Long id) {
+        return CuestionarioParaResponderDTO.from(getCuestionarioPorId(id));
+    }
+
+    @Transactional(readOnly = true)
     public Cuestionario getCuestionarioPorId(Long id) {
         return cuestionarioRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Cuestionario no encontrado con el ID: " + id));
