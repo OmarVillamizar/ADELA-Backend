@@ -44,14 +44,6 @@ public class Profesor extends Usuario {
         
     }
     
-    public Profesor(String email, String nombre, String codigo, String carrera, UsuarioEstado estado,
-            ProfesorEstado estadoProfesor) {
-        super(email, nombre, codigo, estado);
-        this.carrera = carrera;
-        this.estadoProfesor = estadoProfesor;
-        this.rol = new Rol();
-    }
-
     /**
      * BUG-08: @EqualsAndHashCode(callSuper = false) excluia el @Id heredado, asi
      * que dos profesores distintos con la misma carrera y rol eran "iguales" para

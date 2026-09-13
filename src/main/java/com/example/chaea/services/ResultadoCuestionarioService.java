@@ -173,21 +173,6 @@ public class ResultadoCuestionarioService {
     }
     
     @Transactional(readOnly = true)
-    public List<Cuestionario> obtenerCuestionariosPorGrupo(Integer grupoId) {
-        Grupo grupo = grupoRepository.findById(grupoId)
-                .orElseThrow(() -> new EntityNotFoundException("No existe el grupo con id " + grupoId));
-        
-        // Aquí obtienes los resultados (asignaciones) por grupo y extraes los cuestionarios únicos
-        List<ResultadoCuestionario> resultados = resultadoCuestionarioRepository.findByGrupo(grupo);
-        
-        // Usamos un Set para evitar duplicados
-        Set<Cuestionario> cuestionarios = new TreeSet<>((c1, c2) -> c1.getId().compareTo(c2.getId()));
-        for (ResultadoCuestionario rc : resultados) {
-            cuestionarios.add(rc.getCuestionario());
-        }
-        
-        return new LinkedList<>(cuestionarios);
-    }
     
     @Transactional(readOnly = true)
     public boolean existeAsignacion(Estudiante estudiante, Cuestionario cuestionario) {

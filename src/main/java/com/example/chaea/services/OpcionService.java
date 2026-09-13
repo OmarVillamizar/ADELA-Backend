@@ -11,7 +11,6 @@ import com.example.chaea.repositories.CategoriaRepository;
 import com.example.chaea.repositories.OpcionRepository;
 import com.example.chaea.repositories.PreguntaRepository;
 
-import jakarta.persistence.EntityNotFoundException;
 
 @Service
 public class OpcionService {
@@ -25,29 +24,8 @@ public class OpcionService {
     @Autowired
     private OpcionRepository opcionRepository;
     
-    public Opcion crearOpcion(Long idPregunta, Long idCategoria, String respuesta, int orden, Double valor) {
-        Pregunta pregunta = preguntaRepository.findById(idPregunta)
-                .orElseThrow(() -> new EntityNotFoundException("Pregunta no encontrada con id " + idPregunta));
-        
-        Categoria categoria = categoriaRepository.findById(idCategoria)
-                .orElseThrow(() -> new EntityNotFoundException("Categoria no encontrada con id " + idCategoria));
-        
-        if (pregunta.getCuestionario().getId().equals(categoria.getCuestionario().getId())) {
-            Opcion opcion = new Opcion();
-            opcion.setOrden(orden);
-            opcion.setPregunta(pregunta);
-            opcion.setCategoria(categoria);
-            opcion.setValor(valor);
-            opcion.setRespuesta(respuesta);
-            
-            return opcionRepository.save(opcion);
-        }
-        throw new RuntimeException("Inconsistencias en los cuestionarios de pregunta ("
-                + pregunta.getCuestionario().getId() + ") y categoria(" + categoria.getCuestionario().getId() + ")");
-    }
     
     public void eliminarOpcion(Opcion opcion) {
-        opcionRepository.save(opcion);
         opcionRepository.delete(opcion);
     }
     

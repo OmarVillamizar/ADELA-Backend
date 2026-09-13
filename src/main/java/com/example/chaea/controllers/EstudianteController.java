@@ -4,7 +4,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -47,32 +46,6 @@ public class EstudianteController {
         return "Hola";
     }
     
-    /*
-     * No puedo crear estudiantes siendo profesor /
-     * 
-     * @PostMapping
-     * 
-     * @PreAuthorize("hasRole('PROFESOR') or hasRole('ADMINISTRADOR')") public
-     * ResponseEntity<?> crearEstudiante(@RequestBody EstudianteDTO estudianteDTO) {
-     * // Validar campos requeridos if (estudianteDTO.getEmail() == null ||
-     * estudianteDTO.getNombre() == null || estudianteDTO.getCodigo() == null) {
-     * return ResponseEntity.status(HttpStatus.BAD_REQUEST).
-     * body("Faltan campos requeridos."); } // Validar formato de correo electrónico
-     * if (!EMAIL_PATTERN.matcher(estudianteDTO.getEmail()).matches()) { return
-     * ResponseEntity.status(HttpStatus.BAD_REQUEST)
-     * .body("Formato de correo incorrecto: " + estudianteDTO.getEmail()); } //
-     * Verificar si el correo ya existe if
-     * (estudianteRepository.existsById(estudianteDTO.getEmail())) { return
-     * ResponseEntity.status(HttpStatus.CONFLICT) .body("Estudiante con el correo "
-     * + estudianteDTO.getEmail() + " ya existe."); }
-     * 
-     * Estudiante estudiante = new Estudiante();
-     * estudiante.setCodigo(estudianteDTO.getCodigo());
-     * estudiante.setEmail(estudianteDTO.getEmail());
-     * estudiante.setNombre(estudianteDTO.getNombre());
-     * estudiante.setEstado(UsuarioEstado.INCOMPLETA); return
-     * ResponseEntity.ok(estudianteRepository.save(estudiante)); }
-     */
     /**
      * Devuelve como mucho una página de estudiantes. Antes esto era findAll() sin
      * paginación y el cliente lo pedía entero al abrir /grupos, para filtrar en
@@ -106,21 +79,6 @@ public class EstudianteController {
         return ResponseEntity.ok(EstudianteDTO.from(estudianteOptional.get()));
     }
     
-    /*
-     * @DeleteMapping("/{email}") public ResponseEntity<?>
-     * eliminarEstudiante(@PathVariable String email) { // Validar formato de correo
-     * electrónico if (!EMAIL_PATTERN.matcher(email).matches()) { return
-     * ResponseEntity.status(HttpStatus.BAD_REQUEST).
-     * body("Formato de correo incorrecto: " + email); }
-     * 
-     * Optional<Estudiante> estudianteOptional =
-     * estudianteRepository.findById(email); if (!estudianteOptional.isPresent()) {
-     * return ResponseEntity.status(HttpStatus.NOT_FOUND).
-     * body("Estudiante no encontrado con el correo: " + email); }
-     * 
-     * estudianteRepository.deleteById(email); return
-     * ResponseEntity.ok().body("Estudiante eliminado exitosamente."); }
-     */
     
     /** Tope duro: el cliente no puede pedir la tabla entera subiendo `size`. */
     private static final int TAM_PAGINA_MAX = 100;

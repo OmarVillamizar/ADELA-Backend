@@ -19,7 +19,6 @@ import com.example.chaea.repositories.CuestionarioRepository;
 import com.example.chaea.repositories.PreguntaRepository;
 import com.example.chaea.repositories.ResultadoPreguntaRepository;
 
-import jakarta.persistence.EntityNotFoundException;
 
 @Service
 public class PreguntaService {
@@ -36,16 +35,6 @@ public class PreguntaService {
     @Autowired
     private OpcionService opcionService;
     
-    public Pregunta crearPregunta(Long idCuestionario, String preguntaStr, int orden, boolean opcionMultple) {
-        Cuestionario cuestionario = cuestionarioRepository.findById(idCuestionario)
-                .orElseThrow(() -> new EntityNotFoundException("Cuestionario no encontrado con id " + idCuestionario));
-        Pregunta pregunta = new Pregunta();
-        pregunta.setCuestionario(cuestionario);
-        pregunta.setPregunta(preguntaStr);
-        pregunta.setOrden(orden);
-        
-        return preguntaRepository.save(pregunta);
-    }
     
     public void eliminarPregunta(Pregunta pregunta) {
         for (Opcion opcion : pregunta.getOpciones()) {

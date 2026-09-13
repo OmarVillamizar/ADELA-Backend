@@ -9,7 +9,6 @@ import com.example.chaea.entities.Cuestionario;
 import com.example.chaea.repositories.CategoriaRepository;
 import com.example.chaea.repositories.CuestionarioRepository;
 
-import jakarta.persistence.EntityNotFoundException;
 
 @Service
 public class CategoriaService {
@@ -20,19 +19,6 @@ public class CategoriaService {
     @Autowired
     private CuestionarioRepository cuestionarioRepository;
     
-    public Categoria crearCategoria(Long idCuestionario, String nombre, Double valorMinimo, Double valorMaximo) {
-        Cuestionario cuestionario = cuestionarioRepository.findById(idCuestionario)
-                .orElseThrow(() -> new EntityNotFoundException("Cuestionario no encontrado con id " + idCuestionario));
-        
-        Categoria categoria = new Categoria();
-        
-        categoria.setCuestionario(cuestionario);
-        categoria.setNombre(nombre);
-        categoria.setValorMaximo(valorMaximo);
-        categoria.setValorMinimo(valorMinimo);
-        
-        return categoriaRepository.save(categoria);
-    }
     
     public void eliminarCategoria(Categoria categoria) {
         categoriaRepository.delete(categoria);
