@@ -8,6 +8,8 @@ import java.util.Set;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import jakarta.annotation.Nullable;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.JoinColumn;
@@ -23,7 +25,10 @@ import lombok.Data;
 @Table(name = "estudiante")
 public class Estudiante extends Usuario {
     
-    @Enumerated
+    // Sin EnumType.STRING se guarda el ordinal: reordenar Genero reasignaria en
+    // silencio el genero de todos los registros ya guardados.
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
     @Nullable
     private Genero genero;
     

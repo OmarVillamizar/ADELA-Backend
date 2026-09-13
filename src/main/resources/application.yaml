@@ -8,11 +8,19 @@ spring:
         driver-class-name: ${DATABASE_DRIVER_NAME}
     jpa:
         hibernate:
-            ddl-auto: update
+            # Flyway es la fuente de verdad del esquema. Hibernate solo comprueba que
+            # las entidades cuadren con lo que las migraciones dejaron; ya no altera
+            # nada por su cuenta, que es como el esquema derivaba en silencio.
+            ddl-auto: validate
         properties: 
             hibernate:
                 dialect: ${HIBERNATE_DIALECT}
-        generate-ddl: true
+    flyway:
+        enabled: true
+        # El esquema ya existe, creado por ddl-auto: update. baseline lo adopta como
+        # version 1 en lugar de intentar recrearlo desde cero.
+        baseline-on-migrate: true
+        baseline-version: 1
     application:
         name: chaea
     security:
@@ -46,4 +54,4 @@ springdoc:
         path: /docs/swagger-ui.html
         
 server:
-  port: ${PORT}
+  port: ${PORT:8080}
