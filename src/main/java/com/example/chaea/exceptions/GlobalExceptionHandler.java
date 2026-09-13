@@ -70,6 +70,16 @@ public class GlobalExceptionHandler {
         String detalle = ex.getMostSpecificCause().getMessage();
         logger.warn("[{}] Violación de integridad en {}: {}", traceId, request.getRequestURI(), detalle);
 
+        // Un valor que no cabe en la columna no es un conflicto con datos ya
+        // existentes: es un dato invalido. Postgres lo reporta como "value too long
+        // for type character varying(n)" sin nombrar la columna, asi que aqui solo
+        // se corrige el status y el mensaje; el campo concreto lo senala la
+        // validacion del controlador, que si sabe cual es.
+        if (detalle != null && detalle.toLowerCase().contains("value too long")) {
+            return construir(ErrorCode.VALIDACION, "Alguno de los datos enviados supera la longitud permitida.", null,
+                    traceId, request);
+        }
+
         if (detalle != null && detalle.toLowerCase().contains("codigo")) {
             return construir(ErrorCode.CODIGO_DUPLICADO, "El código ya está registrado por otro usuario.",
                     Map.of("codigo", "Ya está en uso"), traceId, request);

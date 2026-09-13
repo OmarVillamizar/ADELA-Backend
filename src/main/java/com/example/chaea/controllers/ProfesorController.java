@@ -24,6 +24,8 @@ import com.example.chaea.entities.ProfesorEstado;
 import com.example.chaea.entities.Rol;
 import com.example.chaea.entities.Usuario;
 import com.example.chaea.entities.UsuarioEstado;
+import java.util.Map;
+
 import com.example.chaea.exceptions.AppException;
 import com.example.chaea.exceptions.ErrorCode;
 import com.example.chaea.repositories.ProfesorRepository;
@@ -206,6 +208,9 @@ public class ProfesorController {
                         "El rol " + descripcion + " no está configurado en el sistema."));
     }
 
+    /** Debe coincidir con @Column(length = 8) en Usuario.codigo. */
+    private static final int LONGITUD_MAX_CODIGO = 8;
+
     @PutMapping
     @PreAuthorize("hasRole('PROFESOR') or hasRole('PROFESOR_INCOMPLETO') or hasRole('PROFESOR_INACTIVO') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<?> actualizarProfesor(@RequestBody ProfesorDTO profesorDTO) {
@@ -230,6 +235,15 @@ public class ProfesorController {
         if (!profesorOptional.isPresent()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Profesor : " + email);
         }
+        // Usuario.codigo es varchar(8): sin esta comprobacion el desbordamiento
+        // llegaba a Postgres y salia como "conflicto con datos ya existentes",
+        // que describe un problema distinto al real.
+        if (profesorDTO.getCodigo().length() > LONGITUD_MAX_CODIGO) {
+            throw new AppException(ErrorCode.VALIDACION,
+                    "El código admite un máximo de " + LONGITUD_MAX_CODIGO + " caracteres.",
+                    Map.of("codigo", "Máximo " + LONGITUD_MAX_CODIGO + " caracteres"));
+        }
+
         Optional<Usuario> existente = usuarioRepository.findByCodigo(profesorDTO.getCodigo());
         if (existente.isPresent() && !existente.get().getEmail().equals(email)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)

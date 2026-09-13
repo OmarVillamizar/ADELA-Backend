@@ -103,6 +103,9 @@ public class EstudianteController {
      * ResponseEntity.ok().body("Estudiante eliminado exitosamente."); }
      */
     
+    /** Debe coincidir con @Column(length = 8) en Usuario.codigo. */
+    private static final int LONGITUD_MAX_CODIGO = 8;
+
     @PutMapping
     @PreAuthorize("hasRole('ESTUDIANTE') or hasRole('ESTUDIANTE_INCOMPLETO')")
     public ResponseEntity<?> actualizarEstudiante(@RequestBody EstudianteDTO estudianteDTO) {
@@ -130,6 +133,15 @@ public class EstudianteController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Estudiante no encontrado con el correo: " + email);
         }
         
+        // Usuario.codigo es varchar(8): sin esta comprobacion el desbordamiento
+        // llegaba a Postgres y salia como "conflicto con datos ya existentes",
+        // que describe un problema distinto al real.
+        if (estudianteDTO.getCodigo().length() > LONGITUD_MAX_CODIGO) {
+            throw new AppException(ErrorCode.VALIDACION,
+                    "El código admite un máximo de " + LONGITUD_MAX_CODIGO + " caracteres.",
+                    Map.of("codigo", "Máximo " + LONGITUD_MAX_CODIGO + " caracteres"));
+        }
+
         // Usuario.codigo es unique: sin esta comprobacion la violacion de constraint
         // salia como 500. ProfesorController ya la hacia; aqui faltaba.
         Optional<Usuario> conMismoCodigo = usuarioRepository.findByCodigo(estudianteDTO.getCodigo());
