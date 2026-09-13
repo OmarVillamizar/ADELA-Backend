@@ -15,6 +15,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -69,10 +73,25 @@ public class EstudianteController {
      * estudiante.setEstado(UsuarioEstado.INCOMPLETA); return
      * ResponseEntity.ok(estudianteRepository.save(estudiante)); }
      */
+    /**
+     * Devuelve como mucho una página de estudiantes. Antes esto era findAll() sin
+     * paginación y el cliente lo pedía entero al abrir /grupos, para filtrar en
+     * memoria un autocompletado: con la matrícula de una facultad eso es
+     * descargar toda la tabla en cada visita.
+     *
+     * `q` filtra por correo o nombre. Sin `q` se devuelve la primera página, que
+     * mantiene el contrato anterior para quien no pagine.
+     */
     @GetMapping
     @PreAuthorize("hasRole('PROFESOR') or hasRole('ADMINISTRADOR')")
-    public ResponseEntity<List<Estudiante>> listarEstudiantes() {
-        return ResponseEntity.ok(estudianteRepository.findAll());
+    public ResponseEntity<List<EstudianteDTO>> listarEstudiantes(
+            @RequestParam(required = false, defaultValue = "") String q,
+            @RequestParam(required = false, defaultValue = "20") int size) {
+        Pageable pagina = PageRequest.of(0, Math.min(Math.max(size, 1), TAM_PAGINA_MAX), Sort.by("email"));
+        List<EstudianteDTO> resultado = estudianteRepository
+                .findByEmailContainingIgnoreCaseOrNombreContainingIgnoreCase(q, q, pagina).getContent().stream()
+                .map(EstudianteDTO::from).toList();
+        return ResponseEntity.ok(resultado);
     }
     
     @GetMapping("/{email}")
@@ -103,6 +122,9 @@ public class EstudianteController {
      * ResponseEntity.ok().body("Estudiante eliminado exitosamente."); }
      */
     
+    /** Tope duro: el cliente no puede pedir la tabla entera subiendo `size`. */
+    private static final int TAM_PAGINA_MAX = 100;
+
     /** Debe coincidir con @Column(length = 8) en Usuario.codigo. */
     private static final int LONGITUD_MAX_CODIGO = 8;
 
