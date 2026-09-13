@@ -1,6 +1,7 @@
 package com.example.chaea.dto;
 
 import com.example.chaea.entities.ProfesorEstado;
+import com.example.chaea.entities.Profesor;
 import com.example.chaea.entities.Rol;
 import com.example.chaea.entities.UsuarioEstado;
 
