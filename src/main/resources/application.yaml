@@ -28,7 +28,7 @@ spring:
         baseline-on-migrate: true
         baseline-version: 1
     application:
-        name: chaea
+        name: adela
     security:
         oauth2:
             client:
