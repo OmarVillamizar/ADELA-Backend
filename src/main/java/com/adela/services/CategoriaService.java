@@ -6,7 +6,6 @@ import com.adela.dto.CategoriaDTO;
 import com.adela.entities.Categoria;
 import com.adela.entities.Cuestionario;
 import com.adela.repositories.CategoriaRepository;
-import com.adela.repositories.CuestionarioRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -16,8 +15,6 @@ import lombok.RequiredArgsConstructor;
 public class CategoriaService {
     
     private final CategoriaRepository categoriaRepository;
-    
-    private final CuestionarioRepository cuestionarioRepository;
     
     
     public void eliminarCategoria(Categoria categoria) {

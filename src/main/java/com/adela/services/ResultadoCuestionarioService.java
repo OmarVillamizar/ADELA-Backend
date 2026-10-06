@@ -316,8 +316,6 @@ public class ResultadoCuestionarioService {
     private ResultCuestCompletoDTO construirResultado(ResultadoCuestionario resC) {
         ResultCuestCompletoDTO res = new ResultCuestCompletoDTO();
 
-        Long cuestionarioResueltoId = resC.getId();
-
         if (resC.getFechaResolucion() == null) {
             throw new AppException(ErrorCode.CUESTIONARIO_SIN_RESOLVER,
                     "Este cuestionario todavía no ha sido respondido.");

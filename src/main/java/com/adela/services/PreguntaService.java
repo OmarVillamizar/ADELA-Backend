@@ -14,7 +14,6 @@ import com.adela.entities.Categoria;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Opcion;
 import com.adela.entities.Pregunta;
-import com.adela.repositories.CuestionarioRepository;
 import com.adela.repositories.PreguntaRepository;
 import com.adela.repositories.ResultadoPreguntaRepository;
 
@@ -26,8 +25,6 @@ import lombok.RequiredArgsConstructor;
 public class PreguntaService {
     
     private final PreguntaRepository preguntaRepository;
-    
-    private final CuestionarioRepository cuestionarioRepository;
     
     private final ResultadoPreguntaRepository resultadoPreguntaRepository;
     

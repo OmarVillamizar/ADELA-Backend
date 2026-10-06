@@ -6,9 +6,7 @@ import com.adela.dto.OpcionDTO;
 import com.adela.entities.Categoria;
 import com.adela.entities.Opcion;
 import com.adela.entities.Pregunta;
-import com.adela.repositories.CategoriaRepository;
 import com.adela.repositories.OpcionRepository;
-import com.adela.repositories.PreguntaRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -16,10 +14,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Service
 public class OpcionService {
-    
-    private final CategoriaRepository categoriaRepository;
-    
-    private final PreguntaRepository preguntaRepository;
     
     private final OpcionRepository opcionRepository;
     

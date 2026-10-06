@@ -14,12 +14,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.adela.dto.CuestionarioDTO;
-import com.adela.dto.CuestionarioResumidoDTO;
-import com.adela.dto.CuestionarioParaResponderDTO;
 import com.adela.dto.RequestEstudianteEmail;
 import com.adela.dto.RespuestaCuestionarioDTO;
 import com.adela.dto.ResultCuestCompletoDTO;
-import com.adela.entities.Cuestionario;
 import com.adela.entities.Estudiante;
 import com.adela.entities.Insignia;
 import com.adela.entities.Profesor;
