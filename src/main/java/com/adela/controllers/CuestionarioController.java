@@ -9,11 +9,13 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.adela.dto.CuestionarioDTO;
+import com.adela.dto.InterpretacionDTO;
 import com.adela.dto.RequestEstudianteEmail;
 import com.adela.dto.RespuestaCuestionarioDTO;
 import com.adela.dto.ResultCuestCompletoDTO;
@@ -22,6 +24,7 @@ import com.adela.entities.Insignia;
 import com.adela.entities.Profesor;
 import com.adela.services.CuestionarioService;
 import com.adela.services.InsigniaService;
+import com.adela.services.InterpretacionService;
 import com.adela.services.ResultadoCuestionarioService;
 
 import lombok.RequiredArgsConstructor;
@@ -42,6 +45,8 @@ public class CuestionarioController {
     private final ResultadoCuestionarioService resultadoCuestionarioService;
 
     private final InsigniaService insigniaService;
+    
+    private final InterpretacionService interpretacionService;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
@@ -66,6 +71,19 @@ public class CuestionarioController {
     @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('PROFESOR') or hasRole('ESTUDIANTE')")
     public ResponseEntity<?> obtenerCuestionario(@PathVariable Long id) {
         return ResponseEntity.ok(cuestionarioService.obtenerParaResponder(id));
+    }
+
+    /** Baremo y reglas de interpretación: solo el administrador, nunca en el DTO de responder. */
+    @GetMapping("/{id}/interpretacion")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public ResponseEntity<?> obtenerInterpretacion(@PathVariable Long id) {
+        return ResponseEntity.ok(interpretacionService.obtener(id));
+    }
+
+    @PutMapping("/{id}/interpretacion")
+    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    public ResponseEntity<?> guardarInterpretacion(@PathVariable Long id, @RequestBody InterpretacionDTO dto) {
+        return ResponseEntity.ok(interpretacionService.guardar(id, dto));
     }
 
     @DeleteMapping("/{id}")

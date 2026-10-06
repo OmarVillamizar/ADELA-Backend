@@ -1,0 +1,112 @@
+package com.adela.services;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
+
+import com.adela.calificacion.EscalaBanda;
+import com.adela.calificacion.EsquemaInterpretacion;
+import com.adela.dto.InterpretacionDTO;
+import com.adela.dto.InterpretacionDTO.BandaDTO;
+import com.adela.dto.InterpretacionDTO.EscalonDTO;
+import com.adela.entities.Cuestionario;
+import com.adela.entities.Estilo;
+import com.adela.exceptions.AppException;
+import com.adela.exceptions.ErrorCode;
+import com.adela.repositories.BandaInterpretacionRepository;
+import com.adela.repositories.CuestionarioRepository;
+import com.adela.repositories.EscalonRelativoRepository;
+
+class InterpretacionServiceTest {
+
+    private final CuestionarioRepository cuestionarios = mock(CuestionarioRepository.class);
+    private final BandaInterpretacionRepository bandas = mock(BandaInterpretacionRepository.class);
+    private final EscalonRelativoRepository escalones = mock(EscalonRelativoRepository.class);
+    private final InterpretacionService service = new InterpretacionService(cuestionarios, bandas, escalones);
+
+    private Cuestionario chaea;
+
+    @BeforeEach
+    void preparar() {
+        chaea = new Cuestionario();
+        chaea.setId(1L);
+        Estilo activo = new Estilo();
+        activo.setId(10L);
+        activo.setNombre("Activo");
+        chaea.getEstilos().add(activo);
+        when(cuestionarios.findById(1L)).thenReturn(Optional.of(chaea));
+    }
+
+    private static BandaDTO banda(String estilo, double li, double ls, String etiqueta, int orden) {
+        return new BandaDTO(estilo, EscalaBanda.BRUTO, li, ls, etiqueta, orden);
+    }
+
+    private Map<String, String> errores(InterpretacionDTO dto) {
+        AppException e = assertThrows(AppException.class, () -> service.guardar(1L, dto));
+        assertEquals(ErrorCode.VALIDACION, e.getCode());
+        return e.getFields();
+    }
+
+    @Test
+    @DisplayName("Guarda el baremo: borra lo anterior antes de insertar y actualiza el esquema")
+    void guardaBaremo() {
+        InterpretacionDTO dto = new InterpretacionDTO(EsquemaInterpretacion.BAREMO, null, true,
+                List.of(banda("Activo", 0, 6, "Muy baja", 1), banda("Activo", 7, 8, "Baja", 2)), null);
+
+        service.guardar(1L, dto);
+
+        InOrder orden = inOrder(bandas);
+        orden.verify(bandas).borrarDeCuestionario(chaea);
+        orden.verify(bandas).saveAll(org.mockito.ArgumentMatchers.argThat(l -> ((List<?>) l).size() == 2));
+        assertEquals(EsquemaInterpretacion.BAREMO, chaea.getEsquemaInterpretacion());
+        assertEquals(10d, chaea.getDeltaRelativo());
+        assertTrue(chaea.isEsIpsativo());
+    }
+
+    @Test
+    @DisplayName("Rechaza un estilo que no es del cuestionario")
+    void estiloAjeno() {
+        assertTrue(errores(new InterpretacionDTO(EsquemaInterpretacion.BAREMO, null, false,
+                List.of(banda("Visual", 0, 5, "Baja", 1)), null)).containsKey("bandas[0]"));
+    }
+
+    @Test
+    @DisplayName("Rechaza bandas que se solapan o repiten orden")
+    void solapes() {
+        assertTrue(errores(new InterpretacionDTO(EsquemaInterpretacion.BAREMO, null, false,
+                List.of(banda("Activo", 0, 7, "Baja", 1), banda("Activo", 7, 10, "Alta", 2)), null))
+                .get("bandas").contains("solapan"));
+        assertTrue(errores(new InterpretacionDTO(EsquemaInterpretacion.BAREMO, null, false,
+                List.of(banda("Activo", 0, 5, "Baja", 1), banda("Activo", 6, 10, "Alta", 1)), null))
+                .get("bandas").contains("orden"));
+    }
+
+    @Test
+    @DisplayName("El esquema escalonado exige escalones válidos y sin solape")
+    void escalonado() {
+        assertTrue(errores(new InterpretacionDTO(EsquemaInterpretacion.RELATIVO_ESCALONADO, null, false, null,
+                null)).containsKey("escalones"));
+        assertTrue(errores(new InterpretacionDTO(EsquemaInterpretacion.RELATIVO_ESCALONADO, null, false, null,
+                List.of(new EscalonDTO(0d, 16d, 1d), new EscalonDTO(16d, 22d, 2d)))).containsKey("escalones"));
+    }
+
+    @Test
+    @DisplayName("Sin esquema o con delta fuera de [0, 100] es VALIDACION")
+    void esquemaYDelta() {
+        Map<String, String> e = errores(new InterpretacionDTO(null, 150d, false, null, null));
+        assertTrue(e.containsKey("esquema"));
+        assertTrue(e.containsKey("delta"));
+    }
+}
