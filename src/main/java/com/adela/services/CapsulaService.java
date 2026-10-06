@@ -332,8 +332,10 @@ public class CapsulaService {
             preguntas.add(pr);
         });
 
+        EvaluacionRespuestas.Puntuacion puntuacion = evaluacionRespuestas.puntuar(cuestionario,
+                respuesta.getOpciones());
         return new ResultadoCapsulaDTO(respuesta.getCodigo(), capsula.getNombre(),
                 CuestionarioResumidoDTO.from(cuestionario), respuesta.getNombre(), respuesta.getRespondidaEn(),
-                evaluacionRespuestas.puntuar(cuestionario, respuesta.getOpciones()), preguntas);
+                puntuacion.estilos(), puntuacion.calificacion(), preguntas);
     }
 }

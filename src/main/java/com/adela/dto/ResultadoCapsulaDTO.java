@@ -8,6 +8,6 @@ import java.util.List;
  * así que no lleva más dato personal que el nombre que la persona escribió.
  */
 public record ResultadoCapsulaDTO(String codigo, String capsulaNombre, CuestionarioResumidoDTO cuestionario,
-        String nombre, Instant respondidaEn, List<EstiloResultadoDTO> estilos,
+        String nombre, Instant respondidaEn, List<EstiloResultadoDTO> estilos, CalificacionDTO calificacion,
         List<PreguntaResueltaDTO> preguntas) {
 }

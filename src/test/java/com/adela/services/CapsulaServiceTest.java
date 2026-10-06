@@ -103,7 +103,7 @@ class CapsulaServiceTest {
         when(respuestaCapsulaRepository.findByCapsulaAndIntento(any(), any())).thenReturn(Optional.empty());
         when(respuestaCapsulaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(evaluacionRespuestas.validarSeleccion(any(), any())).thenReturn(List.of());
-        when(evaluacionRespuestas.puntuar(any(), any())).thenReturn(List.of());
+        when(evaluacionRespuestas.puntuar(any(), any())).thenReturn(new EvaluacionRespuestas.Puntuacion(List.of(), null));
     }
 
     private static RespuestaCapsulaDTO envio(UUID intento, String nombre) {

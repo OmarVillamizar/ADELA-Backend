@@ -12,8 +12,9 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
+import com.adela.calificacion.ResultadoInstrumento;
+import com.adela.dto.CalificacionDTO;
 import com.adela.dto.EstiloResultadoDTO;
-import com.adela.entities.Estilo;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Opcion;
 import com.adela.entities.Pregunta;
@@ -38,6 +39,8 @@ public class EvaluacionRespuestas {
     private final OpcionRepository opcionRepository;
 
     private final PreguntaRepository preguntaRepository;
+
+    private final CalificacionService calificacionService;
 
     /**
      * Devuelve las opciones elegidas si forman una resolución válida del
@@ -86,29 +89,18 @@ public class EvaluacionRespuestas {
         return opciones;
     }
 
+    public record Puntuacion(List<EstiloResultadoDTO> estilos, CalificacionDTO calificacion) {
+    }
+
     /**
-     * Suma el valor de cada opción en su estilo. Incluye los estilos sin
-     * puntos para que el resultado tenga siempre todas las dimensiones del
-     * cuestionario.
+     * Califica con el motor: puntaje directo, rango, % del máximo, nivel y
+     * perfil. Incluye los estilos sin puntos para que el resultado tenga siempre
+     * todas las dimensiones del cuestionario.
      */
-    public List<EstiloResultadoDTO> puntuar(Cuestionario cuestionario, Collection<Opcion> opciones) {
-        Map<Long, EstiloResultadoDTO> porEstilo = new TreeMap<>();
-        List<EstiloResultadoDTO> estilos = new LinkedList<>();
-
-        for (Estilo estilo : cuestionario.getEstilos()) {
-            EstiloResultadoDTO cr = new EstiloResultadoDTO();
-            cr.setNombre(estilo.getNombre());
-            cr.setValor(0d);
-            cr.setValorMaximo(estilo.getValorMaximo());
-            cr.setValorMinimo(estilo.getValorMinimo());
-            porEstilo.put(estilo.getId(), cr);
-            estilos.add(cr);
-        }
-
-        for (Opcion o : opciones) {
-            EstiloResultadoDTO cr = porEstilo.get(o.getEstilo().getId());
-            cr.setValor(cr.getValor() + o.getValor());
-        }
-        return estilos;
+    public Puntuacion puntuar(Cuestionario cuestionario, Collection<Opcion> opciones) {
+        ResultadoInstrumento r = calificacionService.calificar(cuestionario,
+                calificacionService.clave(cuestionario), opciones);
+        return new Puntuacion(r.estilos().stream().map(EstiloResultadoDTO::de).toList(),
+                CalificacionDTO.individual(cuestionario, r));
     }
 }

@@ -12,4 +12,5 @@ import lombok.NoArgsConstructor;
 public class ResultCuestCompletoDTO extends ResultadoCuestionarioDTO {
     List<PreguntaResueltaDTO> preguntas;
     List<EstiloResultadoDTO> estilos;
+    CalificacionDTO calificacion;
 }

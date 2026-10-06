@@ -357,7 +357,9 @@ public class ResultadoCuestionarioService {
                 preg.put(p.getId(), pr);
             }
         }
-        res.setEstilos(evaluacionRespuestas.puntuar(c, elegidas));
+        EvaluacionRespuestas.Puntuacion puntuacion = evaluacionRespuestas.puntuar(c, elegidas);
+        res.setEstilos(puntuacion.estilos());
+        res.setCalificacion(puntuacion.calificacion());
         res.setPreguntas(new LinkedList<>(preg.values()));
         
         return res;
