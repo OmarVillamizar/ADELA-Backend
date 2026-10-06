@@ -15,6 +15,11 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.adela.calificacion.AgregadoGrupo;
+import com.adela.calificacion.AgregadoGrupo.Agregado;
+import com.adela.calificacion.ClaveInstrumento;
+import com.adela.calificacion.ResultadoInstrumento;
+import com.adela.dto.CalificacionDTO;
 import com.adela.dto.EstiloResultadoDTO;
 import com.adela.dto.CuestionarioResumidoDTO;
 import com.adela.dto.EstudianteDTO;
@@ -26,7 +31,6 @@ import com.adela.dto.ResultCuestCompletoDTO;
 import com.adela.dto.ResultadoCuestionarioDTO;
 import com.adela.dto.ResultadoGrupoDTO;
 import com.adela.dto.ResultadoGrupoResumidoDTO;
-import com.adela.entities.Estilo;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Estudiante;
 import com.adela.entities.Grupo;
@@ -66,6 +70,8 @@ public class ResultadoCuestionarioService {
     private final EstudianteRepository estudianteRepository;
     
     private final EvaluacionRespuestas evaluacionRespuestas;
+    
+    private final CalificacionService calificacionService;
     
     @Transactional
     public ResultadoCuestionario responderCuestionario(RespuestaCuestionarioDTO info, Estudiante estudiante) {
@@ -404,54 +410,31 @@ public class ResultadoCuestionarioService {
             throw new EntityNotFoundException("Este cuestionario no ha sido asignado a ningun estudiante.");
         }
         
-        int cnt = 0;
-        
         ResultadoGrupoDTO res = new ResultadoGrupoDTO();
-        
+
         res.setCuestionario(CuestionarioResumidoDTO.from(cuestionario));
         res.setGrupo(GrupoResumidoDTO.from(grupo));
-        
-        Map<Long, EstiloResultadoDTO> mp = new TreeMap<>();
-        List<EstiloResultadoDTO> estilos = new LinkedList<>();
+
         List<ResultadoCuestionarioDTO> estudiantesS = new LinkedList<>();
         List<ResultadoCuestionarioDTO> estudiantesUS = new LinkedList<>();
-        
+
         res.setFechaAplicacion(rcs.get(0).getFechaAplicacion());
-        
-        for (Estilo estilo : cuestionario.getEstilos()) {
-            EstiloResultadoDTO cr = new EstiloResultadoDTO();
-            cr.setNombre(estilo.getNombre());
-            cr.setValor(0d);
-            cr.setValorMaximo(estilo.getValorMaximo());
-            cr.setValorMinimo(estilo.getValorMinimo());
-            mp.put(estilo.getId(), cr);
-            estilos.add(cr);
-        }
-        
+
+        ClaveInstrumento clave = calificacionService.clave(cuestionario);
+        List<ResultadoInstrumento> resultados = new LinkedList<>();
         for (ResultadoCuestionario rc : rcs) {
             if (rc.getFechaResolucion() != null) {
-                cnt++;
-                for (ResultadoPregunta rp : rc.getPreguntas()) {
-                    Opcion o = rp.getOpcion();
-                    Estilo c = o.getEstilo();
-                    EstiloResultadoDTO crdto = mp.get(c.getId());
-                    crdto.setValor(crdto.getValor() + o.getValor());
-                }
+                resultados.add(calificacionService.calificar(cuestionario, clave,
+                        rc.getPreguntas().stream().map(ResultadoPregunta::getOpcion).toList()));
                 estudiantesS.add(ResultadoCuestionarioDTO.from(rc));
             } else {
                 estudiantesUS.add(ResultadoCuestionarioDTO.from(rc));
             }
         }
-        
-        // Sin resultados resueltos no hay promedio que calcular: dividir por cero
-        // produce NaN, que Jackson no serializa y convierte la respuesta en un 500.
-        if (cnt > 0) {
-            for (EstiloResultadoDTO rca : mp.values()) {
-                rca.setValor(rca.getValor() / cnt);
-            }
-        }
-        
-        res.setEstilos(estilos);
+
+        Agregado agregado = AgregadoGrupo.de(clave, resultados, AgregadoGrupo.N_MINIMO_LOCAL);
+        res.setEstilos(agregado.estilos().stream().map(EstiloResultadoDTO::de).toList());
+        res.setCalificacion(CalificacionDTO.grupal(cuestionario, agregado));
         res.setEstudiantesResuelto(estudiantesS);
         res.setEstudiantesNoResuelto(estudiantesUS);
         
