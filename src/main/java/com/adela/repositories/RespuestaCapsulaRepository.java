@@ -4,11 +4,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 
-import com.adela.dto.PuntajeRespuestaCapsulaDTO;
 import com.adela.entities.Capsula;
 import com.adela.entities.RespuestaCapsula;
 
@@ -22,19 +20,10 @@ public interface RespuestaCapsulaRepository extends JpaRepository<RespuestaCapsu
 
     long countByCapsula(Capsula capsula);
 
-    List<RespuestaCapsula> findByCapsulaOrderByRespondidaEn(Capsula capsula);
-
     /**
-     * Suma por respuesta y estilo en una sola consulta: el reporte no recorre
-     * las opciones de cada respuesta. Una respuesta sin opciones elegidas no
-     * aparece aquí; el reporte parte de findByCapsulaOrderByRespondidaEn.
+     * Trae las opciones elegidas en la misma consulta: el reporte califica cada
+     * respuesta y sin esto haría una consulta más por respuesta.
      */
-    @Query("""
-            SELECT new com.adela.dto.PuntajeRespuestaCapsulaDTO(r.id, o.estilo.id, SUM(o.valor))
-              FROM RespuestaCapsula r
-              JOIN r.opciones o
-             WHERE r.capsula = :capsula
-          GROUP BY r.id, o.estilo.id
-            """)
-    List<PuntajeRespuestaCapsulaDTO> puntajesPorEstilo(@Param("capsula") Capsula capsula);
+    @EntityGraph(attributePaths = "opciones")
+    List<RespuestaCapsula> findByCapsulaOrderByRespondidaEn(Capsula capsula);
 }

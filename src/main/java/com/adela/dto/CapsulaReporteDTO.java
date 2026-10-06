@@ -4,21 +4,16 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Reporte agregado de una cápsula. El detalle por pregunta de cada persona no
- * se expone: el nombre no está verificado, y el seguimiento individual queda
- * para los grupos.
+ * Reporte agregado de una cápsula, con la misma estadística que el de un grupo.
+ * El detalle por pregunta de cada persona no se expone: el nombre no está
+ * verificado, y el seguimiento individual queda para los grupos.
  *
- * participantes es null en modo ANONIMO. predominantes cuenta cuántas
- * respuestas tienen ese estilo como predominante; con empates una
- * respuesta cuenta en varias, así que la suma puede superar totalRespuestas.
+ * participantes es null en modo ANONIMO. perfil es null si el cuestionario no
+ * define dominancia o la respuesta no tiene puntos.
  */
-public record CapsulaReporteDTO(CapsulaDTO capsula, long totalRespuestas, List<EstiloReporteDTO> estilos,
-        List<ParticipanteDTO> participantes) {
+public record CapsulaReporteDTO(CapsulaDTO capsula, long totalRespuestas, List<EstiloResultadoDTO> estilos,
+        CalificacionDTO calificacion, List<ParticipanteDTO> participantes) {
 
-    public record EstiloReporteDTO(String nombre, Double valorMinimo, Double valorMaximo, double promedio,
-            long predominantes) {
-    }
-
-    public record ParticipanteDTO(String nombre, Instant respondidaEn, List<String> predominantes) {
+    public record ParticipanteDTO(String nombre, Instant respondidaEn, String perfil) {
     }
 }

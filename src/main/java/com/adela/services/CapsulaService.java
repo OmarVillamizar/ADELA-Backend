@@ -3,7 +3,6 @@ package com.adela.services;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -15,21 +14,24 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.adela.calificacion.AgregadoGrupo;
+import com.adela.calificacion.AgregadoGrupo.Agregado;
+import com.adela.calificacion.ClaveInstrumento;
+import com.adela.calificacion.ResultadoInstrumento;
+import com.adela.dto.CalificacionDTO;
 import com.adela.dto.CapsulaActualizarDTO;
 import com.adela.dto.CapsulaCrearDTO;
 import com.adela.dto.CapsulaDTO;
 import com.adela.dto.CapsulaPublicaDTO;
 import com.adela.dto.CapsulaReporteDTO;
-import com.adela.dto.CapsulaReporteDTO.EstiloReporteDTO;
 import com.adela.dto.CapsulaReporteDTO.ParticipanteDTO;
 import com.adela.dto.CuestionarioParaResponderDTO;
 import com.adela.dto.CuestionarioResumidoDTO;
+import com.adela.dto.EstiloResultadoDTO;
 import com.adela.dto.PreguntaResueltaDTO;
-import com.adela.dto.PuntajeRespuestaCapsulaDTO;
 import com.adela.dto.RespuestaCapsulaDTO;
 import com.adela.dto.ResultadoCapsulaDTO;
 import com.adela.entities.Capsula;
-import com.adela.entities.Estilo;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.ModoIdentificacion;
 import com.adela.entities.Opcion;
@@ -76,6 +78,8 @@ public class CapsulaService {
     private final CuestionarioRepository cuestionarioRepository;
 
     private final EvaluacionRespuestas evaluacionRespuestas;
+
+    private final CalificacionService calificacionService;
 
     private Capsula delProfesor(Long id, Profesor profesor) {
         return capsulaRepository.findByProfesorAndId(profesor, id)
@@ -155,76 +159,33 @@ public class CapsulaService {
     }
 
     /**
-     * Promedio por estilo y distribución del estilo predominante, calculados
-     * desde una suma por (respuesta, estilo) hecha en la base de datos.
+     * Misma agregación que el reporte de un grupo: cada respuesta se califica
+     * con el motor y se resume por estilo y por perfil.
      */
     @Transactional(readOnly = true)
     public CapsulaReporteDTO reporte(Long id, Profesor profesor) {
         Capsula capsula = delProfesor(id, profesor);
+        Cuestionario cuestionario = capsula.getCuestionario();
         List<RespuestaCapsula> respuestas = respuestaCapsulaRepository.findByCapsulaOrderByRespondidaEn(capsula);
 
-        Map<Long, Map<Long, Double>> puntos = new HashMap<>();
-        for (PuntajeRespuestaCapsulaDTO p : respuestaCapsulaRepository.puntajesPorEstilo(capsula)) {
-            puntos.computeIfAbsent(p.respuestaId(), k -> new HashMap<>()).put(p.estiloId(), p.total());
-        }
-
-        List<Estilo> estilos = capsula.getCuestionario().getEstilos().stream()
-                .sorted(Comparator.comparing(Estilo::getId)).toList();
-        double[] suma = new double[estilos.size()];
-        long[] predominantes = new long[estilos.size()];
+        ClaveInstrumento clave = calificacionService.clave(cuestionario);
         boolean conNombre = capsula.getModoIdentificacion() == ModoIdentificacion.NOMBRE;
         List<ParticipanteDTO> participantes = conNombre ? new ArrayList<>() : null;
+        List<ResultadoInstrumento> resultados = new ArrayList<>();
 
         for (RespuestaCapsula r : respuestas) {
-            Map<Long, Double> deRespuesta = puntos.getOrDefault(r.getId(), Map.of());
-            for (int i = 0; i < estilos.size(); i++) {
-                suma[i] += deRespuesta.getOrDefault(estilos.get(i).getId(), 0d);
-            }
-            List<Integer> indices = predominantes(estilos, deRespuesta);
-            indices.forEach(i -> predominantes[i]++);
+            ResultadoInstrumento resultado = calificacionService.calificar(cuestionario, clave, r.getOpciones());
+            resultados.add(resultado);
             if (conNombre) {
                 participantes.add(new ParticipanteDTO(r.getNombre(), r.getRespondidaEn(),
-                        indices.stream().map(i -> estilos.get(i).getNombre()).toList()));
+                        resultado.perfilEtiqueta()));
             }
         }
 
-        // Sin respuestas el promedio es 0, no NaN: Jackson no serializa NaN (BUG-03).
-        int total = respuestas.size();
-        List<EstiloReporteDTO> porEstilo = new ArrayList<>();
-        for (int i = 0; i < estilos.size(); i++) {
-            Estilo c = estilos.get(i);
-            porEstilo.add(new EstiloReporteDTO(c.getNombre(), c.getValorMinimo(), c.getValorMaximo(),
-                    total > 0 ? suma[i] / total : 0d, predominantes[i]));
-        }
-        return new CapsulaReporteDTO(CapsulaDTO.from(capsula, total), total, porEstilo, participantes);
-    }
-
-    /**
-     * Índices de los estilos con mayor puntaje normalizado a su rango
-     * (valor - mínimo) / (máximo - mínimo). Comparar el valor crudo favorecería al
-     * estilo con la escala más amplia. Los empates devuelven todos; una
-     * respuesta sin puntos no tiene predominante.
-     */
-    static List<Integer> predominantes(List<Estilo> estilos, Map<Long, Double> puntos) {
-        if (puntos.isEmpty()) {
-            return List.of();
-        }
-        double[] normalizado = new double[estilos.size()];
-        double max = Double.NEGATIVE_INFINITY;
-        for (int i = 0; i < estilos.size(); i++) {
-            Estilo c = estilos.get(i);
-            double valor = puntos.getOrDefault(c.getId(), 0d);
-            double rango = c.getValorMaximo() - c.getValorMinimo();
-            normalizado[i] = rango > 0 ? (valor - c.getValorMinimo()) / rango : valor;
-            max = Math.max(max, normalizado[i]);
-        }
-        List<Integer> indices = new ArrayList<>();
-        for (int i = 0; i < normalizado.length; i++) {
-            if (max - normalizado[i] < 1e-9) {
-                indices.add(i);
-            }
-        }
-        return indices;
+        Agregado agregado = AgregadoGrupo.de(clave, resultados, AgregadoGrupo.N_MINIMO_LOCAL);
+        return new CapsulaReporteDTO(CapsulaDTO.from(capsula, respuestas.size()), respuestas.size(),
+                agregado.estilos().stream().map(EstiloResultadoDTO::de).toList(),
+                CalificacionDTO.grupal(cuestionario, agregado), participantes);
     }
 
     /** Las respuestas caen con ella por ON DELETE CASCADE. */

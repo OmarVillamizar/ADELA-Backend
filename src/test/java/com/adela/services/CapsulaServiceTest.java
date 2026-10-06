@@ -5,12 +5,14 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,17 +23,18 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import com.adela.calificacion.EsquemaInterpretacion;
 import com.adela.dto.CapsulaActualizarDTO;
 import com.adela.dto.CapsulaCrearDTO;
 import com.adela.dto.CapsulaDTO;
 import com.adela.dto.CapsulaReporteDTO;
-import com.adela.dto.CapsulaReporteDTO.EstiloReporteDTO;
-import com.adela.dto.PuntajeRespuestaCapsulaDTO;
+import com.adela.dto.EstiloResultadoDTO;
 import com.adela.dto.RespuestaCapsulaDTO;
 import com.adela.dto.ResultadoCapsulaDTO;
 import com.adela.entities.Capsula;
@@ -39,11 +42,15 @@ import com.adela.entities.Estilo;
 import com.adela.entities.RespuestaCapsula;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.ModoIdentificacion;
+import com.adela.entities.Opcion;
+import com.adela.entities.Pregunta;
 import com.adela.entities.Profesor;
 import com.adela.exceptions.AppException;
 import com.adela.exceptions.ErrorCode;
+import com.adela.repositories.BandaInterpretacionRepository;
 import com.adela.repositories.CapsulaRepository;
 import com.adela.repositories.CuestionarioRepository;
+import com.adela.repositories.EscalonRelativoRepository;
 import com.adela.repositories.RespuestaCapsulaRepository;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -68,6 +75,10 @@ class CapsulaServiceTest {
 
     @Mock
     private EvaluacionRespuestas evaluacionRespuestas;
+
+    @Spy
+    private CalificacionService calificacionService = new CalificacionService(
+            mock(BandaInterpretacionRepository.class), mock(EscalonRelativoRepository.class));
 
     @InjectMocks
     private CapsulaService service;
@@ -172,39 +183,44 @@ class CapsulaServiceTest {
     }
 
     /**
-     * Visual escala 0..10, Auditivo 0..20. Respuesta 1: Visual 6 (0.6) vs
-     * Auditivo 9 (0.45) → Visual, aunque el valor crudo sea menor. Respuesta 2:
-     * 5 y 10 → empate (0.5). Respuesta 3: sin puntos → sin predominante.
+     * Una pregunta única: la opción 11 suma 1 a Visual y la 12 suma 1 a
+     * Auditivo. Ana y Eva eligen 11, Luis 12. Con RELATIVO, el perfil de cada
+     * respuesta es el estilo que puntuó.
      */
     private void prepararReporte() {
-        Estilo visual = estilo(1L, "Visual", 10d);
-        Estilo auditivo = estilo(2L, "Auditivo", 20d);
+        cuestionario.setEsquemaInterpretacion(EsquemaInterpretacion.RELATIVO);
+        Estilo visual = estilo(1L, "Visual");
+        Estilo auditivo = estilo(2L, "Auditivo");
         cuestionario.getEstilos().add(visual);
         cuestionario.getEstilos().add(auditivo);
+        Pregunta p = new Pregunta();
+        p.setId(100L);
+        p.setCuestionario(cuestionario);
+        Opcion v = opcion(11L, p, visual);
+        Opcion a = opcion(12L, p, auditivo);
+        p.getOpciones().addAll(List.of(v, a));
+        cuestionario.getPreguntas().add(p);
 
-        when(respuestaCapsulaRepository.findByCapsulaOrderByRespondidaEn(capsula))
-                .thenReturn(List.of(respuesta(101L, "Ana"), respuesta(102L, "Luis"), respuesta(103L, "Eva")));
-        when(respuestaCapsulaRepository.puntajesPorEstilo(capsula)).thenReturn(List.of(
-                new PuntajeRespuestaCapsulaDTO(101L, 1L, 6d), new PuntajeRespuestaCapsulaDTO(101L, 2L, 9d),
-                new PuntajeRespuestaCapsulaDTO(102L, 1L, 5d), new PuntajeRespuestaCapsulaDTO(102L, 2L, 10d)));
+        when(respuestaCapsulaRepository.findByCapsulaOrderByRespondidaEn(capsula)).thenReturn(
+                List.of(respuesta(101L, "Ana", v), respuesta(102L, "Luis", a), respuesta(103L, "Eva", v)));
     }
 
     @Test
-    @DisplayName("El reporte promedia y cuenta el predominante normalizado, con empates")
-    void reporteNormalizaYCuentaEmpates() {
+    @DisplayName("El reporte promedia con el motor y cuenta los perfiles")
+    void reportePromediaYCuentaPerfiles() {
         prepararReporte();
 
         CapsulaReporteDTO r = service.reporte(5L, propietario);
 
         assertEquals(3, r.totalRespuestas());
-        EstiloReporteDTO visual = r.estilos().get(0);
-        EstiloReporteDTO auditivo = r.estilos().get(1);
-        assertEquals(11d / 3, visual.promedio(), 1e-9);
-        assertEquals(19d / 3, auditivo.promedio(), 1e-9);
-        assertEquals(2, visual.predominantes());
-        assertEquals(1, auditivo.predominantes());
-        assertEquals(List.of("Visual"), r.participantes().get(0).predominantes());
-        assertEquals(List.of(), r.participantes().get(2).predominantes());
+        EstiloResultadoDTO visual = r.estilos().get(0);
+        assertEquals("Visual", visual.getNombre());
+        assertEquals(2d / 3, visual.getValor(), 1e-9);
+        assertEquals(1d, visual.getRangoMax());
+        assertEquals(3, visual.getEstadisticaBruto().n());
+        assertEquals(Map.of("Visual", 2L, "Auditivo", 1L), r.calificacion().distribucionPerfiles());
+        assertEquals("Visual", r.participantes().get(0).perfil());
+        assertEquals("Auditivo", r.participantes().get(1).perfil());
     }
 
     @Test
@@ -219,26 +235,34 @@ class CapsulaServiceTest {
     @Test
     @DisplayName("Un reporte sin respuestas da ceros, no NaN, y uno ajeno es 404")
     void reporteVacioYAjeno() {
-        cuestionario.getEstilos().add(estilo(1L, "Visual", 10d));
+        cuestionario.getEstilos().add(estilo(1L, "Visual"));
         when(respuestaCapsulaRepository.findByCapsulaOrderByRespondidaEn(capsula)).thenReturn(List.of());
 
-        assertEquals(0d, service.reporte(5L, propietario).estilos().get(0).promedio());
+        assertEquals(0d, service.reporte(5L, propietario).estilos().get(0).getValor());
         assertThrows(EntityNotFoundException.class, () -> service.reporte(5L, intruso));
     }
 
-    private static Estilo estilo(Long id, String nombre, double maximo) {
+    private static Estilo estilo(Long id, String nombre) {
         Estilo c = new Estilo();
         c.setId(id);
         c.setNombre(nombre);
-        c.setValorMinimo(0d);
-        c.setValorMaximo(maximo);
         return c;
     }
 
-    private static RespuestaCapsula respuesta(Long id, String nombre) {
+    private static Opcion opcion(Long id, Pregunta p, Estilo e) {
+        Opcion o = new Opcion();
+        o.setId(id);
+        o.setPregunta(p);
+        o.setEstilo(e);
+        o.setValor(1d);
+        return o;
+    }
+
+    private static RespuestaCapsula respuesta(Long id, String nombre, Opcion elegida) {
         RespuestaCapsula r = new RespuestaCapsula();
         r.setId(id);
         r.setNombre(nombre);
+        r.getOpciones().add(elegida);
         return r;
     }
 
