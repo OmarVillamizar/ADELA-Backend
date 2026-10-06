@@ -198,9 +198,27 @@ public class ProfesorController {
                     "El código " + codigo + " ya está registrado por otro usuario.",
                     Map.of("codigo", "Ya está en uso"));
         }
-        
+
+        // La carrera es un programa de la UFPS: como el código, fuera de ella no aplica.
+        String carrera = null;
+        if (CodigoInstitucional.requiere(email)) {
+            if (profesorDTO.getCarrera() == null || profesorDTO.getCarrera().isBlank()) {
+                throw new AppException(ErrorCode.VALIDACION, "La carrera es obligatoria para las cuentas @ufps.edu.co.",
+                        Map.of("carrera", "Es obligatoria"));
+            }
+            carrera = profesorDTO.getCarrera();
+        }
+
+        // El nombre llega de Google al registrarse; aquí el profesor puede corregirlo.
+        String nombre = profesorDTO.getNombre() == null ? "" : profesorDTO.getNombre().trim();
+        if (nombre.isEmpty()) {
+            throw new AppException(ErrorCode.VALIDACION, "El nombre es obligatorio.",
+                    Map.of("nombre", "Es obligatorio"));
+        }
+
         Profesor profesorExistente = profesorOptional.get();
-        profesorExistente.setCarrera(profesorDTO.getCarrera());
+        profesorExistente.setNombre(nombre);
+        profesorExistente.setCarrera(carrera);
         profesorExistente.setCodigo(codigo);
         profesorExistente.setEstado(UsuarioEstado.ACTIVA);
         

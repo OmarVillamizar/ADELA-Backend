@@ -13,7 +13,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public abstract class UserDTO {
     private String email;
-    
+
+    @Size(max = 100, message = "El nombre admite un máximo de 100 caracteres")
     private String nombre;
     
     // La longitud la impone Usuario.codigo, que es varchar(12). Antes cada endpoint

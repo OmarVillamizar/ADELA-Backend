@@ -5,7 +5,7 @@ import com.adela.entities.Profesor;
 import com.adela.entities.Rol;
 import com.adela.entities.UsuarioEstado;
 
-import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
@@ -15,7 +15,8 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ProfesorDTO extends UserDTO {
     
-    @NotBlank(message = "La carrera es obligatoria")
+    // Obligatoria solo para cuentas UFPS: lo decide ProfesorController.
+    @Size(max = 50, message = "La carrera admite un máximo de 50 caracteres")
     private String carrera;
     private String rol;
     private ProfesorEstado estadoProfesor;
