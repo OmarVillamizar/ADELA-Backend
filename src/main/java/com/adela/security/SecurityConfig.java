@@ -1,5 +1,6 @@
 package com.adela.security;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -91,6 +92,9 @@ public class SecurityConfig {
                                 customAuthorizationRequestResolver(clientRegistrationRepository)))
                         .successHandler(customAuthenticationSuccessHandler()));
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+        // Antes del JwtFilter para que una ráfaga se corte sin tocar la base de
+        // datos; después de CORS para que el navegador pueda leer el 429.
+        http.addFilterBefore(new LimiteTasaFilter(objectMapper, Clock.systemUTC()), JwtFilter.class);
         return http.build();
     }
     

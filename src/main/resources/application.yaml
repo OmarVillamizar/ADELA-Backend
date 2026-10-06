@@ -61,3 +61,8 @@ springdoc:
         
 server:
   port: ${PORT:8080}
+  # LimiteTasaFilter limita por IP. Detrás de un proxy (balanceador, Render,
+  # nginx) todas las peticiones llegan desde la IP del proxy y el límite se
+  # vuelve global: ahí poner FORWARD_HEADERS_STRATEGY=native para leer la IP
+  # real de X-Forwarded-For. Sin proxy dejar none, o cualquiera falsifica su IP.
+  forward-headers-strategy: ${FORWARD_HEADERS_STRATEGY:none}
