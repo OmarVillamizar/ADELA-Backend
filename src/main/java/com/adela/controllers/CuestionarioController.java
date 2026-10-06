@@ -18,10 +18,13 @@ import com.adela.dto.CuestionarioResumidoDTO;
 import com.adela.dto.CuestionarioParaResponderDTO;
 import com.adela.dto.RequestEstudianteEmail;
 import com.adela.dto.RespuestaCuestionarioDTO;
+import com.adela.dto.ResultCuestCompletoDTO;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Estudiante;
+import com.adela.entities.Insignia;
 import com.adela.entities.Profesor;
 import com.adela.services.CuestionarioService;
+import com.adela.services.InsigniaService;
 import com.adela.services.ResultadoCuestionarioService;
 
 import lombok.RequiredArgsConstructor;
@@ -40,6 +43,8 @@ public class CuestionarioController {
     private final CuestionarioService cuestionarioService;
 
     private final ResultadoCuestionarioService resultadoCuestionarioService;
+
+    private final InsigniaService insigniaService;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
@@ -93,6 +98,7 @@ public class CuestionarioController {
     public ResponseEntity<?> responderCuestionario(@RequestBody RespuestaCuestionarioDTO respuesta) {
         Estudiante estudiante = (Estudiante) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         resultadoCuestionarioService.responderCuestionario(respuesta, estudiante);
+        insigniaService.otorgar(estudiante.getEmail(), Insignia.PRIMER_CUESTIONARIO);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
 
@@ -107,8 +113,12 @@ public class CuestionarioController {
     @PreAuthorize("hasRole('ESTUDIANTE')")
     public ResponseEntity<?> obtenerResultadoCuestionario(@PathVariable Long idResultado) {
         Estudiante estudiante = (Estudiante) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        return new ResponseEntity<>(resultadoCuestionarioService.obtenerResultadoCuestionario(idResultado, estudiante),
-                HttpStatus.OK);
+        ResultCuestCompletoDTO resultado = resultadoCuestionarioService.obtenerResultadoCuestionario(idResultado,
+                estudiante);
+        // Despues de la lectura: si el resultado no es suyo o no esta resuelto, la
+        // excepcion sale antes y no se otorga nada.
+        insigniaService.otorgar(estudiante.getEmail(), Insignia.PRIMER_REPORTE);
+        return new ResponseEntity<>(resultado, HttpStatus.OK);
     }
 
     @GetMapping("/reporte/{idCuestionario}/grupo/{idGrupo}")

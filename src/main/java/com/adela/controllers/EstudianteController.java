@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.adela.dto.EstudianteDTO;
 import com.adela.entities.Estudiante;
+import com.adela.entities.Insignia;
 import com.adela.entities.Usuario;
 import com.adela.entities.UsuarioEstado;
 import com.adela.exceptions.AppException;
@@ -28,6 +29,7 @@ import com.adela.exceptions.ErrorCode;
 import com.adela.repositories.EstudianteRepository;
 import com.adela.repositories.UsuarioRepository;
 import com.adela.services.CodigoInstitucional;
+import com.adela.services.InsigniaService;
 
 import jakarta.validation.Valid;
 
@@ -41,6 +43,8 @@ public class EstudianteController {
     private final EstudianteRepository estudianteRepository;
 
     private final UsuarioRepository usuarioRepository;
+
+    private final InsigniaService insigniaService;
         
     @GetMapping("/omero")
     @PreAuthorize("hasRole('ESTUDIANTE')")
@@ -115,8 +119,10 @@ public class EstudianteController {
         estudianteExistente.setGenero(estudianteDTO.getGenero());
         estudianteExistente.setFecha_nacimiento(estudianteDTO.getFechaNacimiento());
         estudianteExistente.setEstado(UsuarioEstado.ACTIVA);
-        
-        return ResponseEntity.ok(EstudianteDTO.from(estudianteRepository.save(estudianteExistente)));
+
+        EstudianteDTO actualizado = EstudianteDTO.from(estudianteRepository.save(estudianteExistente));
+        insigniaService.otorgar(email, Insignia.CUENTA_COMPLETA);
+        return ResponseEntity.ok(actualizado);
     }
     
 }
