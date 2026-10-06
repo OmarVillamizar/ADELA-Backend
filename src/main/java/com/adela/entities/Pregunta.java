@@ -48,7 +48,10 @@ public class Pregunta {
     private int orden;
     
     private boolean opcionMultiple = false;
-    
+
+    @Column(nullable = false)
+    private boolean obligatoria = true;
+
     @OneToMany(mappedBy = "pregunta", cascade = CascadeType.ALL, orphanRemoval = true)
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
