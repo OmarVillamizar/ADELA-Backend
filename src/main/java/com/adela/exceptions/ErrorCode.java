@@ -45,7 +45,10 @@ public enum ErrorCode {
     ASIGNACION_AMBIGUA(HttpStatus.CONFLICT),
     ASIGNACION_YA_RESPONDIDA(HttpStatus.CONFLICT),
     ASIGNACION_NO_CORRESPONDE(HttpStatus.CONFLICT),
-    CUESTIONARIO_SIN_RESOLVER(HttpStatus.CONFLICT);
+    CUESTIONARIO_SIN_RESOLVER(HttpStatus.CONFLICT),
+
+    // Cápsulas
+    CAPSULA_CERRADA(HttpStatus.CONFLICT);
 
     private final HttpStatus status;
 

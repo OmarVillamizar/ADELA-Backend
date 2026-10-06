@@ -1,8 +1,12 @@
 package com.adela.services;
 
 import java.time.Instant;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Predicate;
 
 import org.springframework.stereotype.Service;
@@ -11,9 +15,19 @@ import org.springframework.transaction.annotation.Transactional;
 import com.adela.dto.CapsulaActualizarDTO;
 import com.adela.dto.CapsulaCrearDTO;
 import com.adela.dto.CapsulaDTO;
+import com.adela.dto.CapsulaPublicaDTO;
+import com.adela.dto.CuestionarioParaResponderDTO;
+import com.adela.dto.CuestionarioResumidoDTO;
+import com.adela.dto.PreguntaResueltaDTO;
+import com.adela.dto.RespuestaCapsulaDTO;
+import com.adela.dto.ResultadoCapsulaDTO;
 import com.adela.entities.Capsula;
 import com.adela.entities.Cuestionario;
+import com.adela.entities.ModoIdentificacion;
+import com.adela.entities.Opcion;
+import com.adela.entities.Pregunta;
 import com.adela.entities.Profesor;
+import com.adela.entities.RespuestaCapsula;
 import com.adela.exceptions.AppException;
 import com.adela.exceptions.ErrorCode;
 import com.adela.repositories.CapsulaRepository;
@@ -37,6 +51,9 @@ public class CapsulaService {
 
     static final int LONGITUD_CODIGO_CAPSULA = 8;
 
+    /** Más largo que el de la cápsula: este código da acceso a un resultado. */
+    static final int LONGITUD_CODIGO_RESULTADO = 12;
+
     private static final int INTENTOS_CODIGO = 5;
 
     private final CapsulaRepository capsulaRepository;
@@ -44,6 +61,8 @@ public class CapsulaService {
     private final RespuestaCapsulaRepository respuestaCapsulaRepository;
 
     private final CuestionarioRepository cuestionarioRepository;
+
+    private final EvaluacionRespuestas evaluacionRespuestas;
 
     private Capsula delProfesor(Long id, Profesor profesor) {
         return capsulaRepository.findByProfesorAndId(profesor, id)
@@ -110,5 +129,109 @@ public class CapsulaService {
     @Transactional
     public void eliminar(Long id, Profesor profesor) {
         capsulaRepository.delete(delProfesor(id, profesor));
+    }
+
+    // ---- Ruta pública: sin cuenta, solo con el código del enlace ----
+
+    private Capsula porCodigo(String codigo) {
+        String normalizado = CodigoAleatorio.normalizar(codigo);
+        // Un código de otra longitud no puede existir: se descarta sin consultar.
+        if (normalizado.length() != LONGITUD_CODIGO_CAPSULA) {
+            throw new EntityNotFoundException("La cápsula no existe.");
+        }
+        return capsulaRepository.findByCodigo(normalizado)
+                .orElseThrow(() -> new EntityNotFoundException("La cápsula no existe."));
+    }
+
+    private static void exigirAbierta(Capsula capsula) {
+        if (!capsula.isAbierta()) {
+            throw new AppException(ErrorCode.CAPSULA_CERRADA, "Esta cápsula ya no recibe respuestas.");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public CapsulaPublicaDTO paraResponder(String codigo) {
+        Capsula capsula = porCodigo(codigo);
+        exigirAbierta(capsula);
+        return new CapsulaPublicaDTO(capsula.getCodigo(), capsula.getNombre(), capsula.getModoIdentificacion(),
+                CuestionarioParaResponderDTO.from(capsula.getCuestionario()));
+    }
+
+    /**
+     * Guarda una resolución. Reenviar el mismo intento devuelve el resultado ya
+     * guardado. Si dos envíos del mismo intento llegan a la vez, el segundo choca
+     * con UNIQUE (capsula_id, intento) y responde 409; al reintentar, encuentra el
+     * primero aquí.
+     */
+    @Transactional
+    public ResultadoCapsulaDTO responder(String codigo, RespuestaCapsulaDTO dto) {
+        Capsula capsula = porCodigo(codigo);
+        exigirAbierta(capsula);
+
+        Optional<RespuestaCapsula> previa = respuestaCapsulaRepository.findByCapsulaAndIntento(capsula,
+                dto.intento());
+        if (previa.isPresent()) {
+            return resultadoDe(previa.get());
+        }
+
+        String nombre = nombreValido(capsula.getModoIdentificacion(), dto.nombre());
+        Cuestionario cuestionario = capsula.getCuestionario();
+        List<Opcion> opciones = evaluacionRespuestas.validarSeleccion(cuestionario, dto.opcionesSeleccionadasId());
+
+        RespuestaCapsula respuesta = new RespuestaCapsula();
+        respuesta.setCapsula(capsula);
+        respuesta.setCodigo(codigoLibre(LONGITUD_CODIGO_RESULTADO, respuestaCapsulaRepository::existsByCodigo));
+        respuesta.setIntento(dto.intento());
+        respuesta.setNombre(nombre);
+        respuesta.setRespondidaEn(Instant.now());
+        respuesta.setOpciones(new HashSet<>(opciones));
+        return resultadoDe(respuestaCapsulaRepository.save(respuesta));
+    }
+
+    /**
+     * En modo ANONIMO el nombre se descarta aunque el cliente lo envíe: el
+     * servidor decide qué dato personal se guarda, no el formulario.
+     */
+    static String nombreValido(ModoIdentificacion modo, String nombre) {
+        if (modo == ModoIdentificacion.ANONIMO) {
+            return null;
+        }
+        String limpio = nombre == null ? ""
+                : nombre.replaceAll("\\s", " ").replaceAll("[\\p{Cntrl}\\p{Cf}]", "").replaceAll(" +", " ").strip();
+        if (limpio.isEmpty() || limpio.length() > 60) {
+            throw new AppException(ErrorCode.VALIDACION, "Revisa los campos marcados.",
+                    Map.of("nombre", "Escribe un nombre de hasta 60 caracteres"));
+        }
+        return limpio;
+    }
+
+    /** Sigue disponible aunque la cápsula se cierre; desaparece si se elimina. */
+    @Transactional(readOnly = true)
+    public ResultadoCapsulaDTO resultado(String codigo) {
+        String normalizado = CodigoAleatorio.normalizar(codigo);
+        if (normalizado.length() != LONGITUD_CODIGO_RESULTADO) {
+            throw new EntityNotFoundException("No hay un resultado con ese código.");
+        }
+        return respuestaCapsulaRepository.findByCodigo(normalizado).map(this::resultadoDe)
+                .orElseThrow(() -> new EntityNotFoundException("No hay un resultado con ese código."));
+    }
+
+    private ResultadoCapsulaDTO resultadoDe(RespuestaCapsula respuesta) {
+        Capsula capsula = respuesta.getCapsula();
+        Cuestionario cuestionario = capsula.getCuestionario();
+
+        List<PreguntaResueltaDTO> preguntas = new LinkedList<>();
+        cuestionario.getPreguntas().stream().sorted(Comparator.comparingInt(Pregunta::getOrden)).forEach(p -> {
+            PreguntaResueltaDTO pr = new PreguntaResueltaDTO();
+            pr.setPregunta(p.getPregunta());
+            pr.setOrden(p.getOrden());
+            pr.setRespuestas(respuesta.getOpciones().stream().filter(o -> o.getPregunta().equals(p))
+                    .sorted(Comparator.comparingInt(Opcion::getOrden)).map(Opcion::getRespuesta).toList());
+            preguntas.add(pr);
+        });
+
+        return new ResultadoCapsulaDTO(respuesta.getCodigo(), capsula.getNombre(),
+                CuestionarioResumidoDTO.from(cuestionario), respuesta.getNombre(), respuesta.getRespondidaEn(),
+                evaluacionRespuestas.puntuar(cuestionario, respuesta.getOpciones()), preguntas);
     }
 }

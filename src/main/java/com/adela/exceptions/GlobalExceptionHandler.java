@@ -9,6 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -58,6 +59,20 @@ public class GlobalExceptionHandler {
         String traceId = nuevoTraceId();
         logger.warn("[{}] Validación fallida en {}: {}", traceId, request.getRequestURI(), fields);
         return construir(ErrorCode.VALIDACION, "Revisa los campos marcados.", fields, traceId, request);
+    }
+
+    /**
+     * JSON mal formado o con un tipo imposible (p. ej. un UUID inválido) es un
+     * error del cliente. Sin este handler caía en handleInesperado como 500, lo
+     * que en las rutas públicas convertía cualquier cuerpo basura en una "avería".
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiError> handleCuerpoIlegible(HttpMessageNotReadableException ex,
+            HttpServletRequest request) {
+        String traceId = nuevoTraceId();
+        logger.warn("[{}] Cuerpo ilegible en {}: {}", traceId, request.getRequestURI(), ex.getMessage());
+        return construir(ErrorCode.VALIDACION, "El cuerpo de la petición no tiene un formato válido.", null, traceId,
+                request);
     }
 
     /**

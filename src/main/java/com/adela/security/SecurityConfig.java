@@ -68,6 +68,10 @@ public class SecurityConfig {
                         // (springdoc.*.enabled, ver application.yaml), así que estos matchers
                         // solo tienen efecto en los entornos donde sigue publicada.
                         .requestMatchers("/docs/**", "/api-docs/**", "/swagger-ui/**").permitAll()
+                        // Cápsulas: se responden por enlace o QR sin cuenta. Solo este
+                        // prefijo, acotado por LimiteTasaFilter; los recursos se buscan por
+                        // código aleatorio, nunca por id.
+                        .requestMatchers("/api/publico/**").permitAll()
                         // Todo lo demás exige autenticación. /api/** ya no está en la lista
                         // blanca: olvidar un @PreAuthorize deja el endpoint cerrado, no abierto.
                         // /auth/login/success/** queda cubierto por la sesión que crea oauth2Login.
