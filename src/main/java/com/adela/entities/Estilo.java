@@ -38,12 +38,6 @@ public class Estilo {
     
     @Column(nullable = false)
     private String nombre;
-    
-    @Column(nullable = false)
-    private Double valorMinimo;
-    
-    @Column(nullable = false)
-    private Double valorMaximo;
 
     /**
      * Identidad por @Id, no por todos los campos. El equals de @Data recorria las

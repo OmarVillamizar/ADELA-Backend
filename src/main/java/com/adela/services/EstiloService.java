@@ -31,8 +31,6 @@ public class EstiloService {
         
         estilo.setCuestionario(cuestionario);
         estilo.setNombre(estiloDTO.getNombre());
-        estilo.setValorMaximo(0d);
-        estilo.setValorMinimo(0d);
         
         return estiloRepository.save(estilo);
     }

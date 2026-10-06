@@ -21,8 +21,6 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class EstiloResultadoDTO {
     private String nombre;
-    private Double valorMinimo;
-    private Double valorMaximo;
     private Double valor;
 
     private Double rangoMin;

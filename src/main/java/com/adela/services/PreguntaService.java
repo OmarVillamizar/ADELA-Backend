@@ -2,9 +2,7 @@ package com.adela.services;
 
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
-import java.util.TreeMap;
 
 import org.springframework.stereotype.Service;
 
@@ -56,8 +54,6 @@ public class PreguntaService {
         Pregunta pregunta = preguntaRepository.save(preguntaSave);
         
         Set<Opcion> opciones = new HashSet<>();
-        Map<Integer, Double> max = new TreeMap<Integer, Double>();
-        Map<Integer, Double> min = new TreeMap<Integer, Double>();
         
         for (OpcionDTO opcionDTO : preguntaDTO.getOpciones()) {
             int estiloId = opcionDTO.getEstiloId();
@@ -67,38 +63,9 @@ public class PreguntaService {
                 throw new RuntimeException(
                         "No existe un estilo con id " + opcionDTO.getEstiloId() + " en la solicitud.");
             }
-            Opcion opcion = opcionService.crearOpcion(pregunta, estilo, opcionDTO);
-            opciones.add(opcion);
-            if (pregunta.isOpcionMultiple()) {
-                if (max.containsKey(estiloId)) {
-                    max.put(estiloId, Math.max(max.get(estiloId), max.get(estiloId) + opcion.getValor()));
-                    min.put(estiloId, Math.min(min.get(estiloId), min.get(estiloId) + opcion.getValor()));
-                } else {
-                    max.put(estiloId, opcion.getValor());
-                    min.put(estiloId, 0d);
-                }
-            } else {
-                if (max.containsKey(estiloId)) {
-                    max.put(estiloId, Math.max(max.get(estiloId), opcion.getValor()));
-                    min.put(estiloId, Math.min(min.get(estiloId), opcion.getValor()));
-                } else {
-                    max.put(estiloId, opcion.getValor());
-                    min.put(estiloId, opcion.getValor());
-                }
-            }
-            
+            opciones.add(opcionService.crearOpcion(pregunta, estilo, opcionDTO));
         }
-        
-        for (Entry<Integer, Double> pair : max.entrySet()) {
-            Estilo estilo = mapId.get(pair.getKey());
-            estilo.setValorMaximo(estilo.getValorMaximo() + pair.getValue());
-        }
-        
-        for (Entry<Integer, Double> pair : min.entrySet()) {
-            Estilo estilo = mapId.get(pair.getKey());
-            estilo.setValorMinimo(estilo.getValorMinimo() + pair.getValue());
-        }
-        
+
         pregunta.setOpciones(opciones);
         
         return preguntaRepository.save(pregunta);

@@ -18,8 +18,7 @@ import com.adela.entities.Pregunta;
  *
  * Sí expone el nombre de los estilos, que la vista de cuestionarios usa para
  * listar los estilos de aprendizaje. Eso no es el baremo: no dice qué opción
- * puntúa en qué estilo ni con cuánto peso, que era la fuga. Los valorMinimo y
- * valorMaximo de Estilo se quedan fuera.
+ * puntúa en qué estilo ni con cuánto peso, que era la fuga.
  *
  * Si en algún momento el administrador necesita revisar el baremo, debe hacerse
  * en un endpoint aparte restringido a ese rol, no ampliando este DTO.

@@ -191,8 +191,6 @@ class EvaluacionRespuestasTest {
         Estilo c = new Estilo();
         c.setId(id);
         c.setNombre(nombre);
-        c.setValorMinimo(0d);
-        c.setValorMaximo(10d);
         return c;
     }
 

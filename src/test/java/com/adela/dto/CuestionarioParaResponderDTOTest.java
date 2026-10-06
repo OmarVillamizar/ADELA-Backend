@@ -28,8 +28,6 @@ class CuestionarioParaResponderDTOTest {
 
         Estilo visual = new Estilo();
         visual.setNombre("Visual");
-        visual.setValorMinimo(0d);
-        visual.setValorMaximo(16d);
 
         Estilo auditivo = new Estilo();
         auditivo.setNombre("Auditivo");
