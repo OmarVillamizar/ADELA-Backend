@@ -17,6 +17,7 @@ import com.adela.dto.PreguntaDTO;
 import com.adela.entities.Categoria;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Pregunta;
+import com.adela.repositories.CapsulaRepository;
 import com.adela.repositories.CuestionarioRepository;
 import com.adela.repositories.ResultadoCuestionarioRepository;
 
@@ -31,6 +32,8 @@ public class CuestionarioService {
     private final CuestionarioRepository cuestionarioRepository;
     
     private final ResultadoCuestionarioRepository resultadoCuestionarioRepository;
+    
+    private final CapsulaRepository capsulaRepository;
     
     private final CategoriaService categoriaService;
     
@@ -114,6 +117,7 @@ public class CuestionarioService {
     
     private void eliminarReferenciasAsociadas(Cuestionario cuestionario) {
         resultadoCuestionarioRepository.deleteByCuestionario(cuestionario);
+        capsulaRepository.deleteByCuestionario(cuestionario);
     }
     
     /**
