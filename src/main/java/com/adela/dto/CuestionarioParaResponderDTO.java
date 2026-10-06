@@ -28,7 +28,7 @@ public record CuestionarioParaResponderDTO(Long id, String nombre, String descri
         String siglas, List<PreguntaResponderDTO> preguntas, List<EstiloResponderDTO> estilos) {
 
     public record PreguntaResponderDTO(Long id, String pregunta, int orden, boolean opcionMultiple,
-            List<OpcionResponderDTO> opciones) {
+            boolean obligatoria, List<OpcionResponderDTO> opciones) {
     }
 
     public record OpcionResponderDTO(Long id, String respuesta, int orden) {
@@ -40,7 +40,7 @@ public record CuestionarioParaResponderDTO(Long id, String nombre, String descri
     public static CuestionarioParaResponderDTO from(Cuestionario c) {
         List<PreguntaResponderDTO> preguntas = c.getPreguntas().stream()
                 .sorted(Comparator.comparingInt(Pregunta::getOrden)).map(p -> new PreguntaResponderDTO(p.getId(),
-                        p.getPregunta(), p.getOrden(), p.isOpcionMultiple(), opcionesDe(p)))
+                        p.getPregunta(), p.getOrden(), p.isOpcionMultiple(), p.isObligatoria(), opcionesDe(p)))
                 .toList();
 
         List<EstiloResponderDTO> estilos = c.getEstilos().stream().map(Estilo::getNombre)

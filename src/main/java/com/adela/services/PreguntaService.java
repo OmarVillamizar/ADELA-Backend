@@ -50,7 +50,9 @@ public class PreguntaService {
         preguntaSave.setPregunta(preguntaDTO.getPregunta());
         preguntaSave.setOrden(preguntaDTO.getOrden());
         preguntaSave.setOpcionMultiple(preguntaDTO.isOpcionMultiple());
-        
+        preguntaSave.setObligatoria(preguntaDTO.getObligatoria() != null ? preguntaDTO.getObligatoria()
+                : !preguntaDTO.isOpcionMultiple());
+
         Pregunta pregunta = preguntaRepository.save(preguntaSave);
         
         Set<Opcion> opciones = new HashSet<>();

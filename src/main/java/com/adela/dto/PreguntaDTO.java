@@ -12,4 +12,6 @@ public class PreguntaDTO {
     private int orden;
     private List<OpcionDTO> opciones;
     private boolean opcionMultiple;
+    /** Si no llega, se conserva la regla anterior: única obligatoria, múltiple opcional. */
+    private Boolean obligatoria;
 }

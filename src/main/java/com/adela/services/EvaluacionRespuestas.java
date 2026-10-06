@@ -51,7 +51,7 @@ public class EvaluacionRespuestas {
 
         Map<Long, Pregunta> sinResponder = new TreeMap<>();
         for (Pregunta pregunta : preguntaRepository.findByCuestionario(cuestionario)) {
-            if (!pregunta.isOpcionMultiple()) {
+            if (pregunta.isObligatoria()) {
                 sinResponder.put(pregunta.getId(), pregunta);
             }
         }

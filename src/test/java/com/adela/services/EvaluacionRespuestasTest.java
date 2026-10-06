@@ -120,6 +120,24 @@ class EvaluacionRespuestasTest {
     }
 
     @Test
+    @DisplayName("Acepta en blanco una pregunta de única respuesta marcada como no obligatoria")
+    void aceptaUnicaNoObligatoriaEnBlanco() {
+        opciones.get(11L).getPregunta().setObligatoria(false);
+
+        assertEquals(1, evaluacion.validarSeleccion(cuestionario, List.of(21L)).size());
+    }
+
+    @Test
+    @DisplayName("Rechaza en blanco una pregunta de opción múltiple marcada como obligatoria")
+    void rechazaMultipleObligatoriaEnBlanco() {
+        opciones.get(21L).getPregunta().setObligatoria(true);
+
+        AppException e = assertThrows(AppException.class,
+                () -> evaluacion.validarSeleccion(cuestionario, List.of(11L)));
+        assertEquals(ErrorCode.PREGUNTAS_SIN_RESPONDER, e.getCode());
+    }
+
+    @Test
     @DisplayName("Rechaza una opción que no existe")
     void rechazaOpcionInexistente() {
         assertThrows(EntityNotFoundException.class,
@@ -163,6 +181,7 @@ class EvaluacionRespuestasTest {
         p.setId(id);
         p.setOrden(orden);
         p.setOpcionMultiple(multiple);
+        p.setObligatoria(!multiple);
         p.setCuestionario(c);
         return p;
     }
