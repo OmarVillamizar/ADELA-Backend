@@ -14,10 +14,10 @@ public abstract class UserDTO {
     
     private String nombre;
     
-    // La longitud la impone Usuario.codigo, que es varchar(8). Antes cada endpoint
+    // La longitud la impone Usuario.codigo, que es varchar(12). Antes cada endpoint
     // comprobaba lo suyo a mano y las reglas divergian entre estudiante y profesor.
     @NotBlank(message = "El código es obligatorio")
-    @Size(max = 8, message = "El código admite un máximo de 8 caracteres")
+    @Size(max = 12, message = "El código admite un máximo de 12 dígitos")
     private String codigo;
     
     private UsuarioEstado estado;

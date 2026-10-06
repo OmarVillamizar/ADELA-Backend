@@ -33,7 +33,7 @@ public abstract class Usuario {
     @Nullable
     private String nombre;
     
-    @Column(length = 8, unique = true)
+    @Column(length = 12, unique = true)
     @Nullable
     private String codigo;
     
