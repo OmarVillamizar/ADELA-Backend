@@ -22,19 +22,19 @@ public interface RespuestaCapsulaRepository extends JpaRepository<RespuestaCapsu
 
     long countByCapsula(Capsula capsula);
 
+    List<RespuestaCapsula> findByCapsulaOrderByRespondidaEn(Capsula capsula);
+
     /**
      * Suma por respuesta y categoría en una sola consulta: el reporte no recorre
      * las opciones de cada respuesta. Una respuesta sin opciones elegidas no
-     * aparece aquí; el total de respuestas sale de countByCapsula.
+     * aparece aquí; el reporte parte de findByCapsulaOrderByRespondidaEn.
      */
     @Query("""
-            SELECT new com.adela.dto.PuntajeRespuestaCapsulaDTO(
-                     r.id, r.nombre, r.respondidaEn, o.categoria.id, SUM(o.valor))
+            SELECT new com.adela.dto.PuntajeRespuestaCapsulaDTO(r.id, o.categoria.id, SUM(o.valor))
               FROM RespuestaCapsula r
               JOIN r.opciones o
              WHERE r.capsula = :capsula
-          GROUP BY r.id, r.nombre, r.respondidaEn, o.categoria.id
-          ORDER BY r.respondidaEn
+          GROUP BY r.id, o.categoria.id
             """)
     List<PuntajeRespuestaCapsulaDTO> puntajesPorCategoria(@Param("capsula") Capsula capsula);
 }

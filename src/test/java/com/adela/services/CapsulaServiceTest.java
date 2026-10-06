@@ -27,9 +27,13 @@ import org.mockito.quality.Strictness;
 import com.adela.dto.CapsulaActualizarDTO;
 import com.adela.dto.CapsulaCrearDTO;
 import com.adela.dto.CapsulaDTO;
+import com.adela.dto.CapsulaReporteDTO;
+import com.adela.dto.CapsulaReporteDTO.CategoriaReporteDTO;
+import com.adela.dto.PuntajeRespuestaCapsulaDTO;
 import com.adela.dto.RespuestaCapsulaDTO;
 import com.adela.dto.ResultadoCapsulaDTO;
 import com.adela.entities.Capsula;
+import com.adela.entities.Categoria;
 import com.adela.entities.RespuestaCapsula;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.ModoIdentificacion;
@@ -163,6 +167,77 @@ class CapsulaServiceTest {
         assertThrows(EntityNotFoundException.class, () -> service.resultado("ABCD2345"));
         verify(capsulaRepository, never()).findByCodigo("ABC");
         verify(respuestaCapsulaRepository, never()).findByCodigo(any());
+    }
+
+    /**
+     * Visual escala 0..10, Auditivo 0..20. Respuesta 1: Visual 6 (0.6) vs
+     * Auditivo 9 (0.45) → Visual, aunque el valor crudo sea menor. Respuesta 2:
+     * 5 y 10 → empate (0.5). Respuesta 3: sin puntos → sin predominante.
+     */
+    private void prepararReporte() {
+        Categoria visual = categoria(1L, "Visual", 10d);
+        Categoria auditivo = categoria(2L, "Auditivo", 20d);
+        cuestionario.getCategorias().add(visual);
+        cuestionario.getCategorias().add(auditivo);
+
+        when(respuestaCapsulaRepository.findByCapsulaOrderByRespondidaEn(capsula))
+                .thenReturn(List.of(respuesta(101L, "Ana"), respuesta(102L, "Luis"), respuesta(103L, "Eva")));
+        when(respuestaCapsulaRepository.puntajesPorCategoria(capsula)).thenReturn(List.of(
+                new PuntajeRespuestaCapsulaDTO(101L, 1L, 6d), new PuntajeRespuestaCapsulaDTO(101L, 2L, 9d),
+                new PuntajeRespuestaCapsulaDTO(102L, 1L, 5d), new PuntajeRespuestaCapsulaDTO(102L, 2L, 10d)));
+    }
+
+    @Test
+    @DisplayName("El reporte promedia y cuenta el predominante normalizado, con empates")
+    void reporteNormalizaYCuentaEmpates() {
+        prepararReporte();
+
+        CapsulaReporteDTO r = service.reporte(5L, propietario);
+
+        assertEquals(3, r.totalRespuestas());
+        CategoriaReporteDTO visual = r.categorias().get(0);
+        CategoriaReporteDTO auditivo = r.categorias().get(1);
+        assertEquals(11d / 3, visual.promedio(), 1e-9);
+        assertEquals(19d / 3, auditivo.promedio(), 1e-9);
+        assertEquals(2, visual.predominantes());
+        assertEquals(1, auditivo.predominantes());
+        assertEquals(List.of("Visual"), r.participantes().get(0).predominantes());
+        assertEquals(List.of(), r.participantes().get(2).predominantes());
+    }
+
+    @Test
+    @DisplayName("En modo ANONIMO el reporte no lista participantes")
+    void reporteAnonimoSinParticipantes() {
+        prepararReporte();
+        capsula.setModoIdentificacion(ModoIdentificacion.ANONIMO);
+
+        assertNull(service.reporte(5L, propietario).participantes());
+    }
+
+    @Test
+    @DisplayName("Un reporte sin respuestas da ceros, no NaN, y uno ajeno es 404")
+    void reporteVacioYAjeno() {
+        cuestionario.getCategorias().add(categoria(1L, "Visual", 10d));
+        when(respuestaCapsulaRepository.findByCapsulaOrderByRespondidaEn(capsula)).thenReturn(List.of());
+
+        assertEquals(0d, service.reporte(5L, propietario).categorias().get(0).promedio());
+        assertThrows(EntityNotFoundException.class, () -> service.reporte(5L, intruso));
+    }
+
+    private static Categoria categoria(Long id, String nombre, double maximo) {
+        Categoria c = new Categoria();
+        c.setId(id);
+        c.setNombre(nombre);
+        c.setValorMinimo(0d);
+        c.setValorMaximo(maximo);
+        return c;
+    }
+
+    private static RespuestaCapsula respuesta(Long id, String nombre) {
+        RespuestaCapsula r = new RespuestaCapsula();
+        r.setId(id);
+        r.setNombre(nombre);
+        return r;
     }
 
     @Test

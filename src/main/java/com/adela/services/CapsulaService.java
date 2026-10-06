@@ -1,7 +1,9 @@
 package com.adela.services;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -16,12 +18,17 @@ import com.adela.dto.CapsulaActualizarDTO;
 import com.adela.dto.CapsulaCrearDTO;
 import com.adela.dto.CapsulaDTO;
 import com.adela.dto.CapsulaPublicaDTO;
+import com.adela.dto.CapsulaReporteDTO;
+import com.adela.dto.CapsulaReporteDTO.CategoriaReporteDTO;
+import com.adela.dto.CapsulaReporteDTO.ParticipanteDTO;
 import com.adela.dto.CuestionarioParaResponderDTO;
 import com.adela.dto.CuestionarioResumidoDTO;
 import com.adela.dto.PreguntaResueltaDTO;
+import com.adela.dto.PuntajeRespuestaCapsulaDTO;
 import com.adela.dto.RespuestaCapsulaDTO;
 import com.adela.dto.ResultadoCapsulaDTO;
 import com.adela.entities.Capsula;
+import com.adela.entities.Categoria;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.ModoIdentificacion;
 import com.adela.entities.Opcion;
@@ -123,6 +130,79 @@ public class CapsulaService {
             capsula.setAbierta(dto.abierta());
         }
         return CapsulaDTO.from(capsula, respuestaCapsulaRepository.countByCapsula(capsula));
+    }
+
+    /**
+     * Promedio por categoría y distribución del estilo predominante, calculados
+     * desde una suma por (respuesta, categoría) hecha en la base de datos.
+     */
+    @Transactional(readOnly = true)
+    public CapsulaReporteDTO reporte(Long id, Profesor profesor) {
+        Capsula capsula = delProfesor(id, profesor);
+        List<RespuestaCapsula> respuestas = respuestaCapsulaRepository.findByCapsulaOrderByRespondidaEn(capsula);
+
+        Map<Long, Map<Long, Double>> puntos = new HashMap<>();
+        for (PuntajeRespuestaCapsulaDTO p : respuestaCapsulaRepository.puntajesPorCategoria(capsula)) {
+            puntos.computeIfAbsent(p.respuestaId(), k -> new HashMap<>()).put(p.categoriaId(), p.total());
+        }
+
+        List<Categoria> categorias = capsula.getCuestionario().getCategorias().stream()
+                .sorted(Comparator.comparing(Categoria::getId)).toList();
+        double[] suma = new double[categorias.size()];
+        long[] predominantes = new long[categorias.size()];
+        boolean conNombre = capsula.getModoIdentificacion() == ModoIdentificacion.NOMBRE;
+        List<ParticipanteDTO> participantes = conNombre ? new ArrayList<>() : null;
+
+        for (RespuestaCapsula r : respuestas) {
+            Map<Long, Double> deRespuesta = puntos.getOrDefault(r.getId(), Map.of());
+            for (int i = 0; i < categorias.size(); i++) {
+                suma[i] += deRespuesta.getOrDefault(categorias.get(i).getId(), 0d);
+            }
+            List<Integer> indices = predominantes(categorias, deRespuesta);
+            indices.forEach(i -> predominantes[i]++);
+            if (conNombre) {
+                participantes.add(new ParticipanteDTO(r.getNombre(), r.getRespondidaEn(),
+                        indices.stream().map(i -> categorias.get(i).getNombre()).toList()));
+            }
+        }
+
+        // Sin respuestas el promedio es 0, no NaN: Jackson no serializa NaN (BUG-03).
+        int total = respuestas.size();
+        List<CategoriaReporteDTO> porCategoria = new ArrayList<>();
+        for (int i = 0; i < categorias.size(); i++) {
+            Categoria c = categorias.get(i);
+            porCategoria.add(new CategoriaReporteDTO(c.getNombre(), c.getValorMinimo(), c.getValorMaximo(),
+                    total > 0 ? suma[i] / total : 0d, predominantes[i]));
+        }
+        return new CapsulaReporteDTO(CapsulaDTO.from(capsula, total), total, porCategoria, participantes);
+    }
+
+    /**
+     * Índices de las categorías con mayor puntaje normalizado a su rango
+     * (valor - mínimo) / (máximo - mínimo). Comparar el valor crudo favorecería a
+     * la categoría con la escala más amplia. Los empates devuelven todas; una
+     * respuesta sin puntos no tiene predominante.
+     */
+    static List<Integer> predominantes(List<Categoria> categorias, Map<Long, Double> puntos) {
+        if (puntos.isEmpty()) {
+            return List.of();
+        }
+        double[] normalizado = new double[categorias.size()];
+        double max = Double.NEGATIVE_INFINITY;
+        for (int i = 0; i < categorias.size(); i++) {
+            Categoria c = categorias.get(i);
+            double valor = puntos.getOrDefault(c.getId(), 0d);
+            double rango = c.getValorMaximo() - c.getValorMinimo();
+            normalizado[i] = rango > 0 ? (valor - c.getValorMinimo()) / rango : valor;
+            max = Math.max(max, normalizado[i]);
+        }
+        List<Integer> indices = new ArrayList<>();
+        for (int i = 0; i < normalizado.length; i++) {
+            if (max - normalizado[i] < 1e-9) {
+                indices.add(i);
+            }
+        }
+        return indices;
     }
 
     /** Las respuestas caen con ella por ON DELETE CASCADE. */

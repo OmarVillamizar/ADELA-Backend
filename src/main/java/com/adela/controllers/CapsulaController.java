@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.adela.dto.CapsulaActualizarDTO;
 import com.adela.dto.CapsulaCrearDTO;
 import com.adela.dto.CapsulaDTO;
+import com.adela.dto.CapsulaReporteDTO;
 import com.adela.entities.Profesor;
 import com.adela.services.CapsulaService;
 
@@ -63,6 +64,12 @@ public class CapsulaController {
     @PreAuthorize("hasRole('PROFESOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<CapsulaDTO> actualizar(@PathVariable Long id, @Valid @RequestBody CapsulaActualizarDTO dto) {
         return ResponseEntity.ok(capsulaService.actualizar(id, dto, autenticado()));
+    }
+
+    @GetMapping("/{id}/reporte")
+    @PreAuthorize("hasRole('PROFESOR') or hasRole('ADMINISTRADOR')")
+    public ResponseEntity<CapsulaReporteDTO> reporte(@PathVariable Long id) {
+        return ResponseEntity.ok(capsulaService.reporte(id, autenticado()));
     }
 
     @DeleteMapping("/{id}")
