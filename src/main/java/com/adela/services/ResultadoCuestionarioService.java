@@ -40,8 +40,6 @@ import com.adela.exceptions.ErrorCode;
 import com.adela.repositories.CuestionarioRepository;
 import com.adela.repositories.EstudianteRepository;
 import com.adela.repositories.GrupoRepository;
-import com.adela.repositories.OpcionRepository;
-import com.adela.repositories.PreguntaRepository;
 import com.adela.repositories.ResultadoCuestionarioRepository;
 import com.adela.repositories.ResultadoPreguntaRepository;
 
@@ -63,13 +61,11 @@ public class ResultadoCuestionarioService {
     
     private final CuestionarioRepository cuestionarioRepository;
     
-    private final PreguntaRepository preguntaRepository;
-    
-    private final OpcionRepository opcionRepository;
-    
     private final GrupoRepository grupoRepository;
     
     private final EstudianteRepository estudianteRepository;
+    
+    private final EvaluacionRespuestas evaluacionRespuestas;
     
     @Transactional
     public ResultadoCuestionario responderCuestionario(RespuestaCuestionarioDTO info, Estudiante estudiante) {
@@ -84,41 +80,16 @@ public class ResultadoCuestionarioService {
                     "Este cuestionario está bloqueado y no se puede responder.");
         }
         
+        List<Opcion> opciones = evaluacionRespuestas.validarSeleccion(cuestionario, info.getOpcionesSeleccionadasId());
+        
         resC.setFechaResolucion(Date.valueOf(LocalDate.now()));
         resC = resultadoCuestionarioRepository.save(resC);
         List<ResultadoPregunta> resultadoPreguntas = new LinkedList<>();
-        List<Pregunta> preguntas = preguntaRepository.findByCuestionario(cuestionario);
-        Map<Long, Pregunta> answered = new TreeMap<>();
-        Map<Long, Pregunta> unAnswered = new TreeMap<>();
-        for (Pregunta pregunta : preguntas) {
-            if (!pregunta.isOpcionMultiple()) {
-                unAnswered.put(pregunta.getId(), pregunta);
-            }
-        }
-        for (Long opcionId : info.getOpcionesSeleccionadasId()) {
-            ResultadoPregunta rp = responderPregunta(opcionId, resC);
-            Long preguntaId = rp.getOpcion().getPregunta().getId();
-            if (answered.containsKey(preguntaId) && !rp.getOpcion().getPregunta().isOpcionMultiple()) {
-                throw new AppException(ErrorCode.OPCION_DUPLICADA,
-                        "La pregunta " + answered.get(preguntaId).getOrden()
-                                + " admite una sola respuesta y llegó más de una.");
-            }
-            answered.put(preguntaId, rp.getOpcion().getPregunta());
-            unAnswered.remove(preguntaId);
+        for (Opcion opcion : opciones) {
+            ResultadoPregunta rp = new ResultadoPregunta();
+            rp.setCuestionario(resC);
+            rp.setOpcion(opcion);
             resultadoPreguntas.add(rp);
-        }
-        
-        if (!unAnswered.isEmpty()) {
-            StringBuilder result = new StringBuilder();
-            for (Pregunta value : unAnswered.values()) {
-                result.append(value.getOrden());
-                result.append(", ");
-            } // Eliminar la última coma y espacio
-            if (result.length() > 0) {
-                result.setLength(result.length() - 2);
-            }
-            throw new AppException(ErrorCode.PREGUNTAS_SIN_RESPONDER,
-                    "Faltan por responder las preguntas " + result + ".");
         }
         
         resultadoPreguntaRepository.saveAll(resultadoPreguntas);
@@ -174,22 +145,6 @@ public class ResultadoCuestionarioService {
             .isEmpty();
     }
 
-    
-    public ResultadoPregunta responderPregunta(Long opcionId, ResultadoCuestionario resC) {
-        Opcion opcion = opcionRepository.findById(opcionId)
-                .orElseThrow(() -> new EntityNotFoundException("No existe la opción " + opcionId));
-        Pregunta pregunta = opcion.getPregunta();
-        Cuestionario cuestionario = resC.getCuestionario();
-        if (!pregunta.getCuestionario().getId().equals(cuestionario.getId())) {
-            throw new AppException(ErrorCode.OPCION_INCONSISTENTE, "La opción " + opcionId
-                    + " no pertenece al cuestionario " + cuestionario.getId() + ".");
-        }
-        ResultadoPregunta rp = new ResultadoPregunta();
-        rp.setCuestionario(resC);
-        rp.setOpcion(opcion);
-        
-        return rp;
-    }
     
     @Transactional
     public void asignarCuestionariosAsignadosAlGrupoAEstudiantesNuevos(Grupo grupo, Set<Estudiante> nuevosEstudiantes) {
@@ -376,19 +331,8 @@ public class ResultadoCuestionarioService {
         res.setFechaResolucion(resC.getFechaResolucion());
         res.setId(resC.getId());
         
-        Map<Long, CategoriaResultadoDTO> mp = new TreeMap<>();
         Map<Long, PreguntaResueltaDTO> preg = new TreeMap<>();
-        List<CategoriaResultadoDTO> categorias = new LinkedList<>();
-        
-        for (Categoria categoria : c.getCategorias()) {
-            CategoriaResultadoDTO cr = new CategoriaResultadoDTO();
-            cr.setNombre(categoria.getNombre());
-            cr.setValor(0d);
-            cr.setValorMaximo(categoria.getValorMaximo());
-            cr.setValorMinimo(categoria.getValorMinimo());
-            mp.put(categoria.getId(), cr);
-            categorias.add(cr);
-        }
+        List<Opcion> elegidas = new LinkedList<>();
         
         for (ResultadoPregunta rep : resC.getPreguntas()) {
             Opcion o = rep.getOpcion();
@@ -402,8 +346,7 @@ public class ResultadoCuestionarioService {
                 pr.setOrden(p.getOrden());
             }
             pr.getRespuestas().add(o.getRespuesta());
-            CategoriaResultadoDTO cr = mp.get(o.getCategoria().getId());
-            cr.setValor(cr.getValor() + o.getValor());
+            elegidas.add(o);
             preg.put(p.getId(), pr);
         }
         
@@ -416,7 +359,7 @@ public class ResultadoCuestionarioService {
                 preg.put(p.getId(), pr);
             }
         }
-        res.setCategorias(categorias);
+        res.setCategorias(evaluacionRespuestas.puntuar(c, elegidas));
         res.setPreguntas(new LinkedList<>(preg.values()));
         
         return res;
