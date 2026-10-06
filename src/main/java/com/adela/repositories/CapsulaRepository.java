@@ -9,7 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.adela.dto.CapsulaResumenDTO;
+import com.adela.dto.CapsulaDTO;
 import com.adela.entities.Capsula;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Profesor;
@@ -23,18 +23,18 @@ public interface CapsulaRepository extends JpaRepository<Capsula, Long> {
     boolean existsByCodigo(String codigo);
 
     @Query("""
-            SELECT new com.adela.dto.CapsulaResumenDTO(
-                     c.id, c.codigo, c.nombre, q.nombre, q.siglas,
+            SELECT new com.adela.dto.CapsulaDTO(
+                     c.id, c.codigo, c.nombre, q.id, q.nombre, q.siglas,
                      c.modoIdentificacion, c.abierta, c.creadaEn, COUNT(r))
               FROM Capsula c
               JOIN c.cuestionario q
               LEFT JOIN RespuestaCapsula r ON r.capsula = c
              WHERE c.profesor = :profesor
-          GROUP BY c.id, c.codigo, c.nombre, q.nombre, q.siglas,
+          GROUP BY c.id, c.codigo, c.nombre, q.id, q.nombre, q.siglas,
                    c.modoIdentificacion, c.abierta, c.creadaEn
           ORDER BY c.creadaEn DESC
             """)
-    List<CapsulaResumenDTO> resumirPorProfesor(@Param("profesor") Profesor profesor);
+    List<CapsulaDTO> resumirPorProfesor(@Param("profesor") Profesor profesor);
 
     /**
      * Borrado masivo: las respuestas y sus opciones caen por ON DELETE CASCADE en
