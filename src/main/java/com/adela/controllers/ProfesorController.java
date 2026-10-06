@@ -28,6 +28,7 @@ import com.adela.exceptions.ErrorCode;
 import com.adela.repositories.ProfesorRepository;
 import com.adela.repositories.RolRepository;
 import com.adela.repositories.UsuarioRepository;
+import com.adela.services.CodigoInstitucional;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.Valid;
@@ -189,16 +190,18 @@ public class ProfesorController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Profesor : " + email);
         }
 
-        Optional<Usuario> existente = usuarioRepository.findByCodigo(profesorDTO.getCodigo());
+        String codigo = CodigoInstitucional.aGuardar(email, profesorDTO.getCodigo());
+
+        Optional<Usuario> existente = codigo == null ? Optional.empty() : usuarioRepository.findByCodigo(codigo);
         if (existente.isPresent() && !existente.get().getEmail().equals(email)) {
             throw new AppException(ErrorCode.CODIGO_DUPLICADO,
-                    "El código " + profesorDTO.getCodigo() + " ya está registrado por otro usuario.",
+                    "El código " + codigo + " ya está registrado por otro usuario.",
                     Map.of("codigo", "Ya está en uso"));
         }
         
         Profesor profesorExistente = profesorOptional.get();
         profesorExistente.setCarrera(profesorDTO.getCarrera());
-        profesorExistente.setCodigo(profesorDTO.getCodigo());
+        profesorExistente.setCodigo(codigo);
         profesorExistente.setEstado(UsuarioEstado.ACTIVA);
         
         return ResponseEntity.ok(ProfesorDTO.from(profesorRepository.save(profesorExistente)));

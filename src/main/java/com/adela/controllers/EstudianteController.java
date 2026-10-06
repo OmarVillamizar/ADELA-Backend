@@ -27,6 +27,7 @@ import com.adela.exceptions.AppException;
 import com.adela.exceptions.ErrorCode;
 import com.adela.repositories.EstudianteRepository;
 import com.adela.repositories.UsuarioRepository;
+import com.adela.services.CodigoInstitucional;
 
 import jakarta.validation.Valid;
 
@@ -98,17 +99,19 @@ public class EstudianteController {
         }
         
 
+        String codigo = CodigoInstitucional.aGuardar(email, estudianteDTO.getCodigo());
+
         // Usuario.codigo es unique: sin esta comprobacion la violacion de constraint
         // salia como 500. ProfesorController ya la hacia; aqui faltaba.
-        Optional<Usuario> conMismoCodigo = usuarioRepository.findByCodigo(estudianteDTO.getCodigo());
+        Optional<Usuario> conMismoCodigo = codigo == null ? Optional.empty() : usuarioRepository.findByCodigo(codigo);
         if (conMismoCodigo.isPresent() && !conMismoCodigo.get().getEmail().equalsIgnoreCase(email)) {
             throw new AppException(ErrorCode.CODIGO_DUPLICADO,
-                    "El código " + estudianteDTO.getCodigo() + " ya está registrado por otro usuario.",
+                    "El código " + codigo + " ya está registrado por otro usuario.",
                     Map.of("codigo", "Ya está en uso"));
         }
 
         Estudiante estudianteExistente = estudianteOptional.get();
-        estudianteExistente.setCodigo(estudianteDTO.getCodigo());
+        estudianteExistente.setCodigo(codigo);
         estudianteExistente.setGenero(estudianteDTO.getGenero());
         estudianteExistente.setFecha_nacimiento(estudianteDTO.getFechaNacimiento());
         estudianteExistente.setEstado(UsuarioEstado.ACTIVA);
