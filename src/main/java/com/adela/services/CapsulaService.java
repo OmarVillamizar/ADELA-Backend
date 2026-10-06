@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,7 +57,12 @@ import lombok.RequiredArgsConstructor;
 @Service
 public class CapsulaService {
 
-    static final int LONGITUD_CODIGO_CAPSULA = 8;
+    /**
+     * Corto para dictarlo o teclearlo, como el PIN de un juego en el aula: 31^6 ≈
+     * 887 millones. Adivinarlo solo deja responder la cápsula, no ver datos, y el
+     * profesor la cierra al terminar.
+     */
+    static final int LONGITUD_CODIGO_CAPSULA = 6;
 
     /** Más largo que el de la cápsula: este código da acceso a un resultado. */
     static final int LONGITUD_CODIGO_RESULTADO = 12;
@@ -77,8 +83,8 @@ public class CapsulaService {
     }
 
     /**
-     * La columna es unique y respalda la comprobación, pero chocar con un código
-     * existente es tan improbable (31^8) que basta con reintentar unas veces.
+     * Chocar con un código existente es tan improbable que basta con reintentar
+     * unas veces; la columna unique respalda la comprobación.
      */
     static String codigoLibre(int longitud, Predicate<String> enUso) {
         for (int i = 0; i < INTENTOS_CODIGO; i++) {
@@ -90,19 +96,35 @@ public class CapsulaService {
         throw new IllegalStateException("No se encontró un código libre tras " + INTENTOS_CODIGO + " intentos");
     }
 
-    @Transactional
+    /**
+     * existsByCodigo descarta los códigos ya usados, pero dos creaciones
+     * simultáneas pueden sacar el mismo código libre a la vez; el unique de la
+     * columna rechaza la segunda y aquí se reintenta con otro.
+     *
+     * Sin @Transactional a propósito: en Postgres una transacción que falla queda
+     * abortada y no admite el reintento. Cada saveAndFlush va en la suya.
+     */
     public CapsulaDTO crear(CapsulaCrearDTO dto, Profesor profesor) {
         Cuestionario cuestionario = cuestionarioRepository.findById(dto.cuestionarioId())
                 .orElseThrow(() -> new EntityNotFoundException("No existe el cuestionario con id " + dto.cuestionarioId()));
 
-        Capsula capsula = new Capsula();
-        capsula.setCodigo(codigoLibre(LONGITUD_CODIGO_CAPSULA, capsulaRepository::existsByCodigo));
-        capsula.setNombre(dto.nombre().strip());
-        capsula.setProfesor(profesor);
-        capsula.setCuestionario(cuestionario);
-        capsula.setModoIdentificacion(dto.modoIdentificacion());
-        capsula.setCreadaEn(Instant.now());
-        return CapsulaDTO.from(capsulaRepository.save(capsula), 0);
+        for (int intento = 1;; intento++) {
+            Capsula capsula = new Capsula();
+            capsula.setCodigo(codigoLibre(LONGITUD_CODIGO_CAPSULA, capsulaRepository::existsByCodigo));
+            capsula.setNombre(dto.nombre().strip());
+            capsula.setProfesor(profesor);
+            capsula.setCuestionario(cuestionario);
+            capsula.setModoIdentificacion(dto.modoIdentificacion());
+            capsula.setCreadaEn(Instant.now());
+            try {
+                return CapsulaDTO.from(capsulaRepository.saveAndFlush(capsula), 0);
+            } catch (DataIntegrityViolationException e) {
+                // Solo el choque de código se reintenta; cualquier otra violación sube.
+                if (intento >= INTENTOS_CODIGO || !capsulaRepository.existsByCodigo(capsula.getCodigo())) {
+                    throw e;
+                }
+            }
+        }
     }
 
     @Transactional(readOnly = true)

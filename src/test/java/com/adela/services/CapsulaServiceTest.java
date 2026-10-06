@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -23,6 +24,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.dao.DataIntegrityViolationException;
 
 import com.adela.dto.CapsulaActualizarDTO;
 import com.adela.dto.CapsulaCrearDTO;
@@ -86,7 +88,7 @@ class CapsulaServiceTest {
 
         capsula = new Capsula();
         capsula.setId(5L);
-        capsula.setCodigo("ABCD2345");
+        capsula.setCodigo("ABC234");
         capsula.setNombre("Charla");
         capsula.setProfesor(propietario);
         capsula.setCuestionario(cuestionario);
@@ -94,10 +96,10 @@ class CapsulaServiceTest {
 
         when(capsulaRepository.findByProfesorAndId(propietario, 5L)).thenReturn(Optional.of(capsula));
         when(capsulaRepository.findByProfesorAndId(intruso, 5L)).thenReturn(Optional.empty());
-        when(capsulaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(capsulaRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
         when(cuestionarioRepository.findById(1L)).thenReturn(Optional.of(cuestionario));
 
-        when(capsulaRepository.findByCodigo("ABCD2345")).thenReturn(Optional.of(capsula));
+        when(capsulaRepository.findByCodigo("ABC234")).thenReturn(Optional.of(capsula));
         when(respuestaCapsulaRepository.findByCapsulaAndIntento(any(), any())).thenReturn(Optional.empty());
         when(respuestaCapsulaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         when(evaluacionRespuestas.validarSeleccion(any(), any())).thenReturn(List.of());
@@ -113,10 +115,10 @@ class CapsulaServiceTest {
     void capsulaCerradaRechaza() {
         capsula.setAbierta(false);
 
-        AppException abrir = assertThrows(AppException.class, () -> service.paraResponder("abcd-2345"));
+        AppException abrir = assertThrows(AppException.class, () -> service.paraResponder("abc-234"));
         assertEquals(ErrorCode.CAPSULA_CERRADA, abrir.getCode());
         AppException enviar = assertThrows(AppException.class,
-                () -> service.responder("ABCD2345", envio(UUID.randomUUID(), "Ana")));
+                () -> service.responder("ABC234", envio(UUID.randomUUID(), "Ana")));
         assertEquals(ErrorCode.CAPSULA_CERRADA, enviar.getCode());
         verify(respuestaCapsulaRepository, never()).save(any());
     }
@@ -125,7 +127,7 @@ class CapsulaServiceTest {
     @DisplayName("En modo NOMBRE el nombre es obligatorio")
     void modoNombreExigeNombre() {
         AppException e = assertThrows(AppException.class,
-                () -> service.responder("ABCD2345", envio(UUID.randomUUID(), "  ")));
+                () -> service.responder("ABC234", envio(UUID.randomUUID(), "  ")));
         assertEquals(ErrorCode.VALIDACION, e.getCode());
         assertTrue(e.getFields().containsKey("nombre"));
     }
@@ -135,7 +137,7 @@ class CapsulaServiceTest {
     void modoAnonimoDescartaNombre() {
         capsula.setModoIdentificacion(ModoIdentificacion.ANONIMO);
 
-        ResultadoCapsulaDTO r = service.responder("ABCD2345", envio(UUID.randomUUID(), "Ana"));
+        ResultadoCapsulaDTO r = service.responder("ABC234", envio(UUID.randomUUID(), "Ana"));
 
         ArgumentCaptor<RespuestaCapsula> guardada = ArgumentCaptor.forClass(RespuestaCapsula.class);
         verify(respuestaCapsulaRepository).save(guardada.capture());
@@ -154,7 +156,7 @@ class CapsulaServiceTest {
         previa.setIntento(intento);
         when(respuestaCapsulaRepository.findByCapsulaAndIntento(capsula, intento)).thenReturn(Optional.of(previa));
 
-        ResultadoCapsulaDTO r = service.responder("ABCD2345", envio(intento, "Ana"));
+        ResultadoCapsulaDTO r = service.responder("ABC234", envio(intento, "Ana"));
 
         assertEquals("PREVIA234567", r.codigo());
         verify(respuestaCapsulaRepository, never()).save(any());
@@ -164,7 +166,7 @@ class CapsulaServiceTest {
     @DisplayName("Un código con longitud imposible es 404 sin consultar la base de datos")
     void codigoImposibleNoConsulta() {
         assertThrows(EntityNotFoundException.class, () -> service.paraResponder("ABC"));
-        assertThrows(EntityNotFoundException.class, () -> service.resultado("ABCD2345"));
+        assertThrows(EntityNotFoundException.class, () -> service.resultado("ABC234"));
         verify(capsulaRepository, never()).findByCodigo("ABC");
         verify(respuestaCapsulaRepository, never()).findByCodigo(any());
     }
@@ -267,6 +269,34 @@ class CapsulaServiceTest {
         assertTrue(dto.codigo().chars().allMatch(c -> CodigoAleatorio.ALFABETO.indexOf(c) >= 0));
         assertEquals("Charla", dto.nombre());
         assertTrue(dto.abierta());
+    }
+
+    @Test
+    @DisplayName("Si otra creación simultánea toma el mismo código, se reintenta con otro")
+    void choqueDeCodigoSeReintenta() {
+        // El primer guardado choca con el unique; el código ya existe en ese momento.
+        when(capsulaRepository.saveAndFlush(any()))
+                .thenThrow(new DataIntegrityViolationException("duplicate key capsula_codigo_key"))
+                .thenAnswer(inv -> inv.getArgument(0));
+        when(capsulaRepository.existsByCodigo(any())).thenReturn(false, true, false);
+
+        CapsulaDTO dto = service.crear(new CapsulaCrearDTO("Charla", 1L, ModoIdentificacion.ANONIMO),
+                propietario);
+
+        assertEquals(CapsulaService.LONGITUD_CODIGO_CAPSULA, dto.codigo().length());
+        verify(capsulaRepository, times(2)).saveAndFlush(any());
+    }
+
+    @Test
+    @DisplayName("Una violación que no es el código no se reintenta")
+    void otraViolacionSube() {
+        when(capsulaRepository.saveAndFlush(any()))
+                .thenThrow(new DataIntegrityViolationException("otra restriccion"));
+        when(capsulaRepository.existsByCodigo(any())).thenReturn(false);
+
+        assertThrows(DataIntegrityViolationException.class, () -> service.crear(
+                new CapsulaCrearDTO("Charla", 1L, ModoIdentificacion.ANONIMO), propietario));
+        verify(capsulaRepository, times(1)).saveAndFlush(any());
     }
 
     @Test
