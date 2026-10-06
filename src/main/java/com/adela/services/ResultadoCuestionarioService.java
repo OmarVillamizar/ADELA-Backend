@@ -441,6 +441,41 @@ public class ResultadoCuestionarioService {
         return res;
     }
     
+    /**
+     * Una fila por estudiante resuelto y estilo, para Excel (formato "excel") o
+     * análisis estadístico (formato "rfc4180").
+     */
+    @Transactional(readOnly = true)
+    public String exportarCsv(Long cuestionarioId, Integer grupoId, Profesor profesor, String formato) {
+        Csv.Formato f = switch (formato == null ? "" : formato.toLowerCase()) {
+            case "excel" -> Csv.Formato.EXCEL;
+            case "rfc4180" -> Csv.Formato.RFC4180;
+            default -> throw new AppException(ErrorCode.VALIDACION, "El formato debe ser excel o rfc4180.");
+        };
+        Cuestionario cuestionario = cuestionarioRepository.findById(cuestionarioId)
+                .orElseThrow(() -> new EntityNotFoundException("No existe el cuestionario con id " + cuestionarioId));
+        Grupo grupo = grupoRepository.findById(grupoId)
+                .orElseThrow(() -> new EntityNotFoundException("No existe el grupo con id " + grupoId));
+        verificarPropiedad(grupo, profesor);
+
+        ClaveInstrumento clave = calificacionService.clave(cuestionario);
+        Csv csv = new Csv(f).fila(List.of("estudiante_email", "estudiante_nombre", "estilo", "puntaje", "rango_min",
+                "rango_max", "pomp", "nivel", "dominante", "perfil", "version_motor"));
+        resultadoCuestionarioRepository.findByGrupoAndCuestionario(grupo, cuestionario).stream()
+                .filter(rc -> rc.getFechaResolucion() != null)
+                .sorted(Comparator.comparing((ResultadoCuestionario rc) -> rc.getEstudiante().getEmail()))
+                .forEach(rc -> {
+                    ResultadoInstrumento r = calificacionService.calificar(cuestionario, clave,
+                            rc.getPreguntas().stream().map(ResultadoPregunta::getOpcion).toList());
+                    r.estilos().forEach(e -> csv.fila(List.of(Csv.texto(rc.getEstudiante().getEmail()),
+                            Csv.texto(rc.getEstudiante().getNombre()), Csv.texto(e.nombre()), csv.numero(e.bruto()),
+                            csv.numero(e.rangoMin()), csv.numero(e.rangoMax()), csv.numero(e.pomp()),
+                            Csv.texto(e.banda()), e.dominante() ? "si" : "no", Csv.texto(r.perfilEtiqueta()),
+                            r.versionMotor())));
+                });
+        return csv.toString();
+    }
+
     @Transactional(readOnly = true)
     public List<ResultadoGrupoResumidoDTO> obtenerPorGrupo(Integer grupoId, Profesor profesor) {
         Grupo grupo = grupoRepository.findById(grupoId)

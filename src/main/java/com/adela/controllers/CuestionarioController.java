@@ -1,6 +1,10 @@
 package com.adela.controllers;
 
+import java.nio.charset.StandardCharsets;
+
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -12,6 +16,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.adela.dto.CuestionarioDTO;
@@ -143,6 +148,19 @@ public class CuestionarioController {
         return new ResponseEntity<>(
                 resultadoCuestionarioService.obtenerResultadosGrupoCuestionario(idCuestionario, idGrupo, profesor),
                 HttpStatus.OK);
+    }
+
+    @GetMapping("/reporte/{idCuestionario}/grupo/{idGrupo}/csv")
+    @PreAuthorize("hasRole('PROFESOR') or hasRole('ADMINISTRADOR')")
+    public ResponseEntity<byte[]> exportarCsv(@PathVariable Long idCuestionario, @PathVariable Integer idGrupo,
+            @RequestParam(defaultValue = "excel") String formato) {
+        Profesor profesor = (Profesor) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String csv = resultadoCuestionarioService.exportarCsv(idCuestionario, idGrupo, profesor, formato);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"resultados-" + idCuestionario + "-grupo-" + idGrupo + ".csv\"")
+                .contentType(MediaType.parseMediaType("text/csv; charset=UTF-8"))
+                .body(csv.getBytes(StandardCharsets.UTF_8));
     }
 
     @GetMapping("/reporte-estudiante/{idCuestionarioResuelto}")

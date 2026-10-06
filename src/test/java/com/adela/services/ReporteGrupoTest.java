@@ -1,6 +1,7 @@
 package com.adela.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -26,6 +28,7 @@ import com.adela.entities.Pregunta;
 import com.adela.entities.Profesor;
 import com.adela.entities.ResultadoCuestionario;
 import com.adela.entities.ResultadoPregunta;
+import com.adela.exceptions.AppException;
 import com.adela.repositories.BandaInterpretacionRepository;
 import com.adela.repositories.CuestionarioRepository;
 import com.adela.repositories.EscalonRelativoRepository;
@@ -35,8 +38,9 @@ import com.adela.repositories.ResultadoCuestionarioRepository;
 import com.adela.repositories.ResultadoPreguntaRepository;
 
 /**
- * Reporte grupal calificado con el motor. Una pregunta única: opción 11 suma 1
- * a Visual, opción 12 suma 1 a Auditivo. Ana elige 11, Luis 12, Eva no responde.
+ * Reporte grupal y CSV calificados con el motor. Una pregunta única: opción 11
+ * suma 1 a Visual, opción 12 suma 1 a Auditivo. Ana elige 11, Luis 12, Eva no
+ * responde. Con RELATIVO, el perfil de cada uno es el estilo que puntuó.
  */
 class ReporteGrupoTest {
 
@@ -49,10 +53,11 @@ class ReporteGrupoTest {
             new CalificacionService(mock(BandaInterpretacionRepository.class),
                     mock(EscalonRelativoRepository.class)));
 
-    @Test
-    @DisplayName("Media del puntaje directo, estadísticos, rango teórico y distribución de perfiles")
-    void reporteGrupal() {
-        Profesor profesor = new Profesor();
+    private Profesor profesor;
+
+    @BeforeEach
+    void preparar() {
+        profesor = new Profesor();
         profesor.setEmail("profe@ufps.edu.co");
         Grupo grupo = new Grupo();
         grupo.setId(7);
@@ -75,10 +80,15 @@ class ReporteGrupoTest {
 
         when(cuestionarios.findById(1L)).thenReturn(Optional.of(c));
         when(grupos.findById(7)).thenReturn(Optional.of(grupo));
-        when(resultados.findByGrupoAndCuestionario(grupo, c)).thenReturn(
-                List.of(resultado(c, grupo, "ana@ufps.edu.co", v), resultado(c, grupo, "luis@ufps.edu.co", a),
-                        resultado(c, grupo, "eva@ufps.edu.co", null)));
+        when(resultados.findByGrupoAndCuestionario(grupo, c)).thenReturn(List.of(
+                resultado(c, grupo, "luis@ufps.edu.co", "=Luis", a),
+                resultado(c, grupo, "ana@ufps.edu.co", "Pérez, Ana", v),
+                resultado(c, grupo, "eva@ufps.edu.co", "Eva", null)));
+    }
 
+    @Test
+    @DisplayName("Media del puntaje directo, estadísticos, rango teórico y distribución de perfiles")
+    void reporteGrupal() {
         ResultadoGrupoDTO r = service.obtenerResultadosGrupoCuestionario(1L, 7, profesor);
 
         assertEquals(2, r.getEstudiantesResuelto().size());
@@ -92,6 +102,31 @@ class ReporteGrupoTest {
         assertEquals(50d, ev.getEstadisticaPomp().media(), 1e-9);
         assertTrue(r.getCalificacion().rangosHomogeneos());
         assertEquals(Map.of("Visual", 1L, "Auditivo", 1L), r.getCalificacion().distribucionPerfiles());
+    }
+
+    @Test
+    @DisplayName("CSV RFC 4180: una fila por estudiante resuelto y estilo, comillas y fórmulas neutralizadas")
+    void csvRfc() {
+        String[] lineas = service.exportarCsv(1L, 7, profesor, "rfc4180").split("\r\n");
+
+        assertEquals(5, lineas.length);
+        assertEquals("estudiante_email,estudiante_nombre,estilo,puntaje,rango_min,rango_max,pomp,nivel,"
+                + "dominante,perfil,version_motor", lineas[0]);
+        assertEquals("ana@ufps.edu.co,\"Pérez, Ana\",Visual,1,0,1,100,,si,Visual,2.0.0", lineas[1]);
+        assertEquals("ana@ufps.edu.co,\"Pérez, Ana\",Auditivo,0,0,1,0,,no,Visual,2.0.0", lineas[2]);
+        assertTrue(lineas[3].startsWith("luis@ufps.edu.co,'=Luis,Visual,0"));
+    }
+
+    @Test
+    @DisplayName("CSV para Excel: BOM, punto y coma y coma decimal; un formato desconocido es VALIDACION")
+    void csvExcel() {
+        String csv = service.exportarCsv(1L, 7, profesor, "EXCEL");
+
+        assertTrue(csv.startsWith("﻿estudiante_email;estudiante_nombre;"));
+        assertTrue(csv.contains("ana@ufps.edu.co;Pérez, Ana;Visual;1;0;1;100;;si;Visual;2.0.0"));
+        assertEquals("33,3333", new Csv(Csv.Formato.EXCEL).numero(100d / 3));
+        assertEquals("33.3333", new Csv(Csv.Formato.RFC4180).numero(100d / 3));
+        assertThrows(AppException.class, () -> service.exportarCsv(1L, 7, profesor, "xlsx"));
     }
 
     private static Estilo estilo(Long id, String nombre, Cuestionario c) {
@@ -111,9 +146,11 @@ class ReporteGrupoTest {
         return o;
     }
 
-    private static ResultadoCuestionario resultado(Cuestionario c, Grupo g, String email, Opcion elegida) {
+    private static ResultadoCuestionario resultado(Cuestionario c, Grupo g, String email, String nombre,
+            Opcion elegida) {
         Estudiante e = new Estudiante();
         e.setEmail(email);
+        e.setNombre(nombre);
         ResultadoCuestionario rc = new ResultadoCuestionario();
         rc.setCuestionario(c);
         rc.setGrupo(g);
