@@ -25,7 +25,7 @@ import lombok.ToString;
 @Setter
 @ToString
 @Table(name = "estilo")
-public class Categoria {
+public class Estilo {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -54,9 +54,9 @@ public class Categoria {
     public boolean equals(Object o) {
         if (this == o)
             return true;
-        if (!(o instanceof Categoria))
+        if (!(o instanceof Estilo))
             return false;
-        Categoria otro = (Categoria) o;
+        Estilo otro = (Estilo) o;
         return getId() != null && Objects.equals(getId(), otro.getId());
     }
 

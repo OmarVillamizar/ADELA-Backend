@@ -30,12 +30,12 @@ import com.adela.dto.CapsulaActualizarDTO;
 import com.adela.dto.CapsulaCrearDTO;
 import com.adela.dto.CapsulaDTO;
 import com.adela.dto.CapsulaReporteDTO;
-import com.adela.dto.CapsulaReporteDTO.CategoriaReporteDTO;
+import com.adela.dto.CapsulaReporteDTO.EstiloReporteDTO;
 import com.adela.dto.PuntajeRespuestaCapsulaDTO;
 import com.adela.dto.RespuestaCapsulaDTO;
 import com.adela.dto.ResultadoCapsulaDTO;
 import com.adela.entities.Capsula;
-import com.adela.entities.Categoria;
+import com.adela.entities.Estilo;
 import com.adela.entities.RespuestaCapsula;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.ModoIdentificacion;
@@ -177,14 +177,14 @@ class CapsulaServiceTest {
      * 5 y 10 → empate (0.5). Respuesta 3: sin puntos → sin predominante.
      */
     private void prepararReporte() {
-        Categoria visual = categoria(1L, "Visual", 10d);
-        Categoria auditivo = categoria(2L, "Auditivo", 20d);
-        cuestionario.getCategorias().add(visual);
-        cuestionario.getCategorias().add(auditivo);
+        Estilo visual = estilo(1L, "Visual", 10d);
+        Estilo auditivo = estilo(2L, "Auditivo", 20d);
+        cuestionario.getEstilos().add(visual);
+        cuestionario.getEstilos().add(auditivo);
 
         when(respuestaCapsulaRepository.findByCapsulaOrderByRespondidaEn(capsula))
                 .thenReturn(List.of(respuesta(101L, "Ana"), respuesta(102L, "Luis"), respuesta(103L, "Eva")));
-        when(respuestaCapsulaRepository.puntajesPorCategoria(capsula)).thenReturn(List.of(
+        when(respuestaCapsulaRepository.puntajesPorEstilo(capsula)).thenReturn(List.of(
                 new PuntajeRespuestaCapsulaDTO(101L, 1L, 6d), new PuntajeRespuestaCapsulaDTO(101L, 2L, 9d),
                 new PuntajeRespuestaCapsulaDTO(102L, 1L, 5d), new PuntajeRespuestaCapsulaDTO(102L, 2L, 10d)));
     }
@@ -197,8 +197,8 @@ class CapsulaServiceTest {
         CapsulaReporteDTO r = service.reporte(5L, propietario);
 
         assertEquals(3, r.totalRespuestas());
-        CategoriaReporteDTO visual = r.categorias().get(0);
-        CategoriaReporteDTO auditivo = r.categorias().get(1);
+        EstiloReporteDTO visual = r.estilos().get(0);
+        EstiloReporteDTO auditivo = r.estilos().get(1);
         assertEquals(11d / 3, visual.promedio(), 1e-9);
         assertEquals(19d / 3, auditivo.promedio(), 1e-9);
         assertEquals(2, visual.predominantes());
@@ -219,15 +219,15 @@ class CapsulaServiceTest {
     @Test
     @DisplayName("Un reporte sin respuestas da ceros, no NaN, y uno ajeno es 404")
     void reporteVacioYAjeno() {
-        cuestionario.getCategorias().add(categoria(1L, "Visual", 10d));
+        cuestionario.getEstilos().add(estilo(1L, "Visual", 10d));
         when(respuestaCapsulaRepository.findByCapsulaOrderByRespondidaEn(capsula)).thenReturn(List.of());
 
-        assertEquals(0d, service.reporte(5L, propietario).categorias().get(0).promedio());
+        assertEquals(0d, service.reporte(5L, propietario).estilos().get(0).promedio());
         assertThrows(EntityNotFoundException.class, () -> service.reporte(5L, intruso));
     }
 
-    private static Categoria categoria(Long id, String nombre, double maximo) {
-        Categoria c = new Categoria();
+    private static Estilo estilo(Long id, String nombre, double maximo) {
+        Estilo c = new Estilo();
         c.setId(id);
         c.setNombre(nombre);
         c.setValorMinimo(0d);

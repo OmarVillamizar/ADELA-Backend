@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.adela.dto.CategoriaResultadoDTO;
+import com.adela.dto.EstiloResultadoDTO;
 import com.adela.dto.CuestionarioResumidoDTO;
 import com.adela.dto.EstudianteDTO;
 import com.adela.dto.GrupoResumidoDTO;
@@ -26,7 +26,7 @@ import com.adela.dto.ResultCuestCompletoDTO;
 import com.adela.dto.ResultadoCuestionarioDTO;
 import com.adela.dto.ResultadoGrupoDTO;
 import com.adela.dto.ResultadoGrupoResumidoDTO;
-import com.adela.entities.Categoria;
+import com.adela.entities.Estilo;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Estudiante;
 import com.adela.entities.Grupo;
@@ -357,7 +357,7 @@ public class ResultadoCuestionarioService {
                 preg.put(p.getId(), pr);
             }
         }
-        res.setCategorias(evaluacionRespuestas.puntuar(c, elegidas));
+        res.setEstilos(evaluacionRespuestas.puntuar(c, elegidas));
         res.setPreguntas(new LinkedList<>(preg.values()));
         
         return res;
@@ -409,21 +409,21 @@ public class ResultadoCuestionarioService {
         res.setCuestionario(CuestionarioResumidoDTO.from(cuestionario));
         res.setGrupo(GrupoResumidoDTO.from(grupo));
         
-        Map<Long, CategoriaResultadoDTO> mp = new TreeMap<>();
-        List<CategoriaResultadoDTO> categorias = new LinkedList<>();
+        Map<Long, EstiloResultadoDTO> mp = new TreeMap<>();
+        List<EstiloResultadoDTO> estilos = new LinkedList<>();
         List<ResultadoCuestionarioDTO> estudiantesS = new LinkedList<>();
         List<ResultadoCuestionarioDTO> estudiantesUS = new LinkedList<>();
         
         res.setFechaAplicacion(rcs.get(0).getFechaAplicacion());
         
-        for (Categoria categoria : cuestionario.getCategorias()) {
-            CategoriaResultadoDTO cr = new CategoriaResultadoDTO();
-            cr.setNombre(categoria.getNombre());
+        for (Estilo estilo : cuestionario.getEstilos()) {
+            EstiloResultadoDTO cr = new EstiloResultadoDTO();
+            cr.setNombre(estilo.getNombre());
             cr.setValor(0d);
-            cr.setValorMaximo(categoria.getValorMaximo());
-            cr.setValorMinimo(categoria.getValorMinimo());
-            mp.put(categoria.getId(), cr);
-            categorias.add(cr);
+            cr.setValorMaximo(estilo.getValorMaximo());
+            cr.setValorMinimo(estilo.getValorMinimo());
+            mp.put(estilo.getId(), cr);
+            estilos.add(cr);
         }
         
         for (ResultadoCuestionario rc : rcs) {
@@ -431,8 +431,8 @@ public class ResultadoCuestionarioService {
                 cnt++;
                 for (ResultadoPregunta rp : rc.getPreguntas()) {
                     Opcion o = rp.getOpcion();
-                    Categoria c = o.getCategoria();
-                    CategoriaResultadoDTO crdto = mp.get(c.getId());
+                    Estilo c = o.getEstilo();
+                    EstiloResultadoDTO crdto = mp.get(c.getId());
                     crdto.setValor(crdto.getValor() + o.getValor());
                 }
                 estudiantesS.add(ResultadoCuestionarioDTO.from(rc));
@@ -444,12 +444,12 @@ public class ResultadoCuestionarioService {
         // Sin resultados resueltos no hay promedio que calcular: dividir por cero
         // produce NaN, que Jackson no serializa y convierte la respuesta en un 500.
         if (cnt > 0) {
-            for (CategoriaResultadoDTO rca : mp.values()) {
+            for (EstiloResultadoDTO rca : mp.values()) {
                 rca.setValor(rca.getValor() / cnt);
             }
         }
         
-        res.setCategorias(categorias);
+        res.setEstilos(estilos);
         res.setEstudiantesResuelto(estudiantesS);
         res.setEstudiantesNoResuelto(estudiantesUS);
         

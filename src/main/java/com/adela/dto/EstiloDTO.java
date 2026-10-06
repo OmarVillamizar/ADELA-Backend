@@ -5,9 +5,7 @@ import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
-public class CategoriaResultadoDTO {
+public class EstiloDTO {
     private String nombre;
-    private Double valorMinimo;
-    private Double valorMaximo;
-    private Double valor;
+    private int id; // No es el id de la bd
 }

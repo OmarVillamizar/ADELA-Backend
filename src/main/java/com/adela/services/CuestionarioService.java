@@ -9,12 +9,12 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.adela.dto.CategoriaDTO;
+import com.adela.dto.EstiloDTO;
 import com.adela.dto.CuestionarioDTO;
 import com.adela.dto.CuestionarioParaResponderDTO;
 import com.adela.dto.CuestionarioResumidoDTO;
 import com.adela.dto.PreguntaDTO;
-import com.adela.entities.Categoria;
+import com.adela.entities.Estilo;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Pregunta;
 import com.adela.repositories.CapsulaRepository;
@@ -35,7 +35,7 @@ public class CuestionarioService {
     
     private final CapsulaRepository capsulaRepository;
     
-    private final CategoriaService categoriaService;
+    private final EstiloService estiloService;
     
     private final PreguntaService preguntaService;
     
@@ -71,16 +71,16 @@ public class CuestionarioService {
         
         Cuestionario cuestionario = cuestionarioRepository.save(cuestionarioSave);
         
-        Map<Integer, Categoria> idMap = new HashMap<>();
+        Map<Integer, Estilo> idMap = new HashMap<>();
         
-        Set<Categoria> categorias = new HashSet<>();
+        Set<Estilo> estilos = new HashSet<>();
         Set<Pregunta> preguntas = new HashSet<>();
         
-        for (CategoriaDTO categoriaDTO : cuestionarioDTO.getCategorias()) {
-            int otherId = categoriaDTO.getId();
-            Categoria categoria = categoriaService.crearCategoria(cuestionario, categoriaDTO);
-            idMap.put(otherId, categoria);
-            categorias.add(categoria);
+        for (EstiloDTO estiloDTO : cuestionarioDTO.getEstilos()) {
+            int otherId = estiloDTO.getId();
+            Estilo estilo = estiloService.crearEstilo(cuestionario, estiloDTO);
+            idMap.put(otherId, estilo);
+            estilos.add(estilo);
         }
         
         for (PreguntaDTO preguntaDTO : cuestionarioDTO.getPreguntas()) {
@@ -88,9 +88,9 @@ public class CuestionarioService {
             preguntas.add(pregunta);
         }
         
-        categoriaService.guardarCategorias(categorias);
+        estiloService.guardarEstilos(estilos);
         
-        cuestionario.setCategorias(categorias);
+        cuestionario.setEstilos(estilos);
         cuestionario.setPreguntas(preguntas);
         
         return cuestionarioRepository.save(cuestionario);
@@ -107,10 +107,10 @@ public class CuestionarioService {
         }
         cuestionario.getPreguntas().clear();
         
-        for (Categoria categoria : cuestionario.getCategorias()) {
-            categoriaService.eliminarCategoria(categoria);
+        for (Estilo estilo : cuestionario.getEstilos()) {
+            estiloService.eliminarEstilo(estilo);
         }
-        cuestionario.getCategorias().clear();
+        cuestionario.getEstilos().clear();
         
         cuestionarioRepository.delete(cuestionario);
     }

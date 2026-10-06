@@ -20,7 +20,7 @@ import com.adela.dto.CapsulaCrearDTO;
 import com.adela.dto.CapsulaDTO;
 import com.adela.dto.CapsulaPublicaDTO;
 import com.adela.dto.CapsulaReporteDTO;
-import com.adela.dto.CapsulaReporteDTO.CategoriaReporteDTO;
+import com.adela.dto.CapsulaReporteDTO.EstiloReporteDTO;
 import com.adela.dto.CapsulaReporteDTO.ParticipanteDTO;
 import com.adela.dto.CuestionarioParaResponderDTO;
 import com.adela.dto.CuestionarioResumidoDTO;
@@ -29,7 +29,7 @@ import com.adela.dto.PuntajeRespuestaCapsulaDTO;
 import com.adela.dto.RespuestaCapsulaDTO;
 import com.adela.dto.ResultadoCapsulaDTO;
 import com.adela.entities.Capsula;
-import com.adela.entities.Categoria;
+import com.adela.entities.Estilo;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.ModoIdentificacion;
 import com.adela.entities.Opcion;
@@ -155,8 +155,8 @@ public class CapsulaService {
     }
 
     /**
-     * Promedio por categoría y distribución del estilo predominante, calculados
-     * desde una suma por (respuesta, categoría) hecha en la base de datos.
+     * Promedio por estilo y distribución del estilo predominante, calculados
+     * desde una suma por (respuesta, estilo) hecha en la base de datos.
      */
     @Transactional(readOnly = true)
     public CapsulaReporteDTO reporte(Long id, Profesor profesor) {
@@ -164,55 +164,55 @@ public class CapsulaService {
         List<RespuestaCapsula> respuestas = respuestaCapsulaRepository.findByCapsulaOrderByRespondidaEn(capsula);
 
         Map<Long, Map<Long, Double>> puntos = new HashMap<>();
-        for (PuntajeRespuestaCapsulaDTO p : respuestaCapsulaRepository.puntajesPorCategoria(capsula)) {
-            puntos.computeIfAbsent(p.respuestaId(), k -> new HashMap<>()).put(p.categoriaId(), p.total());
+        for (PuntajeRespuestaCapsulaDTO p : respuestaCapsulaRepository.puntajesPorEstilo(capsula)) {
+            puntos.computeIfAbsent(p.respuestaId(), k -> new HashMap<>()).put(p.estiloId(), p.total());
         }
 
-        List<Categoria> categorias = capsula.getCuestionario().getCategorias().stream()
-                .sorted(Comparator.comparing(Categoria::getId)).toList();
-        double[] suma = new double[categorias.size()];
-        long[] predominantes = new long[categorias.size()];
+        List<Estilo> estilos = capsula.getCuestionario().getEstilos().stream()
+                .sorted(Comparator.comparing(Estilo::getId)).toList();
+        double[] suma = new double[estilos.size()];
+        long[] predominantes = new long[estilos.size()];
         boolean conNombre = capsula.getModoIdentificacion() == ModoIdentificacion.NOMBRE;
         List<ParticipanteDTO> participantes = conNombre ? new ArrayList<>() : null;
 
         for (RespuestaCapsula r : respuestas) {
             Map<Long, Double> deRespuesta = puntos.getOrDefault(r.getId(), Map.of());
-            for (int i = 0; i < categorias.size(); i++) {
-                suma[i] += deRespuesta.getOrDefault(categorias.get(i).getId(), 0d);
+            for (int i = 0; i < estilos.size(); i++) {
+                suma[i] += deRespuesta.getOrDefault(estilos.get(i).getId(), 0d);
             }
-            List<Integer> indices = predominantes(categorias, deRespuesta);
+            List<Integer> indices = predominantes(estilos, deRespuesta);
             indices.forEach(i -> predominantes[i]++);
             if (conNombre) {
                 participantes.add(new ParticipanteDTO(r.getNombre(), r.getRespondidaEn(),
-                        indices.stream().map(i -> categorias.get(i).getNombre()).toList()));
+                        indices.stream().map(i -> estilos.get(i).getNombre()).toList()));
             }
         }
 
         // Sin respuestas el promedio es 0, no NaN: Jackson no serializa NaN (BUG-03).
         int total = respuestas.size();
-        List<CategoriaReporteDTO> porCategoria = new ArrayList<>();
-        for (int i = 0; i < categorias.size(); i++) {
-            Categoria c = categorias.get(i);
-            porCategoria.add(new CategoriaReporteDTO(c.getNombre(), c.getValorMinimo(), c.getValorMaximo(),
+        List<EstiloReporteDTO> porEstilo = new ArrayList<>();
+        for (int i = 0; i < estilos.size(); i++) {
+            Estilo c = estilos.get(i);
+            porEstilo.add(new EstiloReporteDTO(c.getNombre(), c.getValorMinimo(), c.getValorMaximo(),
                     total > 0 ? suma[i] / total : 0d, predominantes[i]));
         }
-        return new CapsulaReporteDTO(CapsulaDTO.from(capsula, total), total, porCategoria, participantes);
+        return new CapsulaReporteDTO(CapsulaDTO.from(capsula, total), total, porEstilo, participantes);
     }
 
     /**
-     * Índices de las categorías con mayor puntaje normalizado a su rango
-     * (valor - mínimo) / (máximo - mínimo). Comparar el valor crudo favorecería a
-     * la categoría con la escala más amplia. Los empates devuelven todas; una
+     * Índices de los estilos con mayor puntaje normalizado a su rango
+     * (valor - mínimo) / (máximo - mínimo). Comparar el valor crudo favorecería al
+     * estilo con la escala más amplia. Los empates devuelven todos; una
      * respuesta sin puntos no tiene predominante.
      */
-    static List<Integer> predominantes(List<Categoria> categorias, Map<Long, Double> puntos) {
+    static List<Integer> predominantes(List<Estilo> estilos, Map<Long, Double> puntos) {
         if (puntos.isEmpty()) {
             return List.of();
         }
-        double[] normalizado = new double[categorias.size()];
+        double[] normalizado = new double[estilos.size()];
         double max = Double.NEGATIVE_INFINITY;
-        for (int i = 0; i < categorias.size(); i++) {
-            Categoria c = categorias.get(i);
+        for (int i = 0; i < estilos.size(); i++) {
+            Estilo c = estilos.get(i);
             double valor = puntos.getOrDefault(c.getId(), 0d);
             double rango = c.getValorMaximo() - c.getValorMinimo();
             normalizado[i] = rango > 0 ? (valor - c.getValorMinimo()) / rango : valor;

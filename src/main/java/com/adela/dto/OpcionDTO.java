@@ -9,5 +9,5 @@ public class OpcionDTO {
     private int orden;
     private String respuesta;
     private Double valor;
-    private int categoriaId; // no es el id de la bd
+    private int estiloId; // no es el id de la bd
 }

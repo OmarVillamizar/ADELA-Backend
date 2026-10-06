@@ -11,5 +11,5 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode(callSuper = false)
 public class ResultCuestCompletoDTO extends ResultadoCuestionarioDTO {
     List<PreguntaResueltaDTO> preguntas;
-    List<CategoriaResultadoDTO> categorias;
+    List<EstiloResultadoDTO> estilos;
 }

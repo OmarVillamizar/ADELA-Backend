@@ -3,7 +3,7 @@ package com.adela.services;
 import org.springframework.stereotype.Service;
 
 import com.adela.dto.OpcionDTO;
-import com.adela.entities.Categoria;
+import com.adela.entities.Estilo;
 import com.adela.entities.Opcion;
 import com.adela.entities.Pregunta;
 import com.adela.repositories.OpcionRepository;
@@ -22,11 +22,11 @@ public class OpcionService {
         opcionRepository.delete(opcion);
     }
     
-    public Opcion crearOpcion(Pregunta pregunta, Categoria categoria, OpcionDTO opcionDTO) {
-        if (pregunta.getCuestionario().getId().equals(categoria.getCuestionario().getId())) {
+    public Opcion crearOpcion(Pregunta pregunta, Estilo estilo, OpcionDTO opcionDTO) {
+        if (pregunta.getCuestionario().getId().equals(estilo.getCuestionario().getId())) {
             Opcion opcion = new Opcion();
             opcion.setPregunta(pregunta);
-            opcion.setCategoria(categoria);
+            opcion.setEstilo(estilo);
             opcion.setValor(opcionDTO.getValor());
             opcion.setOrden(opcionDTO.getOrden());
             opcion.setRespuesta(opcionDTO.getRespuesta());
@@ -34,6 +34,6 @@ public class OpcionService {
             return opcionRepository.save(opcion);
         }
         throw new RuntimeException("Inconsistencias en los cuestionarios de pregunta ("
-                + pregunta.getCuestionario().getId() + ") y categoria(" + categoria.getCuestionario().getId() + ")");
+                + pregunta.getCuestionario().getId() + ") y estilo(" + estilo.getCuestionario().getId() + ")");
     }
 }

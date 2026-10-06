@@ -21,8 +21,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
-import com.adela.dto.CategoriaResultadoDTO;
-import com.adela.entities.Categoria;
+import com.adela.dto.EstiloResultadoDTO;
+import com.adela.entities.Estilo;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Opcion;
 import com.adela.entities.Pregunta;
@@ -39,7 +39,7 @@ import jakarta.persistence.EntityNotFoundException;
  * guarda respuestas incompletas o puntajes inflados.
  *
  * Cuestionario de prueba: pregunta 1 de única opción (ids 11 y 12), pregunta 2
- * de opción múltiple (ids 21 y 22). Categorías Visual (1) y Auditivo (2).
+ * de opción múltiple (ids 21 y 22). Estilos Visual (1) y Auditivo (2).
  */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
@@ -61,10 +61,10 @@ class EvaluacionRespuestasTest {
     void preparar() {
         cuestionario = new Cuestionario();
         cuestionario.setId(1L);
-        Categoria visual = categoria(1L, "Visual");
-        Categoria auditivo = categoria(2L, "Auditivo");
-        cuestionario.getCategorias().add(visual);
-        cuestionario.getCategorias().add(auditivo);
+        Estilo visual = estilo(1L, "Visual");
+        Estilo auditivo = estilo(2L, "Auditivo");
+        cuestionario.getEstilos().add(visual);
+        cuestionario.getEstilos().add(auditivo);
 
         Pregunta unica = pregunta(100L, 1, false, cuestionario);
         Pregunta multiple = pregunta(200L, 2, true, cuestionario);
@@ -94,7 +94,7 @@ class EvaluacionRespuestasTest {
     void rechazaOpcionAjena() {
         Cuestionario otro = new Cuestionario();
         otro.setId(2L);
-        Opcion ajena = opcion(99L, pregunta(900L, 1, false, otro), categoria(9L, "X"), 1d);
+        Opcion ajena = opcion(99L, pregunta(900L, 1, false, otro), estilo(9L, "X"), 1d);
         opciones = new HashMap<>(opciones);
         opciones.put(99L, ajena);
 
@@ -136,21 +136,21 @@ class EvaluacionRespuestasTest {
     }
 
     @Test
-    @DisplayName("Puntúa por categoría e incluye las que quedan en cero")
-    void puntuaPorCategoria() {
-        List<CategoriaResultadoDTO> res = evaluacion.puntuar(cuestionario, List.of(opciones.get(11L)));
+    @DisplayName("Puntúa por estilo e incluye los que quedan en cero")
+    void puntuaPorEstilo() {
+        List<EstiloResultadoDTO> res = evaluacion.puntuar(cuestionario, List.of(opciones.get(11L)));
 
         assertEquals(2, res.size());
         assertEquals(1d, valor(res, "Visual"));
         assertEquals(0d, valor(res, "Auditivo"));
     }
 
-    private static double valor(List<CategoriaResultadoDTO> res, String nombre) {
+    private static double valor(List<EstiloResultadoDTO> res, String nombre) {
         return res.stream().filter(c -> c.getNombre().equals(nombre)).findFirst().orElseThrow().getValor();
     }
 
-    private static Categoria categoria(Long id, String nombre) {
-        Categoria c = new Categoria();
+    private static Estilo estilo(Long id, String nombre) {
+        Estilo c = new Estilo();
         c.setId(id);
         c.setNombre(nombre);
         c.setValorMinimo(0d);
@@ -167,11 +167,11 @@ class EvaluacionRespuestasTest {
         return p;
     }
 
-    private static Opcion opcion(Long id, Pregunta p, Categoria c, double valor) {
+    private static Opcion opcion(Long id, Pregunta p, Estilo c, double valor) {
         Opcion o = new Opcion();
         o.setId(id);
         o.setPregunta(p);
-        o.setCategoria(c);
+        o.setEstilo(c);
         o.setValor(valor);
         return o;
     }

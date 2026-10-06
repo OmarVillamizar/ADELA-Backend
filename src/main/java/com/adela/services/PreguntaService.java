@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 
 import com.adela.dto.OpcionDTO;
 import com.adela.dto.PreguntaDTO;
-import com.adela.entities.Categoria;
+import com.adela.entities.Estilo;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Opcion;
 import com.adela.entities.Pregunta;
@@ -44,7 +44,7 @@ public class PreguntaService {
         resultadoPreguntaRepository.deleteByOpcion(opcion);
     }
     
-    public Pregunta crearPregunta(Cuestionario cuestionario, Map<Integer, Categoria> mapId, PreguntaDTO preguntaDTO) {
+    public Pregunta crearPregunta(Cuestionario cuestionario, Map<Integer, Estilo> mapId, PreguntaDTO preguntaDTO) {
         Pregunta preguntaSave = new Pregunta();
         preguntaSave.setCuestionario(cuestionario);
         preguntaSave.setPregunta(preguntaDTO.getPregunta());
@@ -58,43 +58,43 @@ public class PreguntaService {
         Map<Integer, Double> min = new TreeMap<Integer, Double>();
         
         for (OpcionDTO opcionDTO : preguntaDTO.getOpciones()) {
-            int cateId = opcionDTO.getCategoriaId();
-            Categoria categoria = mapId.get(opcionDTO.getCategoriaId());
+            int estiloId = opcionDTO.getEstiloId();
+            Estilo estilo = mapId.get(opcionDTO.getEstiloId());
             
-            if (!mapId.containsKey(cateId)) {
+            if (!mapId.containsKey(estiloId)) {
                 throw new RuntimeException(
-                        "No existe una categoría con id " + opcionDTO.getCategoriaId() + " en la solicitud.");
+                        "No existe un estilo con id " + opcionDTO.getEstiloId() + " en la solicitud.");
             }
-            Opcion opcion = opcionService.crearOpcion(pregunta, categoria, opcionDTO);
+            Opcion opcion = opcionService.crearOpcion(pregunta, estilo, opcionDTO);
             opciones.add(opcion);
             if (pregunta.isOpcionMultiple()) {
-                if (max.containsKey(cateId)) {
-                    max.put(cateId, Math.max(max.get(cateId), max.get(cateId) + opcion.getValor()));
-                    min.put(cateId, Math.min(min.get(cateId), min.get(cateId) + opcion.getValor()));
+                if (max.containsKey(estiloId)) {
+                    max.put(estiloId, Math.max(max.get(estiloId), max.get(estiloId) + opcion.getValor()));
+                    min.put(estiloId, Math.min(min.get(estiloId), min.get(estiloId) + opcion.getValor()));
                 } else {
-                    max.put(cateId, opcion.getValor());
-                    min.put(cateId, 0d);
+                    max.put(estiloId, opcion.getValor());
+                    min.put(estiloId, 0d);
                 }
             } else {
-                if (max.containsKey(cateId)) {
-                    max.put(cateId, Math.max(max.get(cateId), opcion.getValor()));
-                    min.put(cateId, Math.min(min.get(cateId), opcion.getValor()));
+                if (max.containsKey(estiloId)) {
+                    max.put(estiloId, Math.max(max.get(estiloId), opcion.getValor()));
+                    min.put(estiloId, Math.min(min.get(estiloId), opcion.getValor()));
                 } else {
-                    max.put(cateId, opcion.getValor());
-                    min.put(cateId, opcion.getValor());
+                    max.put(estiloId, opcion.getValor());
+                    min.put(estiloId, opcion.getValor());
                 }
             }
             
         }
         
         for (Entry<Integer, Double> pair : max.entrySet()) {
-            Categoria categoria = mapId.get(pair.getKey());
-            categoria.setValorMaximo(categoria.getValorMaximo() + pair.getValue());
+            Estilo estilo = mapId.get(pair.getKey());
+            estilo.setValorMaximo(estilo.getValorMaximo() + pair.getValue());
         }
         
         for (Entry<Integer, Double> pair : min.entrySet()) {
-            Categoria categoria = mapId.get(pair.getKey());
-            categoria.setValorMinimo(categoria.getValorMinimo() + pair.getValue());
+            Estilo estilo = mapId.get(pair.getKey());
+            estilo.setValorMinimo(estilo.getValorMinimo() + pair.getValue());
         }
         
         pregunta.setOpciones(opciones);

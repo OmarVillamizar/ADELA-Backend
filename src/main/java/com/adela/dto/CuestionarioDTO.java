@@ -14,5 +14,5 @@ public class CuestionarioDTO {
     private String autor;
     private String version;
     private List<PreguntaDTO> preguntas;
-    private List<CategoriaDTO> categorias;
+    private List<EstiloDTO> estilos;
 }

@@ -12,8 +12,8 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
-import com.adela.dto.CategoriaResultadoDTO;
-import com.adela.entities.Categoria;
+import com.adela.dto.EstiloResultadoDTO;
+import com.adela.entities.Estilo;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Opcion;
 import com.adela.entities.Pregunta;
@@ -87,28 +87,28 @@ public class EvaluacionRespuestas {
     }
 
     /**
-     * Suma el valor de cada opción en su categoría. Incluye las categorías sin
+     * Suma el valor de cada opción en su estilo. Incluye los estilos sin
      * puntos para que el resultado tenga siempre todas las dimensiones del
      * cuestionario.
      */
-    public List<CategoriaResultadoDTO> puntuar(Cuestionario cuestionario, Collection<Opcion> opciones) {
-        Map<Long, CategoriaResultadoDTO> porCategoria = new TreeMap<>();
-        List<CategoriaResultadoDTO> categorias = new LinkedList<>();
+    public List<EstiloResultadoDTO> puntuar(Cuestionario cuestionario, Collection<Opcion> opciones) {
+        Map<Long, EstiloResultadoDTO> porEstilo = new TreeMap<>();
+        List<EstiloResultadoDTO> estilos = new LinkedList<>();
 
-        for (Categoria categoria : cuestionario.getCategorias()) {
-            CategoriaResultadoDTO cr = new CategoriaResultadoDTO();
-            cr.setNombre(categoria.getNombre());
+        for (Estilo estilo : cuestionario.getEstilos()) {
+            EstiloResultadoDTO cr = new EstiloResultadoDTO();
+            cr.setNombre(estilo.getNombre());
             cr.setValor(0d);
-            cr.setValorMaximo(categoria.getValorMaximo());
-            cr.setValorMinimo(categoria.getValorMinimo());
-            porCategoria.put(categoria.getId(), cr);
-            categorias.add(cr);
+            cr.setValorMaximo(estilo.getValorMaximo());
+            cr.setValorMinimo(estilo.getValorMinimo());
+            porEstilo.put(estilo.getId(), cr);
+            estilos.add(cr);
         }
 
         for (Opcion o : opciones) {
-            CategoriaResultadoDTO cr = porCategoria.get(o.getCategoria().getId());
+            EstiloResultadoDTO cr = porEstilo.get(o.getEstilo().getId());
             cr.setValor(cr.getValor() + o.getValor());
         }
-        return categorias;
+        return estilos;
     }
 }

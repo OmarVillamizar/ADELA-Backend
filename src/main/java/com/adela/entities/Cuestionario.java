@@ -57,7 +57,7 @@ public class Cuestionario {
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
     @JsonManagedReference
-    private Set<Categoria> categorias = new HashSet<>();
+    private Set<Estilo> estilos = new HashSet<>();
 
     /**
      * Identidad por @Id, no por todos los campos. El equals de @Data recorria las

@@ -35,10 +35,10 @@ public class Opcion {
     private Pregunta pregunta;
     
     @ManyToOne
-    @JoinColumn(name = "categoria_id", referencedColumnName = "id", nullable = false)
+    @JoinColumn(name = "estilo_id", referencedColumnName = "id", nullable = false)
     @JsonBackReference
     @ToString.Exclude
-    private Categoria categoria;
+    private Estilo estilo;
     
     @Column(nullable = false)
     private String respuesta;

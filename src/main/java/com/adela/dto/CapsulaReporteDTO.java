@@ -9,13 +9,13 @@ import java.util.List;
  * para los grupos.
  *
  * participantes es null en modo ANONIMO. predominantes cuenta cuántas
- * respuestas tienen esa categoría como estilo predominante; con empates una
+ * respuestas tienen ese estilo como predominante; con empates una
  * respuesta cuenta en varias, así que la suma puede superar totalRespuestas.
  */
-public record CapsulaReporteDTO(CapsulaDTO capsula, long totalRespuestas, List<CategoriaReporteDTO> categorias,
+public record CapsulaReporteDTO(CapsulaDTO capsula, long totalRespuestas, List<EstiloReporteDTO> estilos,
         List<ParticipanteDTO> participantes) {
 
-    public record CategoriaReporteDTO(String nombre, Double valorMinimo, Double valorMaximo, double promedio,
+    public record EstiloReporteDTO(String nombre, Double valorMinimo, Double valorMaximo, double promedio,
             long predominantes) {
     }
 
