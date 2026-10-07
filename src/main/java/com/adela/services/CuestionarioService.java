@@ -1,6 +1,7 @@
 package com.adela.services;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -13,10 +14,13 @@ import com.adela.dto.EstiloDTO;
 import com.adela.dto.CuestionarioDTO;
 import com.adela.dto.CuestionarioParaResponderDTO;
 import com.adela.dto.CuestionarioResumidoDTO;
+import com.adela.dto.OpcionDTO;
 import com.adela.dto.PreguntaDTO;
 import com.adela.entities.Estilo;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Pregunta;
+import com.adela.exceptions.AppException;
+import com.adela.exceptions.ErrorCode;
 import com.adela.repositories.CapsulaRepository;
 import com.adela.repositories.CuestionarioRepository;
 import com.adela.repositories.ResultadoCuestionarioRepository;
@@ -62,6 +66,11 @@ public class CuestionarioService {
 
     @Transactional
     public Cuestionario crearCuestionario(CuestionarioDTO cuestionarioDTO) {
+        Map<String, String> errores = validarEstructura(cuestionarioDTO);
+        if (!errores.isEmpty()) {
+            throw new AppException(ErrorCode.VALIDACION, "El cuestionario tiene campos inválidos.", errores);
+        }
+
         Cuestionario cuestionarioSave = new Cuestionario();
         cuestionarioSave.setNombre(cuestionarioDTO.getNombre());
         cuestionarioSave.setDescripcion(cuestionarioDTO.getDescripcion());
@@ -96,6 +105,49 @@ public class CuestionarioService {
         return cuestionarioRepository.save(cuestionario);
     }
     
+    /**
+     * Revisa la forma del JSON antes de guardar nada. Sin esto, un JSON con las
+     * claves anteriores al renombre (categorias, categoriaId) terminaba en un
+     * NullPointerException y un 500 sin pista de qué corregir. Se informa un
+     * error por pregunta para no devolver uno por cada opción.
+     */
+    static Map<String, String> validarEstructura(CuestionarioDTO dto) {
+        Map<String, String> errores = new LinkedHashMap<>();
+        if (dto.getEstilos() == null || dto.getEstilos().isEmpty()) {
+            errores.put("estilos",
+                    "Falta la lista de estilos. Si el JSON usa 'categorias', renómbrala a 'estilos'.");
+        }
+        if (dto.getPreguntas() == null || dto.getPreguntas().isEmpty()) {
+            errores.put("preguntas", "Agrega al menos una pregunta.");
+            return errores;
+        }
+        Set<Integer> ids = new HashSet<>();
+        if (dto.getEstilos() != null) {
+            dto.getEstilos().forEach(e -> ids.add(e.getId()));
+        }
+
+        for (int i = 0; i < dto.getPreguntas().size(); i++) {
+            PreguntaDTO p = dto.getPreguntas().get(i);
+            String campo = "preguntas[" + i + "]";
+            if (p.getOpciones() == null || p.getOpciones().isEmpty()) {
+                errores.put(campo, "La pregunta " + p.getOrden() + " no tiene opciones.");
+                continue;
+            }
+            for (OpcionDTO o : p.getOpciones()) {
+                if (o.getValor() == null) {
+                    errores.put(campo, "La pregunta " + p.getOrden() + " tiene una opción sin valor.");
+                    break;
+                }
+                if (!ids.isEmpty() && !ids.contains(o.getEstiloId())) {
+                    errores.put(campo, "La pregunta " + p.getOrden() + " usa el estilo " + o.getEstiloId()
+                            + ", que no está en 'estilos'. Si el JSON usa 'categoriaId', renómbralo a 'estiloId'.");
+                    break;
+                }
+            }
+        }
+        return errores;
+    }
+
     public void eliminarCuestionario(Long id) {
         Cuestionario cuestionario = cuestionarioRepository.findById(id)
                 .orElseThrow(() -> new EntityNotFoundException("Cuestionario no encontrado con el ID: " + id));
