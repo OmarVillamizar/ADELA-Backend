@@ -2,9 +2,6 @@ package com.adela.services;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -35,7 +32,6 @@ import com.adela.entities.Capsula;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.ModoIdentificacion;
 import com.adela.entities.Opcion;
-import com.adela.entities.Pregunta;
 import com.adela.entities.Profesor;
 import com.adela.entities.RespuestaCapsula;
 import com.adela.exceptions.AppException;
@@ -174,7 +170,7 @@ public class CapsulaService {
         List<ResultadoInstrumento> resultados = new ArrayList<>();
 
         for (RespuestaCapsula r : respuestas) {
-            ResultadoInstrumento resultado = calificacionService.calificar(cuestionario, clave, r.getOpciones());
+            ResultadoInstrumento resultado = calificacionService.calificar(cuestionario, clave, r.getCantidades());
             resultados.add(resultado);
             if (conNombre) {
                 participantes.add(new ParticipanteDTO(r.getNombre(), r.getRespondidaEn(),
@@ -239,7 +235,8 @@ public class CapsulaService {
 
         String nombre = nombreValido(capsula.getModoIdentificacion(), dto.nombre());
         Cuestionario cuestionario = capsula.getCuestionario();
-        List<Opcion> opciones = evaluacionRespuestas.validarSeleccion(cuestionario, dto.opcionesSeleccionadasId());
+        Map<Opcion, Double> opciones = evaluacionRespuestas.validarSeleccion(cuestionario,
+                dto.opcionesSeleccionadasId(), dto.cantidades());
 
         RespuestaCapsula respuesta = new RespuestaCapsula();
         respuesta.setCapsula(capsula);
@@ -247,7 +244,7 @@ public class CapsulaService {
         respuesta.setIntento(dto.intento());
         respuesta.setNombre(nombre);
         respuesta.setRespondidaEn(Instant.now());
-        respuesta.setOpciones(new HashSet<>(opciones));
+        opciones.forEach((opcion, cantidad) -> respuesta.getCantidades().put(opcion.getId(), cantidad));
         return resultadoDe(respuestaCapsulaRepository.save(respuesta));
     }
 
@@ -283,18 +280,10 @@ public class CapsulaService {
         Capsula capsula = respuesta.getCapsula();
         Cuestionario cuestionario = capsula.getCuestionario();
 
-        List<PreguntaResueltaDTO> preguntas = new LinkedList<>();
-        cuestionario.getPreguntas().stream().sorted(Comparator.comparingInt(Pregunta::getOrden)).forEach(p -> {
-            PreguntaResueltaDTO pr = new PreguntaResueltaDTO();
-            pr.setPregunta(p.getPregunta());
-            pr.setOrden(p.getOrden());
-            pr.setRespuestas(respuesta.getOpciones().stream().filter(o -> o.getPregunta().equals(p))
-                    .sorted(Comparator.comparingInt(Opcion::getOrden)).map(Opcion::getRespuesta).toList());
-            preguntas.add(pr);
-        });
-
+        List<PreguntaResueltaDTO> preguntas = EvaluacionRespuestas.preguntasResueltas(cuestionario,
+                respuesta.getCantidades());
         EvaluacionRespuestas.Puntuacion puntuacion = evaluacionRespuestas.puntuar(cuestionario,
-                respuesta.getOpciones());
+                respuesta.getCantidades());
         return new ResultadoCapsulaDTO(respuesta.getCodigo(), capsula.getNombre(),
                 CuestionarioResumidoDTO.from(cuestionario), respuesta.getNombre(), respuesta.getRespondidaEn(),
                 puntuacion.estilos(), puntuacion.calificacion(), preguntas);

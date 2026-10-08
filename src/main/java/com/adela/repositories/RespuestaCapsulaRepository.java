@@ -24,6 +24,6 @@ public interface RespuestaCapsulaRepository extends JpaRepository<RespuestaCapsu
      * Trae las opciones elegidas en la misma consulta: el reporte califica cada
      * respuesta y sin esto haría una consulta más por respuesta.
      */
-    @EntityGraph(attributePaths = "opciones")
+    @EntityGraph(attributePaths = "cantidades")
     List<RespuestaCapsula> findByCapsulaOrderByRespondidaEn(Capsula capsula);
 }

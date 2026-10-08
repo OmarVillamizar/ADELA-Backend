@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
@@ -25,7 +24,6 @@ import com.adela.dto.CuestionarioResumidoDTO;
 import com.adela.dto.EstudianteDTO;
 import com.adela.dto.GrupoResumidoDTO;
 import com.adela.dto.ListasCuestionariosDTO;
-import com.adela.dto.PreguntaResueltaDTO;
 import com.adela.dto.RespuestaCuestionarioDTO;
 import com.adela.dto.ResultCuestCompletoDTO;
 import com.adela.dto.ResultadoCuestionarioDTO;
@@ -35,7 +33,6 @@ import com.adela.entities.Cuestionario;
 import com.adela.entities.Estudiante;
 import com.adela.entities.Grupo;
 import com.adela.entities.Opcion;
-import com.adela.entities.Pregunta;
 import com.adela.entities.Profesor;
 import com.adela.entities.ResultadoCuestionario;
 import com.adela.entities.ResultadoPregunta;
@@ -86,15 +83,17 @@ public class ResultadoCuestionarioService {
                     "Este cuestionario está bloqueado y no se puede responder.");
         }
         
-        List<Opcion> opciones = evaluacionRespuestas.validarSeleccion(cuestionario, info.getOpcionesSeleccionadasId());
+        Map<Opcion, Double> opciones = evaluacionRespuestas.validarSeleccion(cuestionario,
+                info.getOpcionesSeleccionadasId(), info.getCantidades());
         
         resC.setFechaResolucion(Date.valueOf(LocalDate.now()));
         resC = resultadoCuestionarioRepository.save(resC);
         List<ResultadoPregunta> resultadoPreguntas = new LinkedList<>();
-        for (Opcion opcion : opciones) {
+        for (Map.Entry<Opcion, Double> e : opciones.entrySet()) {
             ResultadoPregunta rp = new ResultadoPregunta();
             rp.setCuestionario(resC);
-            rp.setOpcion(opcion);
+            rp.setOpcion(e.getKey());
+            rp.setCantidad(e.getValue());
             resultadoPreguntas.add(rp);
         }
         
@@ -335,38 +334,11 @@ public class ResultadoCuestionarioService {
         res.setFechaResolucion(resC.getFechaResolucion());
         res.setId(resC.getId());
         
-        Map<Long, PreguntaResueltaDTO> preg = new TreeMap<>();
-        List<Opcion> elegidas = new LinkedList<>();
-        
-        for (ResultadoPregunta rep : resC.getPreguntas()) {
-            Opcion o = rep.getOpcion();
-            Pregunta p = o.getPregunta();
-            PreguntaResueltaDTO pr = new PreguntaResueltaDTO();
-            if (preg.containsKey(p.getId())) {
-                pr = preg.get(p.getId());
-            } else {
-                pr.setPregunta(p.getPregunta());
-                pr.setRespuestas(new LinkedList<String>());
-                pr.setOrden(p.getOrden());
-            }
-            pr.getRespuestas().add(o.getRespuesta());
-            elegidas.add(o);
-            preg.put(p.getId(), pr);
-        }
-        
-        for (Pregunta p : c.getPreguntas()) {
-            if (!preg.containsKey(p.getId())) {
-                PreguntaResueltaDTO pr = new PreguntaResueltaDTO();
-                pr.setOrden(p.getOrden());
-                pr.setPregunta(p.getPregunta());
-                pr.setRespuestas(new LinkedList<>());
-                preg.put(p.getId(), pr);
-            }
-        }
-        EvaluacionRespuestas.Puntuacion puntuacion = evaluacionRespuestas.puntuar(c, elegidas);
+        Map<Long, Double> cantidades = cantidades(resC);
+        EvaluacionRespuestas.Puntuacion puntuacion = evaluacionRespuestas.puntuar(c, cantidades);
         res.setEstilos(puntuacion.estilos());
         res.setCalificacion(puntuacion.calificacion());
-        res.setPreguntas(new LinkedList<>(preg.values()));
+        res.setPreguntas(EvaluacionRespuestas.preguntasResueltas(c, cantidades));
         
         return res;
     }
@@ -424,8 +396,7 @@ public class ResultadoCuestionarioService {
         List<ResultadoInstrumento> resultados = new LinkedList<>();
         for (ResultadoCuestionario rc : rcs) {
             if (rc.getFechaResolucion() != null) {
-                resultados.add(calificacionService.calificar(cuestionario, clave,
-                        rc.getPreguntas().stream().map(ResultadoPregunta::getOpcion).toList()));
+                resultados.add(calificacionService.calificar(cuestionario, clave, cantidades(rc)));
                 estudiantesS.add(ResultadoCuestionarioDTO.from(rc));
             } else {
                 estudiantesUS.add(ResultadoCuestionarioDTO.from(rc));
@@ -465,8 +436,7 @@ public class ResultadoCuestionarioService {
                 .filter(rc -> rc.getFechaResolucion() != null)
                 .sorted(Comparator.comparing((ResultadoCuestionario rc) -> rc.getEstudiante().getEmail()))
                 .forEach(rc -> {
-                    ResultadoInstrumento r = calificacionService.calificar(cuestionario, clave,
-                            rc.getPreguntas().stream().map(ResultadoPregunta::getOpcion).toList());
+                    ResultadoInstrumento r = calificacionService.calificar(cuestionario, clave, cantidades(rc));
                     r.estilos().forEach(e -> csv.fila(List.of(Csv.texto(rc.getEstudiante().getEmail()),
                             Csv.texto(rc.getEstudiante().getNombre()), Csv.texto(e.nombre()), csv.numero(e.bruto()),
                             csv.numero(e.rangoMin()), csv.numero(e.rangoMax()), csv.numero(e.pomp()),
@@ -504,5 +474,10 @@ public class ResultadoCuestionarioService {
         
         return res;
     }
-    
+
+    /** Opciones elegidas de una asignación con su cantidad: lo que el motor califica. */
+    private static Map<Long, Double> cantidades(ResultadoCuestionario rc) {
+        return rc.getPreguntas().stream()
+                .collect(Collectors.toMap(rp -> rp.getOpcion().getId(), ResultadoPregunta::getCantidad, (a, b) -> a));
+    }
 }

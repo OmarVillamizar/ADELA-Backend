@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -113,12 +114,12 @@ class CapsulaServiceTest {
         when(capsulaRepository.findByCodigo("ABC234")).thenReturn(Optional.of(capsula));
         when(respuestaCapsulaRepository.findByCapsulaAndIntento(any(), any())).thenReturn(Optional.empty());
         when(respuestaCapsulaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
-        when(evaluacionRespuestas.validarSeleccion(any(), any())).thenReturn(List.of());
+        when(evaluacionRespuestas.validarSeleccion(any(), any(), any())).thenReturn(Map.of());
         when(evaluacionRespuestas.puntuar(any(), any())).thenReturn(new EvaluacionRespuestas.Puntuacion(List.of(), null));
     }
 
     private static RespuestaCapsulaDTO envio(UUID intento, String nombre) {
-        return new RespuestaCapsulaDTO(intento, nombre, List.of(11L));
+        return new RespuestaCapsulaDTO(intento, nombre, List.of(11L), null);
     }
 
     @Test
@@ -141,6 +142,18 @@ class CapsulaServiceTest {
                 () -> service.responder("ABC234", envio(UUID.randomUUID(), "  ")));
         assertEquals(ErrorCode.VALIDACION, e.getCode());
         assertTrue(e.getFields().containsKey("nombre"));
+    }
+
+    @Test
+    @DisplayName("Guarda la cantidad de cada opción elegida (rango o puntos)")
+    void guardaCantidades() {
+        Opcion o = new Opcion();
+        o.setId(11L);
+        when(evaluacionRespuestas.validarSeleccion(any(), any(), any())).thenReturn(Map.of(o, 3d));
+
+        service.responder("ABC234", envio(UUID.randomUUID(), "Ana"));
+
+        verify(respuestaCapsulaRepository).save(argThat(r -> r.getCantidades().equals(Map.of(11L, 3d))));
     }
 
     @Test
@@ -261,7 +274,7 @@ class CapsulaServiceTest {
         RespuestaCapsula r = new RespuestaCapsula();
         r.setId(id);
         r.setNombre(nombre);
-        r.getOpciones().add(elegida);
+        r.getCantidades().put(elegida.getId(), 1d);
         return r;
     }
 

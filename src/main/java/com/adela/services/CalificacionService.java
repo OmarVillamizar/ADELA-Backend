@@ -1,6 +1,5 @@
 package com.adela.services;
 
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -80,12 +79,17 @@ public class CalificacionService {
                 p.getMaxSelecciones(), p.getPuntosRepartir(), opciones);
     }
 
-    /** Cada opción elegida cuenta una vez, agrupada por su pregunta. */
-    public ResultadoInstrumento calificar(Cuestionario c, ClaveInstrumento clave, Collection<Opcion> elegidas) {
+    /**
+     * cantidadPorOpcion: id de la opción elegida -> cantidad (1 si se marcó, el
+     * rango en jerarquía, los puntos en reparto). Se agrupa por ítem con la clave.
+     */
+    public ResultadoInstrumento calificar(Cuestionario c, ClaveInstrumento clave,
+            Map<Long, Double> cantidadPorOpcion) {
+        Map<Long, Long> itemDe = new HashMap<>();
+        clave.items().forEach(it -> it.opciones().forEach(o -> itemDe.put(o.opcionId(), it.itemId())));
         Map<Long, Map<Long, Double>> porItem = new HashMap<>();
-        for (Opcion o : elegidas) {
-            porItem.computeIfAbsent(o.getPregunta().getId(), k -> new HashMap<>()).put(o.getId(), 1.0);
-        }
+        cantidadPorOpcion.forEach((opcion, cantidad) -> porItem
+                .computeIfAbsent(itemDe.get(opcion), k -> new HashMap<>()).put(opcion, cantidad));
         Map<Long, RespuestaItem> respuestas = new HashMap<>();
         porItem.forEach((item, cantidades) -> respuestas.put(item, new RespuestaItem(item, cantidades)));
         return conClaveValida(c, () -> MotorCalificacion.calificar(clave, respuestas));

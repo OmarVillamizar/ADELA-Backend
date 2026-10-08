@@ -2,6 +2,7 @@ package com.adela.entities;
 
 import java.util.Objects;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -35,6 +36,10 @@ public class ResultadoPregunta {
     @ToString.Exclude
     @JoinColumn(name = "opcion_id", referencedColumnName = "id", nullable = false)
     private Opcion opcion;
+
+    /** 1 si se marcó (única, múltiple), el rango (jerarquía) o los puntos (reparto). */
+    @Column(nullable = false)
+    private double cantidad = 1;
 
     /**
      * Identidad por @Id, no por todos los campos. El equals de @Data recorria las

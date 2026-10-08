@@ -12,7 +12,7 @@ import com.adela.entities.Pregunta;
 /**
  * Cuestionario tal y como se presenta para responderlo.
  *
- * Deliberadamente NO expone Opcion.valor ni el estilo de cada opción: el
+ * Deliberadamente NO expone los pesos de cada opción (Opcion.pesos): el
  * endpoint devolvía la entidad completa, así que el estudiante recibía el peso
  * numérico de cada respuesta antes de contestar y podía construir el perfil de
  * aprendizaje que quisiera, lo que invalida el instrumento CHAEA.
@@ -27,8 +27,13 @@ import com.adela.entities.Pregunta;
 public record CuestionarioParaResponderDTO(Long id, String nombre, String descripcion, String autor, String version,
         String siglas, List<PreguntaResponderDTO> preguntas, List<EstiloResponderDTO> estilos) {
 
-    public record PreguntaResponderDTO(Long id, String pregunta, int orden, boolean opcionMultiple,
-            boolean obligatoria, List<OpcionResponderDTO> opciones) {
+    /**
+     * formato decide el control (radio, casillas, ordenar, repartir). min/max
+     * solo aplican a MULTIPLE (max null = todas); puntosRepartir solo a REPARTO.
+     */
+    public record PreguntaResponderDTO(Long id, String pregunta, int orden, FormatoItem formato,
+            boolean obligatoria, int minSelecciones, Integer maxSelecciones, Integer puntosRepartir,
+            List<OpcionResponderDTO> opciones) {
     }
 
     public record OpcionResponderDTO(Long id, String respuesta, int orden) {
@@ -40,8 +45,8 @@ public record CuestionarioParaResponderDTO(Long id, String nombre, String descri
     public static CuestionarioParaResponderDTO from(Cuestionario c) {
         List<PreguntaResponderDTO> preguntas = c.getPreguntas().stream()
                 .sorted(Comparator.comparingInt(Pregunta::getOrden)).map(p -> new PreguntaResponderDTO(p.getId(),
-                        p.getPregunta(), p.getOrden(), p.getFormato() == FormatoItem.MULTIPLE, p.isObligatoria(),
-                        opcionesDe(p)))
+                        p.getPregunta(), p.getOrden(), p.getFormato(), p.isObligatoria(), p.getMinSelecciones(),
+                        p.getMaxSelecciones(), p.getPuntosRepartir(), opcionesDe(p)))
                 .toList();
 
         List<EstiloResponderDTO> estilos = c.getEstilos().stream().map(Estilo::getNombre)
