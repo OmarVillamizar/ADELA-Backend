@@ -76,6 +76,22 @@ final class Instrumentos {
                 SIN_INTERPRETACION);
     }
 
+    /**
+     * Kolb con el plano de cuadrantes: al kolb() se suma el compuesto 6 "AE-RO"
+     * (eje X) y el plano usa AC-CE (5) como eje Y.
+     */
+    static ClaveInstrumento kolbConPlano(double corteX, double corteY) {
+        ClaveInstrumento base = kolb();
+        List<EstiloClave> estilos = new ArrayList<>(base.estilos());
+        estilos.add(compuesto(6, "AE-RO", Map.of(4L, 1.0, 2L, -1.0)));
+        return clave(base.items(), estilos, new ConfigInterpretacion(EsquemaInterpretacion.CUADRANTES, 10,
+                List.of(), List.of(), planoKolb(corteX, corteY)));
+    }
+
+    static Plano planoKolb(double corteX, double corteY) {
+        return new Plano(6, 5, corteX, corteY, "Convergente", "Asimilador", "Divergente", "Acomodador");
+    }
+
     /** ILS: opción a suma al polo A, b al polo B; el compuesto A-B lleva las bandas. */
     static ClaveInstrumento ils(List<Banda> bandas) {
         return clave(items(11, 2, FormatoItem.UNICA, true, null, j -> Map.of((long) j, 1.0)),

@@ -66,6 +66,20 @@ class AgregadoGrupoTest {
     }
 
     @Test
+    @DisplayName("Los cuadrantes se cuentan en distribucionPerfiles")
+    void cuentaCuadrantes() {
+        Agregado a = AgregadoGrupo.de(Instrumentos.kolbConPlano(6, 7), List.of(
+                new ResultadoInstrumento(1, MotorCalificacion.VERSION, List.of(), "Convergente", "CUADRANTE"),
+                new ResultadoInstrumento(1, MotorCalificacion.VERSION, List.of(), "Convergente", "CUADRANTE"),
+                new ResultadoInstrumento(1, MotorCalificacion.VERSION, List.of(), "Divergente", "CUADRANTE"),
+                new ResultadoInstrumento(1, MotorCalificacion.VERSION, List.of(), null, null)),
+                AgregadoGrupo.N_MINIMO_LOCAL);
+        assertEquals(2L, a.distribucionPerfiles().get("Convergente"));
+        assertEquals(1L, a.distribucionPerfiles().get("Divergente"));
+        assertEquals(2, a.distribucionPerfiles().size());
+    }
+
+    @Test
     @DisplayName("Sin resultados no hay resúmenes ni NaN, pero sí el rango")
     void vacio() {
         Agregado a = AgregadoGrupo.de(Instrumentos.acra(), List.of(), AgregadoGrupo.N_MINIMO_LOCAL);

@@ -33,7 +33,11 @@ public final class Interpretador {
         }
 
         String etiqueta = null, tipo = null;
-        if (!dominantes.isEmpty()) {
+        if (cfg.esquema() == EsquemaInterpretacion.CUADRANTES && cfg.plano() != null) {
+            etiqueta = esquina(cfg.plano(), res);
+            if (etiqueta != null)
+                tipo = "CUADRANTE";
+        } else if (!dominantes.isEmpty()) {
             List<ResultadoEstilo> dom = salida.stream().filter(ResultadoEstilo::dominante)
                     .sorted(Comparator.comparing(ResultadoEstilo::bruto, Comparator.reverseOrder())
                             .thenComparingInt(ResultadoEstilo::orden))
@@ -42,6 +46,17 @@ public final class Interpretador {
             tipo = dom.size() == 1 ? "UNIMODAL" : "MULTIMODAL";
         }
         return new ResultadoInstrumento(clave.cuestionarioId(), MotorCalificacion.VERSION, salida, etiqueta, tipo);
+    }
+
+    /** Esquina del plano; null si algún eje falta o no se pudo calcular. */
+    static String esquina(Plano plano, List<ResultadoEstilo> res) {
+        Double x = brutoCalculado(res, plano.ejeX()), y = brutoCalculado(res, plano.ejeY());
+        return x == null || y == null ? null : plano.esquina(x, y);
+    }
+
+    private static Double brutoCalculado(List<ResultadoEstilo> res, long estiloId) {
+        return res.stream().filter(r -> r.estiloId() == estiloId && r.estado() != EstadoCalculo.NO_CALCULABLE)
+                .map(ResultadoEstilo::bruto).filter(b -> b != null).findFirst().orElse(null);
     }
 
     /** Primera banda, en orden, cuyo intervalo cerrado contiene el valor. */
