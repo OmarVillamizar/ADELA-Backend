@@ -17,15 +17,19 @@ import com.adela.calificacion.EsquemaInterpretacion;
 import com.adela.dto.InterpretacionDTO;
 import com.adela.dto.InterpretacionDTO.BandaDTO;
 import com.adela.dto.InterpretacionDTO.EscalonDTO;
+import com.adela.dto.InterpretacionDTO.EstiloLecturaDTO;
+import com.adela.dto.InterpretacionDTO.PlanoDTO;
 import com.adela.entities.BandaInterpretacion;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.EscalonRelativo;
 import com.adela.entities.Estilo;
+import com.adela.entities.PlanoCuadrantes;
 import com.adela.exceptions.AppException;
 import com.adela.exceptions.ErrorCode;
 import com.adela.repositories.BandaInterpretacionRepository;
 import com.adela.repositories.CuestionarioRepository;
 import com.adela.repositories.EscalonRelativoRepository;
+import com.adela.repositories.PlanoCuadrantesRepository;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -46,6 +50,8 @@ public class InterpretacionService {
 
     private final EscalonRelativoRepository escalonRepository;
 
+    private final PlanoCuadrantesRepository planoRepository;
+
     @Transactional(readOnly = true)
     public InterpretacionDTO obtener(Long cuestionarioId) {
         Cuestionario c = cuestionario(cuestionarioId);
@@ -58,8 +64,14 @@ public class InterpretacionService {
         List<EscalonDTO> escalones = escalonRepository.findByCuestionario(c).stream()
                 .sorted(Comparator.comparingDouble(EscalonRelativo::getTotalMin))
                 .map(e -> new EscalonDTO(e.getTotalMin(), e.getTotalMax(), e.getDistancia())).toList();
+        PlanoDTO plano = c.getEsquemaInterpretacion() != EsquemaInterpretacion.CUADRANTES ? null
+                : planoRepository.findById(c.getId()).map(p -> new PlanoDTO(p.getEjeX().getNombre(),
+                        p.getEjeY().getNombre(), p.getCorteX(), p.getCorteY(), p.getXAltoYAlto(), p.getXBajoYAlto(),
+                        p.getXBajoYBajo(), p.getXAltoYBajo())).orElse(null);
+        List<EstiloLecturaDTO> estilos = c.getEstilos().stream().sorted(Comparator.comparing(Estilo::getId))
+                .map(e -> new EstiloLecturaDTO(e.getNombre(), e.getTipo())).toList();
         return new InterpretacionDTO(c.getEsquemaInterpretacion(), c.getDeltaRelativo(), c.isEsIpsativo(), bandas,
-                escalones);
+                escalones, plano, estilos);
     }
 
     /** Reemplaza toda la configuración: lo que no llega se borra. */
@@ -108,8 +120,29 @@ public class InterpretacionService {
             return e;
         }).toList());
 
+        PlanoDTO planoGuardado = null;
+        if (dto.esquema() == EsquemaInterpretacion.CUADRANTES) {
+            // Upsert: borrar e insertar la misma clave en una transacción chocaría con la PK.
+            PlanoDTO p = dto.plano();
+            PlanoCuadrantes e = planoRepository.findById(c.getId()).orElseGet(PlanoCuadrantes::new);
+            e.setCuestionarioId(c.getId());
+            e.setEjeX(estilos.get(p.ejeX()));
+            e.setEjeY(estilos.get(p.ejeY()));
+            e.setCorteX(p.corteX() == null ? 0 : p.corteX());
+            e.setCorteY(p.corteY() == null ? 0 : p.corteY());
+            e.setXAltoYAlto(p.xAltoYAlto().strip());
+            e.setXBajoYAlto(p.xBajoYAlto().strip());
+            e.setXBajoYBajo(p.xBajoYBajo().strip());
+            e.setXAltoYBajo(p.xAltoYBajo().strip());
+            planoRepository.save(e);
+            planoGuardado = new PlanoDTO(p.ejeX(), p.ejeY(), e.getCorteX(), e.getCorteY(), e.getXAltoYAlto(),
+                    e.getXBajoYAlto(), e.getXBajoYBajo(), e.getXAltoYBajo());
+        } else {
+            planoRepository.deleteById(c.getId());
+        }
+
         return new InterpretacionDTO(c.getEsquemaInterpretacion(), c.getDeltaRelativo(), c.isEsIpsativo(), bandas,
-                escalones);
+                escalones, planoGuardado, null);
     }
 
     private Cuestionario cuestionario(Long id) {
@@ -165,7 +198,47 @@ public class InterpretacionService {
         if (dto.esquema() == EsquemaInterpretacion.RELATIVO_ESCALONADO && escalones.isEmpty()) {
             errores.put("escalones", "El esquema escalonado necesita la tabla de escalones");
         }
+        if (dto.esquema() == EsquemaInterpretacion.CUADRANTES) {
+            validarPlano(dto.plano(), estilos, errores);
+        }
         return errores;
+    }
+
+    private static void validarPlano(PlanoDTO p, Map<String, Estilo> estilos, Map<String, String> errores) {
+        if (p == null) {
+            errores.put("plano", "El esquema de cuadrantes necesita el plano con sus dos ejes");
+            return;
+        }
+        if (p.ejeX() == null || !estilos.containsKey(p.ejeX())) {
+            errores.put("plano.ejeX", "El eje horizontal debe ser un estilo del cuestionario");
+        }
+        if (p.ejeY() == null || !estilos.containsKey(p.ejeY())) {
+            errores.put("plano.ejeY", "El eje vertical debe ser un estilo del cuestionario");
+        }
+        if (!errores.containsKey("plano.ejeX") && !errores.containsKey("plano.ejeY")
+                && p.ejeX().equals(p.ejeY())) {
+            errores.put("plano.ejeY", "Los dos ejes deben ser estilos distintos");
+        }
+        if (p.corteX() != null && !Double.isFinite(p.corteX())) {
+            errores.put("plano.corteX", "El corte horizontal debe ser un número");
+        }
+        if (p.corteY() != null && !Double.isFinite(p.corteY())) {
+            errores.put("plano.corteY", "El corte vertical debe ser un número");
+        }
+
+        Map<String, String> esquinas = new LinkedHashMap<>();
+        esquinas.put("plano.xAltoYAlto", p.xAltoYAlto());
+        esquinas.put("plano.xBajoYAlto", p.xBajoYAlto());
+        esquinas.put("plano.xBajoYBajo", p.xBajoYBajo());
+        esquinas.put("plano.xAltoYBajo", p.xAltoYBajo());
+        Set<String> vistos = new HashSet<>();
+        esquinas.forEach((campo, nombre) -> {
+            if (nombre == null || nombre.isBlank() || nombre.strip().length() > 60) {
+                errores.put(campo, "Escribe un nombre de hasta 60 caracteres para la esquina");
+            } else if (!vistos.add(nombre.strip().toLowerCase())) {
+                errores.put(campo, "Cada esquina necesita un nombre distinto");
+            }
+        });
     }
 
     /**

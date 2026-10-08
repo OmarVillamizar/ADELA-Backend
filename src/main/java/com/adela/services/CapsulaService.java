@@ -181,7 +181,7 @@ public class CapsulaService {
         Agregado agregado = AgregadoGrupo.de(clave, resultados, AgregadoGrupo.N_MINIMO_LOCAL);
         return new CapsulaReporteDTO(CapsulaDTO.from(capsula, respuestas.size()), respuestas.size(),
                 agregado.estilos().stream().map(EstiloResultadoDTO::de).toList(),
-                CalificacionDTO.grupal(cuestionario, agregado), participantes);
+                CalificacionDTO.grupal(cuestionario, agregado, clave, resultados), participantes);
     }
 
     /** Las respuestas caen con ella por ON DELETE CASCADE. */

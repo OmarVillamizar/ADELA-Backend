@@ -26,6 +26,7 @@ import com.adela.calificacion.FormatoItem;
 import com.adela.dto.CuestionarioDTO;
 import com.adela.dto.EstiloDTO;
 import com.adela.dto.InterpretacionDTO;
+import com.adela.dto.InterpretacionDTO.PlanoDTO;
 import com.adela.dto.OpcionDTO;
 import com.adela.dto.OpcionDTO.PesoDTO;
 import com.adela.dto.PreguntaDTO;
@@ -102,6 +103,18 @@ class CreacionCuestionarioTest {
     @DisplayName("Guarda la interpretación con el id del cuestionario recién creado")
     void guardaInterpretacion() {
         InterpretacionDTO lectura = new InterpretacionDTO(EsquemaInterpretacion.RELATIVO, 10d, null, null, null);
+
+        service.crearCuestionario(dto(lectura));
+
+        verify(interpretacionService).guardar(7L, lectura);
+    }
+
+    @Test
+    @DisplayName("La interpretación por cuadrantes viaja con su plano a guardar")
+    void guardaPlano() {
+        InterpretacionDTO lectura = new InterpretacionDTO(EsquemaInterpretacion.CUADRANTES, null, null, null, null,
+                new PlanoDTO("Visual", "Auditivo", 6d, 7d, "Convergente", "Asimilador", "Divergente", "Acomodador"),
+                null);
 
         service.crearCuestionario(dto(lectura));
 

@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
+import com.adela.calificacion.ClaveInstrumento;
 import com.adela.calificacion.FormatoItem;
 import com.adela.calificacion.RespuestaItem;
 import com.adela.calificacion.ResultadoInstrumento;
@@ -156,9 +157,9 @@ public class EvaluacionRespuestas {
      * elegida -> cantidad.
      */
     public Puntuacion puntuar(Cuestionario cuestionario, Map<Long, Double> cantidadPorOpcion) {
-        ResultadoInstrumento r = calificacionService.calificar(cuestionario,
-                calificacionService.clave(cuestionario), cantidadPorOpcion);
+        ClaveInstrumento clave = calificacionService.clave(cuestionario);
+        ResultadoInstrumento r = calificacionService.calificar(cuestionario, clave, cantidadPorOpcion);
         return new Puntuacion(r.estilos().stream().map(EstiloResultadoDTO::de).toList(),
-                CalificacionDTO.individual(cuestionario, r));
+                CalificacionDTO.individual(cuestionario, r, clave));
     }
 }

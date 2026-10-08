@@ -405,7 +405,7 @@ public class ResultadoCuestionarioService {
 
         Agregado agregado = AgregadoGrupo.de(clave, resultados, AgregadoGrupo.N_MINIMO_LOCAL);
         res.setEstilos(agregado.estilos().stream().map(EstiloResultadoDTO::de).toList());
-        res.setCalificacion(CalificacionDTO.grupal(cuestionario, agregado));
+        res.setCalificacion(CalificacionDTO.grupal(cuestionario, agregado, clave, resultados));
         res.setEstudiantesResuelto(estudiantesS);
         res.setEstudiantesNoResuelto(estudiantesUS);
         

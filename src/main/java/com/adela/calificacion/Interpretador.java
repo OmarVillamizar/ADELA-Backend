@@ -54,7 +54,8 @@ public final class Interpretador {
         return x == null || y == null ? null : plano.esquina(x, y);
     }
 
-    private static Double brutoCalculado(List<ResultadoEstilo> res, long estiloId) {
+    /** Bruto del estilo; null si falta o no se pudo calcular. */
+    public static Double brutoCalculado(List<ResultadoEstilo> res, long estiloId) {
         return res.stream().filter(r -> r.estiloId() == estiloId && r.estado() != EstadoCalculo.NO_CALCULABLE)
                 .map(ResultadoEstilo::bruto).filter(b -> b != null).findFirst().orElse(null);
     }

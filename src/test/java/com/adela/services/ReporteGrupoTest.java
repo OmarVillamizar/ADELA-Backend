@@ -2,6 +2,7 @@ package com.adela.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -17,13 +18,17 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.adela.calificacion.EsquemaInterpretacion;
+import com.adela.dto.CalificacionDTO;
+import com.adela.dto.CalificacionDTO.PuntoPlanoDTO;
 import com.adela.dto.EstiloResultadoDTO;
+import com.adela.dto.InterpretacionDTO.PlanoDTO;
 import com.adela.dto.ResultadoGrupoDTO;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Estilo;
 import com.adela.entities.Estudiante;
 import com.adela.entities.Grupo;
 import com.adela.entities.Opcion;
+import com.adela.entities.PlanoCuadrantes;
 import com.adela.entities.Pregunta;
 import com.adela.entities.Profesor;
 import com.adela.entities.ResultadoCuestionario;
@@ -32,6 +37,7 @@ import com.adela.exceptions.AppException;
 import com.adela.repositories.BandaInterpretacionRepository;
 import com.adela.repositories.CuestionarioRepository;
 import com.adela.repositories.EscalonRelativoRepository;
+import com.adela.repositories.PlanoCuadrantesRepository;
 import com.adela.repositories.EstudianteRepository;
 import com.adela.repositories.GrupoRepository;
 import com.adela.repositories.ResultadoCuestionarioRepository;
@@ -47,11 +53,12 @@ class ReporteGrupoTest {
     private final ResultadoCuestionarioRepository resultados = mock(ResultadoCuestionarioRepository.class);
     private final CuestionarioRepository cuestionarios = mock(CuestionarioRepository.class);
     private final GrupoRepository grupos = mock(GrupoRepository.class);
+    private final PlanoCuadrantesRepository planos = mock(PlanoCuadrantesRepository.class);
 
     private final ResultadoCuestionarioService service = new ResultadoCuestionarioService(resultados,
             mock(ResultadoPreguntaRepository.class), cuestionarios, grupos, mock(EstudianteRepository.class), null,
             new CalificacionService(mock(BandaInterpretacionRepository.class),
-                    mock(EscalonRelativoRepository.class)));
+                    mock(EscalonRelativoRepository.class), planos));
 
     private Profesor profesor;
 
@@ -102,6 +109,40 @@ class ReporteGrupoTest {
         assertEquals(50d, ev.getEstadisticaPomp().media(), 1e-9);
         assertTrue(r.getCalificacion().rangosHomogeneos());
         assertEquals(Map.of("Visual", 1L, "Auditivo", 1L), r.getCalificacion().distribucionPerfiles());
+    }
+
+    @Test
+    @DisplayName("Con cuadrantes el reporte trae el plano y un punto anónimo por resultado calculable")
+    void puntosPlano() {
+        Cuestionario c = cuestionarios.findById(1L).orElseThrow();
+        c.setEsquemaInterpretacion(EsquemaInterpretacion.CUADRANTES);
+        PlanoCuadrantes p = new PlanoCuadrantes();
+        p.setCuestionarioId(1L);
+        p.setEjeX(c.getEstilos().stream().filter(e -> e.getId() == 1L).findFirst().orElseThrow());
+        p.setEjeY(c.getEstilos().stream().filter(e -> e.getId() == 2L).findFirst().orElseThrow());
+        p.setCorteX(0.5);
+        p.setCorteY(0.5);
+        p.setXAltoYAlto("Alto");
+        p.setXBajoYAlto("Asimilador");
+        p.setXBajoYBajo("Bajo");
+        p.setXAltoYBajo("Acomodador");
+        when(planos.findById(1L)).thenReturn(Optional.of(p));
+
+        CalificacionDTO k = service.obtenerResultadosGrupoCuestionario(1L, 7, profesor).getCalificacion();
+
+        assertEquals(new PlanoDTO("Visual", "Auditivo", 0.5, 0.5, "Alto", "Asimilador", "Bajo", "Acomodador"),
+                k.plano());
+        // Luis (Auditivo) y Ana (Visual); Eva no respondió y no aporta punto.
+        assertEquals(List.of(new PuntoPlanoDTO(0, 1), new PuntoPlanoDTO(1, 0)), k.puntosPlano());
+        assertEquals(Map.of("Asimilador", 1L, "Acomodador", 1L), k.distribucionPerfiles());
+    }
+
+    @Test
+    @DisplayName("Sin cuadrantes no hay plano ni puntos")
+    void sinPlano() {
+        CalificacionDTO k = service.obtenerResultadosGrupoCuestionario(1L, 7, profesor).getCalificacion();
+        assertNull(k.plano());
+        assertNull(k.puntosPlano());
     }
 
     @Test

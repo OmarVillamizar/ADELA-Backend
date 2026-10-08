@@ -39,6 +39,7 @@ import com.adela.exceptions.ErrorCode;
 import com.adela.repositories.BandaInterpretacionRepository;
 import com.adela.repositories.EscalonRelativoRepository;
 import com.adela.repositories.OpcionRepository;
+import com.adela.repositories.PlanoCuadrantesRepository;
 import com.adela.repositories.PreguntaRepository;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -67,6 +68,9 @@ class EvaluacionRespuestasTest {
     @Mock
     private EscalonRelativoRepository escalonRepository;
 
+    @Mock
+    private PlanoCuadrantesRepository planoRepository;
+
     private EvaluacionRespuestas evaluacion;
 
     private Cuestionario cuestionario;
@@ -94,7 +98,7 @@ class EvaluacionRespuestasTest {
         cuestionario.getPreguntas().add(unica);
         cuestionario.getPreguntas().add(multiple);
         evaluacion = new EvaluacionRespuestas(opcionRepository, preguntaRepository,
-                new CalificacionService(bandaRepository, escalonRepository));
+                new CalificacionService(bandaRepository, escalonRepository, planoRepository));
 
         when(preguntaRepository.findByCuestionario(cuestionario)).thenReturn(List.of(unica, multiple));
         when(opcionRepository.findAllById(any())).thenAnswer(inv -> {

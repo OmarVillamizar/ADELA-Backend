@@ -1,10 +1,14 @@
 package com.adela.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
@@ -15,26 +19,34 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
+import org.mockito.ArgumentCaptor;
 
 import com.adela.calificacion.EscalaBanda;
 import com.adela.calificacion.EsquemaInterpretacion;
+import com.adela.calificacion.TipoEstilo;
 import com.adela.dto.InterpretacionDTO;
 import com.adela.dto.InterpretacionDTO.BandaDTO;
 import com.adela.dto.InterpretacionDTO.EscalonDTO;
+import com.adela.dto.InterpretacionDTO.EstiloLecturaDTO;
+import com.adela.dto.InterpretacionDTO.PlanoDTO;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Estilo;
+import com.adela.entities.PlanoCuadrantes;
 import com.adela.exceptions.AppException;
 import com.adela.exceptions.ErrorCode;
 import com.adela.repositories.BandaInterpretacionRepository;
 import com.adela.repositories.CuestionarioRepository;
 import com.adela.repositories.EscalonRelativoRepository;
+import com.adela.repositories.PlanoCuadrantesRepository;
 
 class InterpretacionServiceTest {
 
     private final CuestionarioRepository cuestionarios = mock(CuestionarioRepository.class);
     private final BandaInterpretacionRepository bandas = mock(BandaInterpretacionRepository.class);
     private final EscalonRelativoRepository escalones = mock(EscalonRelativoRepository.class);
-    private final InterpretacionService service = new InterpretacionService(cuestionarios, bandas, escalones);
+    private final PlanoCuadrantesRepository planos = mock(PlanoCuadrantesRepository.class);
+    private final InterpretacionService service = new InterpretacionService(cuestionarios, bandas, escalones,
+            planos);
 
     private Cuestionario chaea;
 
@@ -46,6 +58,11 @@ class InterpretacionServiceTest {
         activo.setId(10L);
         activo.setNombre("Activo");
         chaea.getEstilos().add(activo);
+        Estilo reflexivo = new Estilo();
+        reflexivo.setId(11L);
+        reflexivo.setNombre("Reflexivo");
+        reflexivo.setTipo(TipoEstilo.COMPUESTO);
+        chaea.getEstilos().add(reflexivo);
         when(cuestionarios.findById(1L)).thenReturn(Optional.of(chaea));
     }
 
@@ -125,6 +142,88 @@ class InterpretacionServiceTest {
                 null)).containsKey("escalones"));
         assertTrue(errores(new InterpretacionDTO(EsquemaInterpretacion.RELATIVO_ESCALONADO, null, false, null,
                 List.of(new EscalonDTO(0d, 16d, 1d), new EscalonDTO(16d, 22d, 2d)))).containsKey("escalones"));
+    }
+
+    private static PlanoDTO plano(String ejeX, String ejeY, String a, String b, String c, String d) {
+        return new PlanoDTO(ejeX, ejeY, 6d, 7d, a, b, c, d);
+    }
+
+    private static InterpretacionDTO cuadrantes(PlanoDTO plano) {
+        return new InterpretacionDTO(EsquemaInterpretacion.CUADRANTES, null, null, null, null, plano, null);
+    }
+
+    @Test
+    @DisplayName("Cuadrantes exige el plano")
+    void cuadrantesSinPlano() {
+        assertTrue(errores(cuadrantes(null)).containsKey("plano"));
+    }
+
+    @Test
+    @DisplayName("Los ejes del plano existen en el cuestionario y son distintos")
+    void ejesDelPlano() {
+        Map<String, String> e = errores(cuadrantes(plano("Visual", null, "A", "B", "C", "D")));
+        assertTrue(e.containsKey("plano.ejeX"));
+        assertTrue(e.containsKey("plano.ejeY"));
+        assertTrue(errores(cuadrantes(plano("Activo", "Activo", "A", "B", "C", "D"))).containsKey("plano.ejeY"));
+    }
+
+    @Test
+    @DisplayName("Los nombres de las esquinas no pueden estar vacíos, pasar de 60 ni repetirse")
+    void esquinasDelPlano() {
+        Map<String, String> e = errores(cuadrantes(plano("Activo", "Reflexivo", " ", "x".repeat(61), "Igual", " igual ")));
+        assertTrue(e.containsKey("plano.xAltoYAlto"));
+        assertTrue(e.containsKey("plano.xBajoYAlto"));
+        assertTrue(!e.containsKey("plano.xBajoYBajo"));
+        assertTrue(e.containsKey("plano.xAltoYBajo"));
+    }
+
+    @Test
+    @DisplayName("Los cortes deben ser finitos; sin corte vale 0")
+    void cortesDelPlano() {
+        Map<String, String> e = errores(cuadrantes(new PlanoDTO("Activo", "Reflexivo", Double.NaN,
+                Double.POSITIVE_INFINITY, "A", "B", "C", "D")));
+        assertTrue(e.containsKey("plano.corteX"));
+        assertTrue(e.containsKey("plano.corteY"));
+
+        InterpretacionDTO guardado = service.guardar(1L, cuadrantes(new PlanoDTO("Activo", "Reflexivo", null, null,
+                "A", "B", "C", "D")));
+        assertEquals(0d, guardado.plano().corteX());
+        assertEquals(0d, guardado.plano().corteY());
+    }
+
+    @Test
+    @DisplayName("Guarda el plano con los nombres sin espacios y el GET lo devuelve con los estilos")
+    void idaYVueltaDelPlano() {
+        PlanoDTO enviado = plano("Activo", "Reflexivo", " Convergente ", "Asimilador", "Divergente", "Acomodador");
+        service.guardar(1L, cuadrantes(enviado));
+
+        ArgumentCaptor<PlanoCuadrantes> guardado = ArgumentCaptor.forClass(PlanoCuadrantes.class);
+        verify(planos).save(guardado.capture());
+        PlanoCuadrantes e = guardado.getValue();
+        assertEquals(1L, e.getCuestionarioId());
+        assertEquals(10L, e.getEjeX().getId());
+        assertEquals(11L, e.getEjeY().getId());
+        assertEquals("Convergente", e.getXAltoYAlto());
+        assertEquals(7d, e.getCorteY());
+        verify(planos, never()).deleteById(1L);
+
+        when(planos.findById(1L)).thenReturn(Optional.of(e));
+        InterpretacionDTO leido = service.obtener(1L);
+        assertEquals(EsquemaInterpretacion.CUADRANTES, leido.esquema());
+        assertEquals(plano("Activo", "Reflexivo", "Convergente", "Asimilador", "Divergente", "Acomodador"),
+                leido.plano());
+        assertEquals(List.of(new EstiloLecturaDTO("Activo", TipoEstilo.PRIMARIO), new EstiloLecturaDTO("Reflexivo",
+                TipoEstilo.COMPUESTO)), leido.estilos());
+    }
+
+    @Test
+    @DisplayName("Con otro esquema el plano se borra y no se lee")
+    void otroEsquemaBorraElPlano() {
+        service.guardar(1L, new InterpretacionDTO(EsquemaInterpretacion.NINGUNA, null, null, null, null));
+
+        verify(planos).deleteById(1L);
+        verify(planos, never()).save(any());
+        assertNull(service.obtener(1L).plano());
     }
 
     @Test

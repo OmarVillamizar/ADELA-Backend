@@ -52,6 +52,7 @@ import com.adela.repositories.BandaInterpretacionRepository;
 import com.adela.repositories.CapsulaRepository;
 import com.adela.repositories.CuestionarioRepository;
 import com.adela.repositories.EscalonRelativoRepository;
+import com.adela.repositories.PlanoCuadrantesRepository;
 import com.adela.repositories.RespuestaCapsulaRepository;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -79,7 +80,8 @@ class CapsulaServiceTest {
 
     @Spy
     private CalificacionService calificacionService = new CalificacionService(
-            mock(BandaInterpretacionRepository.class), mock(EscalonRelativoRepository.class));
+            mock(BandaInterpretacionRepository.class), mock(EscalonRelativoRepository.class),
+            mock(PlanoCuadrantesRepository.class));
 
     @InjectMocks
     private CapsulaService service;

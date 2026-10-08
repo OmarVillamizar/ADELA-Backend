@@ -16,10 +16,12 @@ import com.adela.calificacion.ClaveInconsistenteException;
 import com.adela.calificacion.ClaveInstrumento;
 import com.adela.calificacion.ConfigInterpretacion;
 import com.adela.calificacion.Escalon;
+import com.adela.calificacion.EsquemaInterpretacion;
 import com.adela.calificacion.EstiloClave;
 import com.adela.calificacion.ItemClave;
 import com.adela.calificacion.MotorCalificacion;
 import com.adela.calificacion.OpcionClave;
+import com.adela.calificacion.Plano;
 import com.adela.calificacion.RespuestaItem;
 import com.adela.calificacion.ResultadoInstrumento;
 import com.adela.entities.Cuestionario;
@@ -30,6 +32,7 @@ import com.adela.exceptions.AppException;
 import com.adela.exceptions.ErrorCode;
 import com.adela.repositories.BandaInterpretacionRepository;
 import com.adela.repositories.EscalonRelativoRepository;
+import com.adela.repositories.PlanoCuadrantesRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -48,6 +51,8 @@ public class CalificacionService {
 
     private final EscalonRelativoRepository escalonRepository;
 
+    private final PlanoCuadrantesRepository planoRepository;
+
     /** Requiere la sesión abierta: recorre preguntas, opciones y estilos. */
     public ClaveInstrumento clave(Cuestionario c) {
         List<Estilo> estilos = c.getEstilos().stream().sorted(Comparator.comparing(Estilo::getId)).toList();
@@ -62,8 +67,14 @@ public class CalificacionService {
                 .toList();
         List<Escalon> escalones = escalonRepository.findByCuestionario(c).stream()
                 .map(e -> new Escalon(e.getTotalMin(), e.getTotalMax(), e.getDistancia())).toList();
+        // La clave del plano es el id del cuestionario; solo cuenta con el esquema CUADRANTES.
+        Plano plano = c.getEsquemaInterpretacion() != EsquemaInterpretacion.CUADRANTES ? null
+                : planoRepository.findById(c.getId())
+                        .map(p -> new Plano(p.getEjeX().getId(), p.getEjeY().getId(), p.getCorteX(), p.getCorteY(),
+                                p.getXAltoYAlto(), p.getXBajoYAlto(), p.getXBajoYBajo(), p.getXAltoYBajo()))
+                        .orElse(null);
         ConfigInterpretacion config = new ConfigInterpretacion(c.getEsquemaInterpretacion(), c.getDeltaRelativo(),
-                bandas, escalones);
+                bandas, escalones, plano);
 
         return conClaveValida(c, () -> new ClaveInstrumento(c.getId(), false,
                 c.getPreguntas().stream().sorted(Comparator.comparingInt(Pregunta::getOrden)).map(this::item)
