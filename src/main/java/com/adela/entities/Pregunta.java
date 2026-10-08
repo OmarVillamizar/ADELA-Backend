@@ -5,12 +5,15 @@ import java.util.Objects;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.adela.calificacion.FormatoItem;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -47,7 +50,18 @@ public class Pregunta {
     @Column(nullable = false)
     private int orden;
     
-    private boolean opcionMultiple = false;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 15)
+    private FormatoItem formato = FormatoItem.UNICA;
+
+    /** Solo MULTIPLE: mínimo y máximo de opciones marcadas (máximo null = todas). */
+    @Column(nullable = false)
+    private int minSelecciones = 0;
+
+    private Integer maxSelecciones;
+
+    /** Solo REPARTO: puntos que el estudiante reparte entre las opciones. */
+    private Integer puntosRepartir;
 
     @Column(nullable = false)
     private boolean obligatoria = true;

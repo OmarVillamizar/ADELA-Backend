@@ -18,13 +18,11 @@ import com.adela.calificacion.ClaveInstrumento;
 import com.adela.calificacion.ConfigInterpretacion;
 import com.adela.calificacion.Escalon;
 import com.adela.calificacion.EstiloClave;
-import com.adela.calificacion.FormatoItem;
 import com.adela.calificacion.ItemClave;
 import com.adela.calificacion.MotorCalificacion;
 import com.adela.calificacion.OpcionClave;
 import com.adela.calificacion.RespuestaItem;
 import com.adela.calificacion.ResultadoInstrumento;
-import com.adela.calificacion.TipoEstilo;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Estilo;
 import com.adela.entities.Opcion;
@@ -56,7 +54,7 @@ public class CalificacionService {
         List<Estilo> estilos = c.getEstilos().stream().sorted(Comparator.comparing(Estilo::getId)).toList();
         List<EstiloClave> estilosClave = IntStream.range(0, estilos.size())
                 .mapToObj(i -> new EstiloClave(estilos.get(i).getId(), estilos.get(i).getNombre(),
-                        TipoEstilo.PRIMARIO, i + 1, null))
+                        estilos.get(i).getTipo(), i + 1, estilos.get(i).getCoeficientes()))
                 .toList();
 
         List<Banda> bandas = bandaRepository.findByEstiloCuestionario(c).stream()
@@ -74,11 +72,12 @@ public class CalificacionService {
                 estilosClave, config));
     }
 
-    private ItemClave item(Pregunta p) {
+    /** Ítem de la clave; también sirve para validar una respuesta con las reglas del motor. */
+    public ItemClave item(Pregunta p) {
         List<OpcionClave> opciones = p.getOpciones().stream().sorted(Comparator.comparingInt(Opcion::getOrden))
-                .map(o -> new OpcionClave(o.getId(), Map.of(o.getEstilo().getId(), o.getValor()))).toList();
-        return new ItemClave(p.getId(), p.isOpcionMultiple() ? FormatoItem.MULTIPLE : FormatoItem.UNICA,
-                p.isObligatoria(), 0, null, null, opciones);
+                .map(o -> new OpcionClave(o.getId(), o.getPesos())).toList();
+        return new ItemClave(p.getId(), p.getFormato(), p.isObligatoria(), p.getMinSelecciones(),
+                p.getMaxSelecciones(), p.getPuntosRepartir(), opciones);
     }
 
     /** Cada opción elegida cuenta una vez, agrupada por su pregunta. */

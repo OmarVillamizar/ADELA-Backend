@@ -1,5 +1,8 @@
 package com.adela.services;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.stereotype.Service;
 
 import com.adela.dto.OpcionDTO;
@@ -22,18 +25,23 @@ public class OpcionService {
         opcionRepository.delete(opcion);
     }
     
-    public Opcion crearOpcion(Pregunta pregunta, Estilo estilo, OpcionDTO opcionDTO) {
-        if (pregunta.getCuestionario().getId().equals(estilo.getCuestionario().getId())) {
-            Opcion opcion = new Opcion();
-            opcion.setPregunta(pregunta);
-            opcion.setEstilo(estilo);
-            opcion.setValor(opcionDTO.getValor());
-            opcion.setOrden(opcionDTO.getOrden());
-            opcion.setRespuesta(opcionDTO.getRespuesta());
-            
-            return opcionRepository.save(opcion);
-        }
-        throw new RuntimeException("Inconsistencias en los cuestionarios de pregunta ("
-                + pregunta.getCuestionario().getId() + ") y estilo(" + estilo.getCuestionario().getId() + ")");
+    /** pesos: estilo primario -> peso. Todos deben ser del cuestionario de la pregunta. */
+    public Opcion crearOpcion(Pregunta pregunta, Map<Estilo, Double> pesos, OpcionDTO opcionDTO) {
+        Long cuestionarioId = pregunta.getCuestionario().getId();
+        Map<Long, Double> porId = new HashMap<>();
+        pesos.forEach((estilo, peso) -> {
+            if (!cuestionarioId.equals(estilo.getCuestionario().getId())) {
+                throw new RuntimeException("Inconsistencias en los cuestionarios de pregunta (" + cuestionarioId
+                        + ") y estilo(" + estilo.getCuestionario().getId() + ")");
+            }
+            porId.put(estilo.getId(), peso);
+        });
+        Opcion opcion = new Opcion();
+        opcion.setPregunta(pregunta);
+        opcion.setPesos(porId);
+        opcion.setOrden(opcionDTO.getOrden());
+        opcion.setRespuesta(opcionDTO.getRespuesta());
+
+        return opcionRepository.save(opcion);
     }
 }

@@ -3,6 +3,7 @@ package com.adela.dto;
 import java.util.Comparator;
 import java.util.List;
 
+import com.adela.calificacion.FormatoItem;
 import com.adela.entities.Estilo;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Opcion;
@@ -39,7 +40,8 @@ public record CuestionarioParaResponderDTO(Long id, String nombre, String descri
     public static CuestionarioParaResponderDTO from(Cuestionario c) {
         List<PreguntaResponderDTO> preguntas = c.getPreguntas().stream()
                 .sorted(Comparator.comparingInt(Pregunta::getOrden)).map(p -> new PreguntaResponderDTO(p.getId(),
-                        p.getPregunta(), p.getOrden(), p.isOpcionMultiple(), p.isObligatoria(), opcionesDe(p)))
+                        p.getPregunta(), p.getOrden(), p.getFormato() == FormatoItem.MULTIPLE, p.isObligatoria(),
+                        opcionesDe(p)))
                 .toList();
 
         List<EstiloResponderDTO> estilos = c.getEstilos().stream().map(Estilo::getNombre)

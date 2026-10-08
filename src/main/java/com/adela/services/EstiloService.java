@@ -2,6 +2,7 @@ package com.adela.services;
 
 import org.springframework.stereotype.Service;
 
+import com.adela.calificacion.TipoEstilo;
 import com.adela.dto.EstiloDTO;
 import com.adela.entities.Estilo;
 import com.adela.entities.Cuestionario;
@@ -31,6 +32,7 @@ public class EstiloService {
         
         estilo.setCuestionario(cuestionario);
         estilo.setNombre(estiloDTO.getNombre());
+        estilo.setTipo(estiloDTO.getTipo() != null ? estiloDTO.getTipo() : TipoEstilo.PRIMARIO);
         
         return estiloRepository.save(estilo);
     }

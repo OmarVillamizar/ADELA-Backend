@@ -253,8 +253,7 @@ class CapsulaServiceTest {
         Opcion o = new Opcion();
         o.setId(id);
         o.setPregunta(p);
-        o.setEstilo(e);
-        o.setValor(1d);
+        o.setPesos(Map.of(e.getId(), 1d));
         return o;
     }
 

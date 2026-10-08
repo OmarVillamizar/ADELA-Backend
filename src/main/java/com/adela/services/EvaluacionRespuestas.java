@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
+import com.adela.calificacion.FormatoItem;
 import com.adela.calificacion.ResultadoInstrumento;
 import com.adela.dto.CalificacionDTO;
 import com.adela.dto.EstiloResultadoDTO;
@@ -71,7 +72,7 @@ public class EvaluacionRespuestas {
                 throw new AppException(ErrorCode.OPCION_INCONSISTENTE,
                         "La opción " + id + " no pertenece al cuestionario " + cuestionario.getId() + ".");
             }
-            if (!respondidas.add(pregunta.getId()) && !pregunta.isOpcionMultiple()) {
+            if (!respondidas.add(pregunta.getId()) && pregunta.getFormato() == FormatoItem.UNICA) {
                 throw new AppException(ErrorCode.OPCION_DUPLICADA,
                         "La pregunta " + pregunta.getOrden() + " admite una sola respuesta y llegó más de una.");
             }

@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.junit.jupiter.api.DisplayName;
@@ -36,8 +37,7 @@ class CuestionarioParaResponderDTOTest {
         opcion.setId(10L);
         opcion.setRespuesta("Mirar un mapa");
         opcion.setOrden(1);
-        opcion.setValor(3d);
-        opcion.setEstilo(visual);
+        opcion.setPesos(Map.of(1L, 3d));
 
         Pregunta pregunta = new Pregunta();
         pregunta.setId(5L);

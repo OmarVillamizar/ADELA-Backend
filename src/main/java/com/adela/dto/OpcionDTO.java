@@ -1,5 +1,7 @@
 package com.adela.dto;
 
+import java.util.List;
+
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -8,6 +10,10 @@ import lombok.NoArgsConstructor;
 public class OpcionDTO {
     private int orden;
     private String respuesta;
-    private Double valor;
-    private int estiloId; // no es el id de la bd
+    /** Puede sumar a varios estilos primarios. Vacía = la opción no puntúa (el "−" del CHAEA). */
+    private List<PesoDTO> pesos;
+
+    /** estiloId es el id local de 'estilos' en el JSON, no el de la BD. */
+    public record PesoDTO(int estiloId, Double peso) {
+    }
 }

@@ -10,6 +10,8 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.adela.calificacion.FormatoItem;
+import com.adela.calificacion.TipoEstilo;
 import com.adela.dto.EstiloDTO;
 import com.adela.dto.CuestionarioDTO;
 import com.adela.dto.CuestionarioParaResponderDTO;
@@ -77,7 +79,11 @@ public class CuestionarioService {
         cuestionarioSave.setAutor(cuestionarioDTO.getAutor());
         cuestionarioSave.setSiglas(cuestionarioDTO.getSiglas());
         cuestionarioSave.setVersion(cuestionarioDTO.getVersion());
-        
+        // Jerarquizar o repartir suma una constante por ítem: los puntajes de una
+        // persona dependen entre sí y la media del grupo se lee con advertencia.
+        cuestionarioSave.setEsIpsativo(cuestionarioDTO.getPreguntas().stream()
+                .anyMatch(p -> p.getFormato() == FormatoItem.JERARQUIA || p.getFormato() == FormatoItem.REPARTO));
+
         Cuestionario cuestionario = cuestionarioRepository.save(cuestionarioSave);
         
         Map<Integer, Estilo> idMap = new HashMap<>();
@@ -91,7 +97,16 @@ public class CuestionarioService {
             idMap.put(otherId, estilo);
             estilos.add(estilo);
         }
-        
+        // Los coeficientes apuntan a ids locales: se traducen cuando ya existen todos los estilos.
+        for (EstiloDTO estiloDTO : cuestionarioDTO.getEstilos()) {
+            if (estiloDTO.getCoeficientes() != null) {
+                Map<Long, Double> coeficientes = new HashMap<>();
+                estiloDTO.getCoeficientes()
+                        .forEach(c -> coeficientes.put(idMap.get(c.estiloId()).getId(), c.coeficiente()));
+                idMap.get(estiloDTO.getId()).setCoeficientes(coeficientes);
+            }
+        }
+
         for (PreguntaDTO preguntaDTO : cuestionarioDTO.getPreguntas()) {
             Pregunta pregunta = preguntaService.crearPregunta(cuestionario, idMap, preguntaDTO);
             preguntas.add(pregunta);
@@ -121,31 +136,125 @@ public class CuestionarioService {
             errores.put("preguntas", "Agrega al menos una pregunta.");
             return errores;
         }
-        Set<Integer> ids = new HashSet<>();
+        // id local -> tipo; los pesos y los coeficientes solo pueden apuntar a primarios.
+        Map<Integer, TipoEstilo> tipos = new HashMap<>();
         if (dto.getEstilos() != null) {
-            dto.getEstilos().forEach(e -> ids.add(e.getId()));
+            Set<String> nombres = new HashSet<>();
+            for (int i = 0; i < dto.getEstilos().size(); i++) {
+                EstiloDTO e = dto.getEstilos().get(i);
+                String nombre = e.getNombre() == null ? "" : e.getNombre().trim();
+                if (nombre.isEmpty()) {
+                    errores.put("estilos[" + i + "]", "Hay un estilo sin nombre.");
+                } else if (!nombres.add(nombre)) {
+                    // Las bandas de interpretación nombran el estilo: el nombre debe ser único.
+                    errores.put("estilos[" + i + "]", "El estilo '" + nombre + "' está repetido.");
+                } else if (tipos.putIfAbsent(e.getId(), tipoDe(e)) != null) {
+                    errores.put("estilos[" + i + "]", "El id " + e.getId() + " de '" + nombre + "' está repetido.");
+                }
+            }
+            if (!tipos.isEmpty() && !tipos.containsValue(TipoEstilo.PRIMARIO)) {
+                errores.put("estilos", "Debe haber al menos un estilo primario.");
+            }
+            for (int i = 0; i < dto.getEstilos().size(); i++) {
+                String error = errorCoeficientes(dto.getEstilos().get(i), tipos);
+                if (error != null) {
+                    errores.putIfAbsent("estilos[" + i + "]", error);
+                }
+            }
         }
 
         for (int i = 0; i < dto.getPreguntas().size(); i++) {
             PreguntaDTO p = dto.getPreguntas().get(i);
-            String campo = "preguntas[" + i + "]";
-            if (p.getOpciones() == null || p.getOpciones().isEmpty()) {
-                errores.put(campo, "La pregunta " + p.getOrden() + " no tiene opciones.");
-                continue;
-            }
-            for (OpcionDTO o : p.getOpciones()) {
-                if (o.getValor() == null) {
-                    errores.put(campo, "La pregunta " + p.getOrden() + " tiene una opción sin valor.");
-                    break;
-                }
-                if (!ids.isEmpty() && !ids.contains(o.getEstiloId())) {
-                    errores.put(campo, "La pregunta " + p.getOrden() + " usa el estilo " + o.getEstiloId()
-                            + ", que no está en 'estilos'. Si el JSON usa 'categoriaId', renómbralo a 'estiloId'.");
-                    break;
-                }
+            String error = errorPregunta(p, tipos);
+            if (error != null) {
+                errores.put("preguntas[" + i + "]", "La pregunta " + p.getOrden() + " " + error);
             }
         }
         return errores;
+    }
+
+    private static TipoEstilo tipoDe(EstiloDTO e) {
+        return e.getTipo() != null ? e.getTipo() : TipoEstilo.PRIMARIO;
+    }
+
+    /** Un compuesto es una combinación de primarios; un primario no lleva coeficientes. */
+    private static String errorCoeficientes(EstiloDTO e, Map<Integer, TipoEstilo> tipos) {
+        boolean vacio = e.getCoeficientes() == null || e.getCoeficientes().isEmpty();
+        if (tipoDe(e) == TipoEstilo.PRIMARIO) {
+            return vacio ? null : "El estilo primario '" + e.getNombre() + "' no lleva coeficientes.";
+        }
+        if (vacio) {
+            return "El compuesto '" + e.getNombre() + "' necesita al menos un coeficiente.";
+        }
+        Set<Integer> usados = new HashSet<>();
+        for (EstiloDTO.CoeficienteDTO c : e.getCoeficientes()) {
+            if (tipos.get(c.estiloId()) != TipoEstilo.PRIMARIO) {
+                return "El compuesto '" + e.getNombre() + "' usa el estilo " + c.estiloId()
+                        + ", que no es un primario de 'estilos'.";
+            }
+            if (c.coeficiente() == null || c.coeficiente() == 0 || !Double.isFinite(c.coeficiente())) {
+                return "El compuesto '" + e.getNombre() + "' tiene un coeficiente vacío o en 0.";
+            }
+            if (!usados.add(c.estiloId())) {
+                return "El compuesto '" + e.getNombre() + "' repite el estilo " + c.estiloId() + ".";
+            }
+        }
+        return null;
+    }
+
+    /** Primer problema de la pregunta, o null. Un error por pregunta para no devolver uno por opción. */
+    private static String errorPregunta(PreguntaDTO p, Map<Integer, TipoEstilo> tipos) {
+        if (p.getOpciones() == null || p.getOpciones().isEmpty()) {
+            return "no tiene opciones.";
+        }
+        FormatoItem formato = p.getFormato();
+        if (formato == null) {
+            return "no tiene formato (UNICA, MULTIPLE, JERARQUIA o REPARTO).";
+        }
+        int k = p.getOpciones().size();
+        boolean conSeleccion = p.getMinSelecciones() != null || p.getMaxSelecciones() != null;
+        if (formato == FormatoItem.MULTIPLE) {
+            int min = p.getMinSelecciones() != null ? p.getMinSelecciones() : 0;
+            Integer max = p.getMaxSelecciones();
+            if (min < 0 || min > k) {
+                return "pide un mínimo de " + min + " opciones y tiene " + k + ".";
+            }
+            if (max != null && (max < Math.max(min, 1) || max > k)) {
+                return "permite un máximo de " + max + " opciones; debe estar entre " + Math.max(min, 1) + " y "
+                        + k + ".";
+            }
+        } else if (conSeleccion) {
+            return "solo puede tener mínimo y máximo de selecciones si es MULTIPLE.";
+        }
+        if (formato == FormatoItem.REPARTO) {
+            if (p.getPuntosRepartir() == null || p.getPuntosRepartir() <= 0) {
+                return "es de reparto y necesita puntos a repartir mayores que 0.";
+            }
+        } else if (p.getPuntosRepartir() != null) {
+            return "solo puede tener puntos a repartir si es REPARTO.";
+        }
+        if (formato == FormatoItem.JERARQUIA && k < 2) {
+            return "es de jerarquía y necesita al menos 2 opciones.";
+        }
+        for (OpcionDTO o : p.getOpciones()) {
+            if (o.getPesos() == null) {
+                return "tiene una opción sin 'pesos'. Si el JSON usa 'valor' y 'estiloId', pásalos a "
+                        + "'pesos': [{\"estiloId\": ..., \"peso\": ...}].";
+            }
+            Set<Integer> usados = new HashSet<>();
+            for (OpcionDTO.PesoDTO w : o.getPesos()) {
+                if (!tipos.isEmpty() && tipos.get(w.estiloId()) != TipoEstilo.PRIMARIO) {
+                    return "usa el estilo " + w.estiloId() + ", que no es un primario de 'estilos'.";
+                }
+                if (w.peso() == null || !Double.isFinite(w.peso())) {
+                    return "tiene una opción con un peso vacío.";
+                }
+                if (!usados.add(w.estiloId())) {
+                    return "tiene una opción que repite el estilo " + w.estiloId() + ".";
+                }
+            }
+        }
+        return null;
     }
 
     public void eliminarCuestionario(Long id) {

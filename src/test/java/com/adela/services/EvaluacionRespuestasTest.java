@@ -20,6 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import com.adela.calificacion.FormatoItem;
 import com.adela.dto.EstiloResultadoDTO;
 import com.adela.entities.Estilo;
 import com.adela.entities.Cuestionario;
@@ -198,7 +199,7 @@ class EvaluacionRespuestasTest {
         Pregunta p = new Pregunta();
         p.setId(id);
         p.setOrden(orden);
-        p.setOpcionMultiple(multiple);
+        p.setFormato(multiple ? FormatoItem.MULTIPLE : FormatoItem.UNICA);
         p.setObligatoria(!multiple);
         p.setCuestionario(c);
         return p;
@@ -208,8 +209,7 @@ class EvaluacionRespuestasTest {
         Opcion o = new Opcion();
         o.setId(id);
         o.setPregunta(p);
-        o.setEstilo(c);
-        o.setValor(valor);
+        o.setPesos(Map.of(c.getId(), valor));
         return o;
     }
 }

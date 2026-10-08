@@ -1,16 +1,24 @@
 package com.adela.entities;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 
+import com.adela.calificacion.TipoEstilo;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.MapKeyColumn;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Setter;
@@ -38,6 +46,18 @@ public class Estilo {
     
     @Column(nullable = false)
     private String nombre;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private TipoEstilo tipo = TipoEstilo.PRIMARIO;
+
+    /** Solo COMPUESTO: coeficiente c(k,e) por id de estilo primario (AC-CE = AC +1, CE -1). */
+    @ElementCollection
+    @CollectionTable(name = "estilo_compuesto_coef", joinColumns = @JoinColumn(name = "compuesto_id"))
+    @MapKeyColumn(name = "primario_id")
+    @Column(name = "coeficiente", nullable = false)
+    @ToString.Exclude
+    private Map<Long, Double> coeficientes = new HashMap<>();
 
     /**
      * Identidad por @Id, no por todos los campos. El equals de @Data recorria las
