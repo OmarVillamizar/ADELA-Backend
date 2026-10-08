@@ -12,6 +12,7 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.adela.calificacion.EscalaBanda;
 import com.adela.calificacion.EsquemaInterpretacion;
 import com.adela.dto.InterpretacionDTO;
 import com.adela.dto.InterpretacionDTO.BandaDTO;
@@ -82,7 +83,10 @@ public class InterpretacionService {
 
         c.setEsquemaInterpretacion(dto.esquema());
         c.setDeltaRelativo(dto.delta() == null ? 10 : dto.delta());
-        c.setEsIpsativo(Boolean.TRUE.equals(dto.esIpsativo()));
+        // null conserva el valor: al crear, el ipsativo se deduce de los formatos.
+        if (dto.esIpsativo() != null) {
+            c.setEsIpsativo(dto.esIpsativo());
+        }
         cuestionarioRepository.save(c);
 
         bandaRepository.saveAll(bandas.stream().map(b -> {
@@ -164,7 +168,12 @@ public class InterpretacionService {
         return errores;
     }
 
-    /** Las bandas de un mismo estilo y escala no se solapan ni repiten orden. */
+    /**
+     * Las bandas de un mismo estilo y escala no se solapan ni repiten orden. En
+     * POMP, que es continua, dos bandas pueden compartir el límite (33,3 a 66,7
+     * tras 0 a 33,3): sin eso quedaría un hueco sin nivel, y en el límite gana la
+     * primera en orden. En BRUTO los baremos son enteros y van separados.
+     */
     private static void validarSolapes(List<BandaDTO> bandas, Map<String, String> errores) {
         Map<String, List<BandaDTO>> grupos = new LinkedHashMap<>();
         bandas.forEach(b -> grupos.computeIfAbsent(b.estilo() + " (" + b.escala() + ")", k -> new ArrayList<>())
@@ -178,7 +187,11 @@ public class InterpretacionService {
             List<BandaDTO> ordenadas = lista.stream().sorted(Comparator.comparingDouble(BandaDTO::limiteInferior))
                     .toList();
             for (int i = 1; i < ordenadas.size(); i++) {
-                if (ordenadas.get(i).limiteInferior() <= ordenadas.get(i - 1).limiteSuperior()) {
+                double inferior = ordenadas.get(i).limiteInferior();
+                double anterior = ordenadas.get(i - 1).limiteSuperior();
+                boolean seSolapa = ordenadas.get(i).escala() == EscalaBanda.POMP ? inferior < anterior
+                        : inferior <= anterior;
+                if (seSolapa) {
                     errores.put("bandas", "Las bandas de " + grupo + " se solapan");
                     return;
                 }

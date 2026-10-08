@@ -44,6 +44,8 @@ public class CuestionarioService {
     private final EstiloService estiloService;
     
     private final PreguntaService preguntaService;
+
+    private final InterpretacionService interpretacionService;
     
     public Cuestionario crearCuestionario(String nombre, String descripcion, String autor, String version,
             String siglas) {
@@ -117,7 +119,12 @@ public class CuestionarioService {
         cuestionario.setEstilos(estilos);
         cuestionario.setPreguntas(preguntas);
         
-        return cuestionarioRepository.save(cuestionario);
+        Cuestionario guardado = cuestionarioRepository.save(cuestionario);
+        // Misma transacción: si la interpretación es inválida, no queda un cuestionario a medias.
+        if (cuestionarioDTO.getInterpretacion() != null) {
+            interpretacionService.guardar(guardado.getId(), cuestionarioDTO.getInterpretacion());
+        }
+        return guardado;
     }
     
     /**

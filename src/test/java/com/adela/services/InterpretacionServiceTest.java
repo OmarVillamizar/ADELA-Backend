@@ -94,6 +94,31 @@ class InterpretacionServiceTest {
     }
 
     @Test
+    @DisplayName("En POMP las bandas pueden compartir el límite; no se superponen")
+    void pompContiguas() {
+        List<BandaDTO> contiguas = List.of(new BandaDTO("Activo", EscalaBanda.POMP, 0d, 33.3, "Bajo", 1),
+                new BandaDTO("Activo", EscalaBanda.POMP, 33.3, 66.7, "Medio", 2),
+                new BandaDTO("Activo", EscalaBanda.POMP, 66.7, 100d, "Alto", 3));
+        service.guardar(1L, new InterpretacionDTO(EsquemaInterpretacion.BAREMO, null, null, contiguas, null));
+
+        assertTrue(errores(new InterpretacionDTO(EsquemaInterpretacion.BAREMO, null, null,
+                List.of(new BandaDTO("Activo", EscalaBanda.POMP, 0d, 40d, "Bajo", 1),
+                        new BandaDTO("Activo", EscalaBanda.POMP, 30d, 100d, "Alto", 2)),
+                null)).get("bandas").contains("solapan"));
+    }
+
+    @Test
+    @DisplayName("Sin esIpsativo se conserva el valor del cuestionario")
+    void ipsativoNuloConserva() {
+        chaea.setEsIpsativo(true);
+        service.guardar(1L, new InterpretacionDTO(EsquemaInterpretacion.NINGUNA, null, null, null, null));
+        assertTrue(chaea.isEsIpsativo());
+
+        service.guardar(1L, new InterpretacionDTO(EsquemaInterpretacion.NINGUNA, null, false, null, null));
+        assertEquals(false, chaea.isEsIpsativo());
+    }
+
+    @Test
     @DisplayName("El esquema escalonado exige escalones válidos y sin solape")
     void escalonado() {
         assertTrue(errores(new InterpretacionDTO(EsquemaInterpretacion.RELATIVO_ESCALONADO, null, false, null,

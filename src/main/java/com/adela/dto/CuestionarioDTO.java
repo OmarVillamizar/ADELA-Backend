@@ -15,4 +15,6 @@ public class CuestionarioDTO {
     private String version;
     private List<PreguntaDTO> preguntas;
     private List<EstiloDTO> estilos;
+    /** Opcional: se guarda en la misma transacción; si es inválida no se crea nada. */
+    private InterpretacionDTO interpretacion;
 }
