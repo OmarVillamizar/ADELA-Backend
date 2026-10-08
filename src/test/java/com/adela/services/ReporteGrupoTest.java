@@ -110,11 +110,11 @@ class ReporteGrupoTest {
         String[] lineas = service.exportarCsv(1L, 7, profesor, "rfc4180").split("\r\n");
 
         assertEquals(5, lineas.length);
-        assertEquals("estudiante_email,estudiante_nombre,estilo,puntaje,rango_min,rango_max,pomp,nivel,"
+        assertEquals("estudiante_email,estudiante_nombre,estilo,tipo,puntaje,rango_min,rango_max,pomp,nivel,"
                 + "dominante,perfil,version_motor", lineas[0]);
-        assertEquals("ana@ufps.edu.co,\"Pérez, Ana\",Visual,1,0,1,100,,si,Visual,2.0.0", lineas[1]);
-        assertEquals("ana@ufps.edu.co,\"Pérez, Ana\",Auditivo,0,0,1,0,,no,Visual,2.0.0", lineas[2]);
-        assertTrue(lineas[3].startsWith("luis@ufps.edu.co,'=Luis,Visual,0"));
+        assertEquals("ana@ufps.edu.co,\"Pérez, Ana\",Visual,PRIMARIO,1,0,1,100,,si,Visual,2.0.0", lineas[1]);
+        assertEquals("ana@ufps.edu.co,\"Pérez, Ana\",Auditivo,PRIMARIO,0,0,1,0,,no,Visual,2.0.0", lineas[2]);
+        assertTrue(lineas[3].startsWith("luis@ufps.edu.co,'=Luis,Visual,PRIMARIO,0"));
     }
 
     @Test
@@ -123,7 +123,7 @@ class ReporteGrupoTest {
         String csv = service.exportarCsv(1L, 7, profesor, "EXCEL");
 
         assertTrue(csv.startsWith("﻿estudiante_email;estudiante_nombre;"));
-        assertTrue(csv.contains("ana@ufps.edu.co;Pérez, Ana;Visual;1;0;1;100;;si;Visual;2.0.0"));
+        assertTrue(csv.contains("ana@ufps.edu.co;Pérez, Ana;Visual;PRIMARIO;1;0;1;100;;si;Visual;2.0.0"));
         assertEquals("33,3333", new Csv(Csv.Formato.EXCEL).numero(100d / 3));
         assertEquals("33.3333", new Csv(Csv.Formato.RFC4180).numero(100d / 3));
         assertThrows(AppException.class, () -> service.exportarCsv(1L, 7, profesor, "xlsx"));

@@ -6,6 +6,7 @@ import com.adela.calificacion.AgregadoGrupo.EstiloAgregado;
 import com.adela.calificacion.EstadoCalculo;
 import com.adela.calificacion.Estadistica.Resumen;
 import com.adela.calificacion.ResultadoEstilo;
+import com.adela.calificacion.TipoEstilo;
 import com.fasterxml.jackson.annotation.JsonInclude;
 
 import lombok.Data;
@@ -21,6 +22,8 @@ import lombok.NoArgsConstructor;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class EstiloResultadoDTO {
     private String nombre;
+    /** PRIMARIO o COMPUESTO: un compuesto (AC-CE, polos del ILS) tiene rango con negativos y va aparte. */
+    private TipoEstilo tipo;
     private Double valor;
 
     private Double rangoMin;
@@ -41,6 +44,7 @@ public class EstiloResultadoDTO {
     public static EstiloResultadoDTO de(ResultadoEstilo r) {
         EstiloResultadoDTO dto = new EstiloResultadoDTO();
         dto.setNombre(r.nombre());
+        dto.setTipo(r.tipo());
         dto.setValor(r.bruto());
         dto.setRangoMin(r.rangoMin());
         dto.setRangoMax(r.rangoMax());
@@ -55,6 +59,7 @@ public class EstiloResultadoDTO {
     public static EstiloResultadoDTO de(EstiloAgregado e) {
         EstiloResultadoDTO dto = new EstiloResultadoDTO();
         dto.setNombre(e.nombre());
+        dto.setTipo(e.tipo());
         dto.setValor(e.bruto() == null ? 0d : e.bruto().media());
         dto.setRangoMin(e.rangoMin());
         dto.setRangoMax(e.rangoMax());

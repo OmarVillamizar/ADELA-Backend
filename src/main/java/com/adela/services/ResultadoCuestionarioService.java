@@ -430,15 +430,16 @@ public class ResultadoCuestionarioService {
         verificarPropiedad(grupo, profesor);
 
         ClaveInstrumento clave = calificacionService.clave(cuestionario);
-        Csv csv = new Csv(f).fila(List.of("estudiante_email", "estudiante_nombre", "estilo", "puntaje", "rango_min",
-                "rango_max", "pomp", "nivel", "dominante", "perfil", "version_motor"));
+        Csv csv = new Csv(f).fila(List.of("estudiante_email", "estudiante_nombre", "estilo", "tipo", "puntaje",
+                "rango_min", "rango_max", "pomp", "nivel", "dominante", "perfil", "version_motor"));
         resultadoCuestionarioRepository.findByGrupoAndCuestionario(grupo, cuestionario).stream()
                 .filter(rc -> rc.getFechaResolucion() != null)
                 .sorted(Comparator.comparing((ResultadoCuestionario rc) -> rc.getEstudiante().getEmail()))
                 .forEach(rc -> {
                     ResultadoInstrumento r = calificacionService.calificar(cuestionario, clave, cantidades(rc));
                     r.estilos().forEach(e -> csv.fila(List.of(Csv.texto(rc.getEstudiante().getEmail()),
-                            Csv.texto(rc.getEstudiante().getNombre()), Csv.texto(e.nombre()), csv.numero(e.bruto()),
+                            Csv.texto(rc.getEstudiante().getNombre()), Csv.texto(e.nombre()), e.tipo().name(),
+                            csv.numero(e.bruto()),
                             csv.numero(e.rangoMin()), csv.numero(e.rangoMax()), csv.numero(e.pomp()),
                             Csv.texto(e.banda()), e.dominante() ? "si" : "no", Csv.texto(r.perfilEtiqueta()),
                             r.versionMotor())));
