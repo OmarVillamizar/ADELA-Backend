@@ -6,11 +6,13 @@ import static com.adela.calificacion.Instrumentos.todos;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.function.ToDoubleFunction;
 
 import org.junit.jupiter.api.DisplayName;
@@ -68,6 +70,8 @@ class MotorCalificacionTest {
         ClaveInstrumento c = Instrumentos.kolb();
         assertEquals(new Rango(12, 48), rango(c, 1));
         assertEquals(new Rango(-36, 36), rango(c, 5));
+        // El compuesto no cuenta para la homogeneidad: los cuatro modos comparten [12, 48].
+        assertTrue(MotorCalificacion.calificar(c, Instrumentos.aleatorias(c, new Random(1))).rangosHomogeneos());
     }
 
     @Test

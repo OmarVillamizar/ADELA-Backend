@@ -94,9 +94,20 @@ class AgregadoGrupoTest {
     }
 
     @Test
-    @DisplayName("Rangos homogéneos en Herrmann; no en Kolb, donde el compuesto tiene otro rango")
+    @DisplayName("Rangos homogéneos en Herrmann y en Kolb: el compuesto AC-CE no cuenta")
     void homogeneos() {
         assertTrue(AgregadoGrupo.de(Instrumentos.herrmann(), List.of(), 30).rangosHomogeneos());
-        assertFalse(AgregadoGrupo.de(Instrumentos.kolb(), List.of(), 30).rangosHomogeneos());
+        assertTrue(AgregadoGrupo.de(Instrumentos.kolb(), List.of(), 30).rangosHomogeneos());
+    }
+
+    @Test
+    @DisplayName("Rangos no homogéneos si difieren entre primarios")
+    void noHomogeneos() {
+        ClaveInstrumento kolb = Instrumentos.kolb();
+        List<ItemClave> items = new ArrayList<>(kolb.items());
+        items.add(new ItemClave(99, FormatoItem.UNICA, true, 0, null, null,
+                List.of(new OpcionClave(991, Map.of(1L, 5.0)), new OpcionClave(992, Map.of()))));
+        assertFalse(AgregadoGrupo.de(Instrumentos.clave(items, kolb.estilos(), kolb.config()), List.of(), 30)
+                .rangosHomogeneos());
     }
 }

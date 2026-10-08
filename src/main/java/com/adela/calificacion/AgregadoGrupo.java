@@ -52,7 +52,8 @@ public final class AgregadoGrupo {
         List<Rango> rangos = new ArrayList<>();
         for (EstiloClave e : clave.estilos()) {
             Rango r = RangoTeorico.deInstrumento(clave.items(), Pesos.de(e));
-            rangos.add(r);
+            if (e.tipo() == TipoEstilo.PRIMARIO)
+                rangos.add(r);
             List<ResultadoEstilo> calc = resultados.stream().flatMap(ri -> ri.estilos().stream())
                     .filter(re -> re.estiloId() == e.estiloId() && re.estado() != EstadoCalculo.NO_CALCULABLE)
                     .toList();
