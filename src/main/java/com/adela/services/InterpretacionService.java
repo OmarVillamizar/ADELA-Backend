@@ -71,7 +71,7 @@ public class InterpretacionService {
         List<EstiloLecturaDTO> estilos = c.getEstilos().stream().sorted(Comparator.comparing(Estilo::getId))
                 .map(e -> new EstiloLecturaDTO(e.getNombre(), e.getTipo())).toList();
         return new InterpretacionDTO(c.getEsquemaInterpretacion(), c.getDeltaRelativo(), c.isEsIpsativo(), bandas,
-                escalones, plano, estilos);
+                escalones, plano, estilos, c.isPreguntaPreferencia());
     }
 
     /** Reemplaza toda la configuración: lo que no llega se borra. */
@@ -99,6 +99,9 @@ public class InterpretacionService {
         if (dto.esIpsativo() != null) {
             c.setEsIpsativo(dto.esIpsativo());
         }
+        // Fuera del escalonado no hay perfil por cercanía que la active: se apaga.
+        c.setPreguntaPreferencia(dto.esquema() == EsquemaInterpretacion.RELATIVO_ESCALONADO
+                && Boolean.TRUE.equals(dto.preguntaPreferencia()));
         cuestionarioRepository.save(c);
 
         bandaRepository.saveAll(bandas.stream().map(b -> {
@@ -144,7 +147,7 @@ public class InterpretacionService {
         }
 
         return new InterpretacionDTO(c.getEsquemaInterpretacion(), c.getDeltaRelativo(), c.isEsIpsativo(), bandas,
-                escalones, planoGuardado, null);
+                escalones, planoGuardado, null, c.isPreguntaPreferencia());
     }
 
     private Cuestionario cuestionario(Long id) {

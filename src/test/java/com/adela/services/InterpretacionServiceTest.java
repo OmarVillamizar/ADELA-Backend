@@ -136,6 +136,19 @@ class InterpretacionServiceTest {
     }
 
     @Test
+    @DisplayName("La pregunta de preferencia solo queda activa con el esquema escalonado")
+    void preguntaPreferenciaSoloEscalonado() {
+        List<EscalonDTO> escalones = List.of(new EscalonDTO(1d, 64d, 4d));
+        service.guardar(1L, new InterpretacionDTO(EsquemaInterpretacion.RELATIVO_ESCALONADO, null, null, null,
+                escalones, null, null, true));
+        assertTrue(chaea.isPreguntaPreferencia());
+
+        service.guardar(1L, new InterpretacionDTO(EsquemaInterpretacion.NINGUNA, null, null, null, null, null,
+                null, true));
+        assertEquals(false, chaea.isPreguntaPreferencia());
+    }
+
+    @Test
     @DisplayName("El esquema escalonado exige escalones válidos y sin solape")
     void escalonado() {
         assertTrue(errores(new InterpretacionDTO(EsquemaInterpretacion.RELATIVO_ESCALONADO, null, false, null,

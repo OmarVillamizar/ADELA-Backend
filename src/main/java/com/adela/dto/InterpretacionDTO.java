@@ -15,13 +15,22 @@ import com.adela.calificacion.TipoEstilo;
  * Las bandas y los ejes del plano nombran el estilo por su nombre: el
  * administrador no ve los ids. estilos es de solo lectura: el GET lo llena para
  * que el editor sepa cuáles son compuestos y el PUT lo ignora.
+ *
+ * preguntaPreferencia activa la pregunta selectivo/integrativo cuando el perfil
+ * reúne todas las modalidades; solo se guarda con RELATIVO_ESCALONADO.
  */
 public record InterpretacionDTO(EsquemaInterpretacion esquema, Double delta, Boolean esIpsativo,
-        List<BandaDTO> bandas, List<EscalonDTO> escalones, PlanoDTO plano, List<EstiloLecturaDTO> estilos) {
+        List<BandaDTO> bandas, List<EscalonDTO> escalones, PlanoDTO plano, List<EstiloLecturaDTO> estilos,
+        Boolean preguntaPreferencia) {
 
     public InterpretacionDTO(EsquemaInterpretacion esquema, Double delta, Boolean esIpsativo,
             List<BandaDTO> bandas, List<EscalonDTO> escalones) {
-        this(esquema, delta, esIpsativo, bandas, escalones, null, null);
+        this(esquema, delta, esIpsativo, bandas, escalones, null, null, null);
+    }
+
+    public InterpretacionDTO(EsquemaInterpretacion esquema, Double delta, Boolean esIpsativo,
+            List<BandaDTO> bandas, List<EscalonDTO> escalones, PlanoDTO plano, List<EstiloLecturaDTO> estilos) {
+        this(esquema, delta, esIpsativo, bandas, escalones, plano, estilos, null);
     }
 
     public record BandaDTO(String estilo, EscalaBanda escala, Double limiteInferior, Double limiteSuperior,

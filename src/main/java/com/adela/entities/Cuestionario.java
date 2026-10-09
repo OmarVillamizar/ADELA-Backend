@@ -65,6 +65,14 @@ public class Cuestionario {
     @Column(name = "es_ipsativo", nullable = false)
     private boolean esIpsativo = false;
 
+    /**
+     * Opcional, solo con RELATIVO_ESCALONADO: si el perfil reúne todas las
+     * modalidades, se pregunta si la persona las usa de forma selectiva o
+     * integrativa. Apagado, el perfil multimodal se muestra como siempre.
+     */
+    @Column(name = "pregunta_preferencia", nullable = false)
+    private boolean preguntaPreferencia = false;
+
     @OneToMany(mappedBy = "cuestionario", cascade = CascadeType.ALL, orphanRemoval = true)
     @EqualsAndHashCode.Exclude
     @ToString.Exclude

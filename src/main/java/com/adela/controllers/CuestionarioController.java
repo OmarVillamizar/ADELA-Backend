@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.adela.dto.CuestionarioDTO;
 import com.adela.dto.InterpretacionDTO;
+import com.adela.dto.PreferenciaDTO;
 import com.adela.dto.RequestEstudianteEmail;
 import com.adela.dto.RespuestaCuestionarioDTO;
 import com.adela.dto.ResultCuestCompletoDTO;
@@ -139,6 +140,15 @@ public class CuestionarioController {
         // excepcion sale antes y no se otorga nada.
         insigniaService.otorgar(estudiante.getEmail(), Insignia.PRIMER_REPORTE);
         return new ResponseEntity<>(resultado, HttpStatus.OK);
+    }
+
+    @PostMapping("/mis-cuestionarios/resuelto/{idResultado}/preferencia")
+    @PreAuthorize("hasRole('ESTUDIANTE')")
+    public ResponseEntity<?> declararPreferencia(@PathVariable Long idResultado,
+            @RequestBody PreferenciaDTO body) {
+        Estudiante estudiante = (Estudiante) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return ResponseEntity.ok(
+                resultadoCuestionarioService.declararPreferencia(idResultado, estudiante, body.preferencia()));
     }
 
     @GetMapping("/reporte/{idCuestionario}/grupo/{idGrupo}")

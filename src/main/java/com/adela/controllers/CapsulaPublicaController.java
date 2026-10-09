@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.adela.dto.CapsulaPublicaDTO;
+import com.adela.dto.PreferenciaDTO;
 import com.adela.dto.RespuestaCapsulaDTO;
 import com.adela.dto.ResultadoCapsulaDTO;
 import com.adela.services.CapsulaService;
@@ -46,5 +47,11 @@ public class CapsulaPublicaController {
     @GetMapping("/resultados/{codigo}")
     public ResponseEntity<ResultadoCapsulaDTO> resultado(@PathVariable String codigo) {
         return ResponseEntity.ok(capsulaService.resultado(codigo));
+    }
+
+    @PostMapping("/resultados/{codigo}/preferencia")
+    public ResponseEntity<ResultadoCapsulaDTO> declararPreferencia(@PathVariable String codigo,
+            @RequestBody PreferenciaDTO body) {
+        return ResponseEntity.ok(capsulaService.declararPreferencia(codigo, body.preferencia()));
     }
 }

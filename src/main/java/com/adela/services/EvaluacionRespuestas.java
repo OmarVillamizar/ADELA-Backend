@@ -13,9 +13,11 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
 import com.adela.calificacion.ClaveInstrumento;
+import com.adela.calificacion.EsquemaInterpretacion;
 import com.adela.calificacion.FormatoItem;
 import com.adela.calificacion.RespuestaItem;
 import com.adela.calificacion.ResultadoInstrumento;
+import com.adela.calificacion.TipoEstilo;
 import com.adela.calificacion.ValidadorRespuesta;
 import com.adela.dto.CalificacionDTO;
 import com.adela.dto.EstiloResultadoDTO;
@@ -23,6 +25,7 @@ import com.adela.dto.PreguntaResueltaDTO;
 import com.adela.dto.PreguntaResueltaDTO.RespuestaElegidaDTO;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Opcion;
+import com.adela.entities.PreferenciaMultimodal;
 import com.adela.entities.Pregunta;
 import com.adela.exceptions.AppException;
 import com.adela.exceptions.ErrorCode;
@@ -145,6 +148,33 @@ public class EvaluacionRespuestas {
                     .toList());
             return pr;
         }).toList();
+    }
+
+    public static final String PREFERENCIA_NO_APLICA =
+            "La preferencia solo aplica cuando el perfil incluye todas las modalidades.";
+
+    /**
+     * El cuestionario tiene activada la pregunta de preferencia y el perfil por
+     * distancia de paso reúne todas las modalidades primarias.
+     */
+    public static boolean pidePreferencia(Cuestionario c, List<EstiloResultadoDTO> estilos) {
+        if (!c.isPreguntaPreferencia() || c.getEsquemaInterpretacion() != EsquemaInterpretacion.RELATIVO_ESCALONADO) {
+            return false;
+        }
+        List<EstiloResultadoDTO> primarios = estilos.stream().filter(e -> e.getTipo() == TipoEstilo.PRIMARIO)
+                .toList();
+        return primarios.size() >= 2 && primarios.stream().allMatch(e -> Boolean.TRUE.equals(e.getDominante()));
+    }
+
+    /**
+     * Suma una resolución al conteo de preferencias de un reporte agregado
+     * (SELECTIVO, INTEGRATIVO o SIN_DECLARAR), si la pregunta le aplica.
+     */
+    public static void contarPreferencia(Map<String, Long> conteo, Cuestionario c, ResultadoInstrumento r,
+            PreferenciaMultimodal declarada) {
+        if (pidePreferencia(c, r.estilos().stream().map(EstiloResultadoDTO::de).toList())) {
+            conteo.merge(declarada == null ? "SIN_DECLARAR" : declarada.name(), 1L, Long::sum);
+        }
     }
 
     public record Puntuacion(List<EstiloResultadoDTO> estilos, CalificacionDTO calificacion) {

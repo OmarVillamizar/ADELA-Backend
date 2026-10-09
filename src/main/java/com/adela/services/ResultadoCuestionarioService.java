@@ -3,6 +3,7 @@ package com.adela.services;
 import java.sql.Date;
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -33,6 +34,7 @@ import com.adela.entities.Cuestionario;
 import com.adela.entities.Estudiante;
 import com.adela.entities.Grupo;
 import com.adela.entities.Opcion;
+import com.adela.entities.PreferenciaMultimodal;
 import com.adela.entities.Profesor;
 import com.adela.entities.ResultadoCuestionario;
 import com.adela.entities.ResultadoPregunta;
@@ -339,8 +341,40 @@ public class ResultadoCuestionarioService {
         res.setEstilos(puntuacion.estilos());
         res.setCalificacion(puntuacion.calificacion());
         res.setPreguntas(EvaluacionRespuestas.preguntasResueltas(c, cantidades));
-        
+        res.setPidePreferencia(EvaluacionRespuestas.pidePreferencia(c, puntuacion.estilos()));
+        res.setPreferenciaMultimodal(resC.getPreferenciaMultimodal());
+
         return res;
+    }
+
+    /**
+     * Guarda la preferencia que declara el estudiante. Solo aplica si su perfil
+     * incluye todas las modalidades, y se declara una sola vez: es la respuesta
+     * a una pregunta más del cuestionario, no un ajuste que se pueda cambiar.
+     */
+    @Transactional
+    public ResultCuestCompletoDTO declararPreferencia(Long resultadoId, Estudiante estudiante,
+            PreferenciaMultimodal preferencia) {
+        if (preferencia == null) {
+            throw new AppException(ErrorCode.VALIDACION, "Indica SELECTIVO o INTEGRATIVO.");
+        }
+        ResultadoCuestionario resC = resultadoCuestionarioRepository.findById(resultadoId)
+                .orElseThrow(() -> new EntityNotFoundException("El resultado de id " + resultadoId + " no existe"));
+        if (!resC.getEstudiante().getEmail().equalsIgnoreCase(estudiante.getEmail())) {
+            throw new EntityNotFoundException(
+                    "El resultado de id " + resultadoId + " no pertenece al estudiante " + estudiante.getEmail());
+        }
+        if (resC.getPreferenciaMultimodal() != null) {
+            throw new AppException(ErrorCode.PREFERENCIA_YA_DECLARADA, "Ya indicaste tu preferencia.");
+        }
+        ResultCuestCompletoDTO actual = construirResultado(resC);
+        if (!actual.isPidePreferencia()) {
+            throw new AppException(ErrorCode.PREFERENCIA_NO_APLICA, EvaluacionRespuestas.PREFERENCIA_NO_APLICA);
+        }
+        resC.setPreferenciaMultimodal(preferencia);
+        resultadoCuestionarioRepository.save(resC);
+        actual.setPreferenciaMultimodal(preferencia);
+        return actual;
     }
     
     @Transactional
@@ -394,9 +428,12 @@ public class ResultadoCuestionarioService {
 
         ClaveInstrumento clave = calificacionService.clave(cuestionario);
         List<ResultadoInstrumento> resultados = new LinkedList<>();
+        Map<String, Long> preferencias = new LinkedHashMap<>();
         for (ResultadoCuestionario rc : rcs) {
             if (rc.getFechaResolucion() != null) {
-                resultados.add(calificacionService.calificar(cuestionario, clave, cantidades(rc)));
+                ResultadoInstrumento r = calificacionService.calificar(cuestionario, clave, cantidades(rc));
+                resultados.add(r);
+                EvaluacionRespuestas.contarPreferencia(preferencias, cuestionario, r, rc.getPreferenciaMultimodal());
                 estudiantesS.add(ResultadoCuestionarioDTO.from(rc));
             } else {
                 estudiantesUS.add(ResultadoCuestionarioDTO.from(rc));
@@ -408,7 +445,8 @@ public class ResultadoCuestionarioService {
         res.setCalificacion(CalificacionDTO.grupal(cuestionario, agregado, clave, resultados));
         res.setEstudiantesResuelto(estudiantesS);
         res.setEstudiantesNoResuelto(estudiantesUS);
-        
+        res.setPreferenciasMultimodales(preferencias.isEmpty() ? null : preferencias);
+
         return res;
     }
     

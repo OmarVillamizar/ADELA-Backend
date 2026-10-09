@@ -44,6 +44,7 @@ import com.adela.entities.RespuestaCapsula;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.ModoIdentificacion;
 import com.adela.entities.Opcion;
+import com.adela.entities.PreferenciaMultimodal;
 import com.adela.entities.Pregunta;
 import com.adela.entities.Profesor;
 import com.adela.exceptions.AppException;
@@ -359,6 +360,36 @@ class CapsulaServiceTest {
     @DisplayName("El código se acepta con minúsculas, guiones y espacios")
     void codigoSeNormaliza() {
         assertEquals("K7QM2XPA9DTR", CodigoAleatorio.normalizar(" k7qm-2xpa 9dtr "));
+    }
+
+    private RespuestaCapsula resolucionGuardada() {
+        RespuestaCapsula r = new RespuestaCapsula();
+        r.setCapsula(capsula);
+        r.setCodigo("ABCDEFGH2345");
+        when(respuestaCapsulaRepository.findByCodigo("ABCDEFGH2345")).thenReturn(Optional.of(r));
+        return r;
+    }
+
+    @Test
+    @DisplayName("La preferencia de una cápsula se declara una sola vez")
+    void preferenciaUnaSolaVez() {
+        resolucionGuardada().setPreferenciaMultimodal(PreferenciaMultimodal.SELECTIVO);
+
+        AppException e = assertThrows(AppException.class,
+                () -> service.declararPreferencia("ABCDEFGH2345", PreferenciaMultimodal.INTEGRATIVO));
+        assertEquals(ErrorCode.PREFERENCIA_YA_DECLARADA, e.getCode());
+        verify(respuestaCapsulaRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Sin la pregunta activada en el cuestionario, la preferencia no se acepta")
+    void preferenciaNoAplica() {
+        resolucionGuardada();
+
+        AppException e = assertThrows(AppException.class,
+                () -> service.declararPreferencia("ABCDEFGH2345", PreferenciaMultimodal.SELECTIVO));
+        assertEquals(ErrorCode.PREFERENCIA_NO_APLICA, e.getCode());
+        verify(respuestaCapsulaRepository, never()).save(any());
     }
 
     private static Profesor profesor(String email) {
