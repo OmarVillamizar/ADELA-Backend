@@ -33,6 +33,11 @@ public final class Interpretador {
             salida.add(r.conInterpretacion(banda, dominantes.contains(r.estiloId())));
         }
 
+        boolean porNivel = cfg.esquema() == EsquemaInterpretacion.NIVEL_SUPERIOR;
+        List<Integer> niveles = porNivel ? niveles(res, bandas) : List.of();
+        String codigo = porNivel ? niveles.stream().map(n -> n == null ? "–" : n.toString())
+                .collect(Collectors.joining("-")) : null;
+
         String etiqueta = null, tipo = null;
         if (cfg.esquema() == EsquemaInterpretacion.CUADRANTES && cfg.plano() != null) {
             etiqueta = esquina(cfg.plano(), res);
@@ -44,10 +49,45 @@ public final class Interpretador {
                             .thenComparingInt(ResultadoEstilo::orden))
                     .toList();
             etiqueta = dom.stream().map(ResultadoEstilo::nombre).collect(Collectors.joining(" + "));
-            tipo = cfg.esquema() == EsquemaInterpretacion.NIVEL_SUPERIOR ? dominancia(dom.size())
-                    : dom.size() == 1 ? "UNIMODAL" : "MULTIMODAL";
+            tipo = porNivel ? dominancia(dom.size()) : dom.size() == 1 ? "UNIMODAL" : "MULTIMODAL";
+        } else if (porNivel && media(res, bandas)) {
+            etiqueta = "Dominancia media";
+            tipo = "MEDIA";
         }
-        return new ResultadoInstrumento(clave.cuestionarioId(), MotorCalificacion.VERSION, salida, etiqueta, tipo);
+        return new ResultadoInstrumento(clave.cuestionarioId(), MotorCalificacion.VERSION, salida, etiqueta, tipo,
+                codigo);
+    }
+
+    /**
+     * Nivel de cada primario contado desde el más alto (1 = su banda de mayor
+     * orden), en el orden de los estilos; null si no se calculó o no cae en
+     * ninguna banda.
+     */
+    static List<Integer> niveles(List<ResultadoEstilo> res, Map<Long, List<Banda>> bandas) {
+        return res.stream().filter(r -> r.tipo() == TipoEstilo.PRIMARIO)
+                .sorted(Comparator.comparingInt(ResultadoEstilo::orden)).map(r -> {
+                    List<Banda> desdeArriba = bandas.getOrDefault(r.estiloId(), List.of()).stream()
+                            .sorted(Comparator.comparingInt(Banda::orden).reversed()).toList();
+                    for (int i = 0; i < desdeArriba.size(); i++)
+                        if (r.estado() != EstadoCalculo.NO_CALCULABLE && contiene(desdeArriba.get(i), r))
+                            return i + 1;
+                    return (Integer) null;
+                }).toList();
+    }
+
+    /**
+     * Dominancia media de Jiménez (2-2-2-2): todos los primarios calculados y
+     * ninguno en su banda más alta ni en la más baja.
+     */
+    static boolean media(List<ResultadoEstilo> res, Map<Long, List<Banda>> bandas) {
+        List<ResultadoEstilo> prim = res.stream().filter(r -> r.tipo() == TipoEstilo.PRIMARIO).toList();
+        return !prim.isEmpty() && prim.stream().allMatch(r -> {
+            List<Banda> propias = bandas.getOrDefault(r.estiloId(), List.of());
+            Banda tope = propias.stream().max(Comparator.comparingInt(Banda::orden)).orElse(null);
+            Banda piso = propias.stream().min(Comparator.comparingInt(Banda::orden)).orElse(null);
+            return r.estado() != EstadoCalculo.NO_CALCULABLE && tope != null && tope != piso
+                    && bandaPara(r, propias) != null && !contiene(tope, r) && !contiene(piso, r);
+        });
     }
 
     /** Esquina del plano; null si algún eje falta o no se pudo calcular. */

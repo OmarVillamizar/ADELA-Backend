@@ -18,21 +18,24 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 /**
  * Datos de la calificación que no son de un estilo. rangosHomogeneos indica si
  * el puntaje directo es comparable entre estilos (si no, el gráfico va en % del
- * máximo). El perfil es del resultado individual; las distribuciones, del reporte.
+ * máximo). El perfil (y su código de niveles) es del resultado individual; las
+ * distribuciones, del reporte.
  * plano aparece con el esquema CUADRANTES; puntosPlano, solo en el reporte de
  * grupo: un punto anónimo por resultado con los dos ejes calculables.
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record CalificacionDTO(String versionMotor, EsquemaInterpretacion esquema, boolean esIpsativo,
-        boolean rangosHomogeneos, String perfilEtiqueta, String perfilTipo, Map<String, Long> distribucionPerfiles,
-        Boolean baremoLocalDisponible, PlanoDTO plano, List<PuntoPlanoDTO> puntosPlano) {
+        boolean rangosHomogeneos, String perfilEtiqueta, String perfilTipo, String perfilCodigo,
+        Map<String, Long> distribucionPerfiles, Boolean baremoLocalDisponible, PlanoDTO plano,
+        List<PuntoPlanoDTO> puntosPlano) {
 
     public record PuntoPlanoDTO(double x, double y) {
     }
 
     public static CalificacionDTO individual(Cuestionario c, ResultadoInstrumento r, ClaveInstrumento clave) {
         return new CalificacionDTO(r.versionMotor(), c.getEsquemaInterpretacion(), c.isEsIpsativo(),
-                r.rangosHomogeneos(), r.perfilEtiqueta(), r.perfilTipo(), null, null, plano(c, clave), null);
+                r.rangosHomogeneos(), r.perfilEtiqueta(), r.perfilTipo(), r.perfilCodigo(), null, null,
+                plano(c, clave), null);
     }
 
     public static CalificacionDTO grupal(Cuestionario c, Agregado a, ClaveInstrumento clave,
@@ -41,7 +44,7 @@ public record CalificacionDTO(String versionMotor, EsquemaInterpretacion esquema
         List<PuntoPlanoDTO> puntos = p == null ? null
                 : resultados.stream().map(r -> punto(p, r)).filter(x -> x != null).toList();
         return new CalificacionDTO(MotorCalificacion.VERSION, c.getEsquemaInterpretacion(), c.isEsIpsativo(),
-                a.rangosHomogeneos(), null, null, a.distribucionPerfiles(), a.baremoLocalDisponible(),
+                a.rangosHomogeneos(), null, null, null, a.distribucionPerfiles(), a.baremoLocalDisponible(),
                 plano(c, clave), puntos);
     }
 
