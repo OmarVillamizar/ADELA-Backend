@@ -23,6 +23,7 @@ public final class Interpretador {
         Set<Long> dominantes = switch (cfg.esquema()) {
             case RELATIVO -> relativo(res, cfg.delta());
             case RELATIVO_ESCALONADO -> escalonado(res, cfg.escalones());
+            case NIVEL_SUPERIOR -> nivelSuperior(res, bandas);
             default -> Set.of();
         };
 
@@ -43,7 +44,8 @@ public final class Interpretador {
                             .thenComparingInt(ResultadoEstilo::orden))
                     .toList();
             etiqueta = dom.stream().map(ResultadoEstilo::nombre).collect(Collectors.joining(" + "));
-            tipo = dom.size() == 1 ? "UNIMODAL" : "MULTIMODAL";
+            tipo = cfg.esquema() == EsquemaInterpretacion.NIVEL_SUPERIOR ? dominancia(dom.size())
+                    : dom.size() == 1 ? "UNIMODAL" : "MULTIMODAL";
         }
         return new ResultadoInstrumento(clave.cuestionarioId(), MotorCalificacion.VERSION, salida, etiqueta, tipo);
     }
@@ -63,14 +65,18 @@ public final class Interpretador {
     /** Primera banda, en orden, cuyo intervalo cerrado contiene el valor. */
     static String bandaPara(ResultadoEstilo r, List<Banda> bandas) {
         for (Banda b : bandas.stream().sorted(Comparator.comparingInt(Banda::orden)).toList()) {
-            Double x = switch (b.escala()) {
-                case BRUTO -> r.bruto();
-                case POMP -> r.pomp();
-            };
-            if (x != null && x >= b.limiteInferior() - Calculos.EPS && x <= b.limiteSuperior() + Calculos.EPS)
+            if (contiene(b, r))
                 return b.etiqueta();
         }
         return null;
+    }
+
+    private static boolean contiene(Banda b, ResultadoEstilo r) {
+        Double x = switch (b.escala()) {
+            case BRUTO -> r.bruto();
+            case POMP -> r.pomp();
+        };
+        return x != null && x >= b.limiteInferior() - Calculos.EPS && x <= b.limiteSuperior() + Calculos.EPS;
     }
 
     /** Dominante si POMP >= max(POMP) - delta. */
@@ -110,6 +116,32 @@ public final class Interpretador {
                 break;
         }
         return d;
+    }
+
+    /**
+     * Dominante si el puntaje cae en la banda de mayor orden de su estilo (80-100
+     * en el perfil de Jiménez = dominancia primaria). Sin bandas no hay dominante.
+     */
+    static Set<Long> nivelSuperior(List<ResultadoEstilo> res, Map<Long, List<Banda>> bandas) {
+        Set<Long> d = new LinkedHashSet<>();
+        for (ResultadoEstilo r : primariosCalculados(res)) {
+            Banda tope = bandas.getOrDefault(r.estiloId(), List.of()).stream()
+                    .max(Comparator.comparingInt(Banda::orden)).orElse(null);
+            if (tope != null && contiene(tope, r))
+                d.add(r.estiloId());
+        }
+        return d;
+    }
+
+    /** Simple, doble, triple o cuádruple según cuántos estilos dominan (Jiménez). */
+    static String dominancia(int n) {
+        return switch (n) {
+            case 1 -> "SIMPLE";
+            case 2 -> "DOBLE";
+            case 3 -> "TRIPLE";
+            case 4 -> "CUADRUPLE";
+            default -> "MULTIPLE";
+        };
     }
 
     private static List<ResultadoEstilo> primariosCalculados(List<ResultadoEstilo> res) {

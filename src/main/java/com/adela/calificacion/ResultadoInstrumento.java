@@ -2,7 +2,11 @@ package com.adela.calificacion;
 
 import java.util.List;
 
-/** perfilEtiqueta: dominantes unidos por " + "; perfilTipo: UNIMODAL o MULTIMODAL. Null sin dominantes. */
+/**
+ * perfilEtiqueta: dominantes unidos por " + "; perfilTipo: UNIMODAL o
+ * MULTIMODAL, CUADRANTE, o SIMPLE, DOBLE, TRIPLE, CUADRUPLE o MULTIPLE con
+ * NIVEL_SUPERIOR. Null sin dominantes.
+ */
 public record ResultadoInstrumento(long cuestionarioId, String versionMotor, List<ResultadoEstilo> estilos,
         String perfilEtiqueta, String perfilTipo) {
 

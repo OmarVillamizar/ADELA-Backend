@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.adela.calificacion.EscalaBanda;
 import com.adela.calificacion.EsquemaInterpretacion;
+import com.adela.calificacion.TipoEstilo;
 import com.adela.dto.InterpretacionDTO;
 import com.adela.dto.InterpretacionDTO.BandaDTO;
 import com.adela.dto.InterpretacionDTO.ComplementariaConfigDTO;
@@ -204,6 +205,10 @@ public class InterpretacionService {
         }
         if (dto.esquema() == EsquemaInterpretacion.RELATIVO_ESCALONADO && escalones.isEmpty()) {
             errores.put("escalones", "El esquema escalonado necesita la tabla de escalones");
+        }
+        if (dto.esquema() == EsquemaInterpretacion.NIVEL_SUPERIOR && bandas.stream().noneMatch(
+                b -> estilos.containsKey(b.estilo()) && estilos.get(b.estilo()).getTipo() == TipoEstilo.PRIMARIO)) {
+            errores.put("bandas", "El esquema por nivel superior necesita bandas en los estilos primarios");
         }
         if (dto.esquema() == EsquemaInterpretacion.CUADRANTES) {
             validarPlano(dto.plano(), estilos, errores);

@@ -190,6 +190,19 @@ class InterpretacionServiceTest {
                 List.of(new EscalonDTO(0d, 16d, 1d), new EscalonDTO(16d, 22d, 2d)))).containsKey("escalones"));
     }
 
+    @Test
+    @DisplayName("El esquema por nivel superior exige bandas en algún estilo primario")
+    void nivelSuperior() {
+        assertTrue(errores(new InterpretacionDTO(EsquemaInterpretacion.NIVEL_SUPERIOR, null, false, null, null))
+                .containsKey("bandas"));
+        assertTrue(errores(new InterpretacionDTO(EsquemaInterpretacion.NIVEL_SUPERIOR, null, false,
+                List.of(banda("Reflexivo", 0, 10, "Alta", 1)), null)).containsKey("bandas"));
+
+        service.guardar(1L, new InterpretacionDTO(EsquemaInterpretacion.NIVEL_SUPERIOR, null, false,
+                List.of(banda("Activo", 10, 39, "Secundaria", 1), banda("Activo", 40, 50, "Primaria", 2)), null));
+        assertEquals(EsquemaInterpretacion.NIVEL_SUPERIOR, chaea.getEsquemaInterpretacion());
+    }
+
     private static PlanoDTO plano(String ejeX, String ejeY, String a, String b, String c, String d) {
         return new PlanoDTO(ejeX, ejeY, 6d, 7d, a, b, c, d, true, false);
     }

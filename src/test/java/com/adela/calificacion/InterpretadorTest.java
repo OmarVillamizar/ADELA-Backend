@@ -73,6 +73,53 @@ class InterpretadorTest {
         assertEquals(Set.of(1L, 2L), d);
     }
 
+    /** Perfil de Jiménez: subtotal 10-50 por cuadrante; 40-50 (80-100 al doblar) es dominancia primaria. */
+    private static ResultadoInstrumento herrmann(double a, double b, double c, double d) {
+        List<Banda> bandas = new java.util.ArrayList<>();
+        for (long e = 1; e <= 4; e++) {
+            bandas.add(new Banda(e, EscalaBanda.BRUTO, 10, 29, "Terciaria", 1));
+            bandas.add(new Banda(e, EscalaBanda.BRUTO, 30, 39, "Secundaria", 2));
+            bandas.add(new Banda(e, EscalaBanda.BRUTO, 40, 50, "Primaria", 3));
+        }
+        ClaveInstrumento clave = Instrumentos.clave(List.of(), List.of(Instrumentos.primario(1, "A"),
+                Instrumentos.primario(2, "B"), Instrumentos.primario(3, "C"), Instrumentos.primario(4, "D")),
+                new ConfigInterpretacion(EsquemaInterpretacion.NIVEL_SUPERIOR, 10, bandas, List.of()));
+        return Interpretador.interpretar(clave, List.of(calculado(1, "A", a, null), calculado(2, "B", b, null),
+                calculado(3, "C", c, null), calculado(4, "D", d, null)));
+    }
+
+    @Test
+    @DisplayName("Nivel superior: A 40 y D 45 en Primaria son dominancia doble D + A")
+    void herrmannDoble() {
+        ResultadoInstrumento r = herrmann(40, 32, 20, 45);
+        assertEquals("D + A", r.perfilEtiqueta());
+        assertEquals("DOBLE", r.perfilTipo());
+        assertEquals("Secundaria", Instrumentos.estilo(r, 2).banda());
+        assertTrue(Instrumentos.estilo(r, 1).dominante());
+    }
+
+    @Test
+    @DisplayName("Nivel superior: un solo cuadrante en Primaria es dominancia simple")
+    void herrmannSimple() {
+        ResultadoInstrumento r = herrmann(50, 39, 10, 29);
+        assertEquals("A", r.perfilEtiqueta());
+        assertEquals("SIMPLE", r.perfilTipo());
+    }
+
+    @Test
+    @DisplayName("Nivel superior: sin cuadrantes en Primaria no hay perfil (dominancia media 2-2-2-2)")
+    void herrmannSinPrimaria() {
+        ResultadoInstrumento r = herrmann(39, 35, 30, 31);
+        assertNull(r.perfilEtiqueta());
+        assertNull(r.perfilTipo());
+    }
+
+    @Test
+    @DisplayName("Nivel superior: los cuatro en Primaria es dominancia cuádruple")
+    void herrmannCuadruple() {
+        assertEquals("CUADRUPLE", herrmann(40, 41, 42, 43).perfilTipo());
+    }
+
     private static ResultadoEstilo eje(long id, Double bruto, EstadoCalculo estado) {
         return new ResultadoEstilo(id, "eje" + id, TipoEstilo.COMPUESTO, (int) id, bruto, -36, 36, null, estado,
                 null, false);
