@@ -130,7 +130,7 @@ class ReporteGrupoTest {
 
         CalificacionDTO k = service.obtenerResultadosGrupoCuestionario(1L, 7, profesor).getCalificacion();
 
-        assertEquals(new PlanoDTO("Visual", "Auditivo", 0.5, 0.5, "Alto", "Asimilador", "Bajo", "Acomodador"),
+        assertEquals(new PlanoDTO("Visual", "Auditivo", 0.5, 0.5, "Alto", "Asimilador", "Bajo", "Acomodador", false, false),
                 k.plano());
         // Luis (Auditivo) y Ana (Visual); Eva no respondió y no aporta punto.
         assertEquals(List.of(new PuntoPlanoDTO(0, 1), new PuntoPlanoDTO(1, 0)), k.puntosPlano());

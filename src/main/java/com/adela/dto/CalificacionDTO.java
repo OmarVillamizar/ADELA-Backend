@@ -61,7 +61,7 @@ public record CalificacionDTO(String versionMotor, EsquemaInterpretacion esquema
         if (p == null)
             return null;
         return new PlanoDTO(nombre(clave, p.ejeX()), nombre(clave, p.ejeY()), p.corteX(), p.corteY(),
-                p.xAltoYAlto(), p.xBajoYAlto(), p.xBajoYBajo(), p.xAltoYBajo());
+                p.xAltoYAlto(), p.xBajoYAlto(), p.xBajoYBajo(), p.xAltoYBajo(), p.invertirX(), p.invertirY());
     }
 
     private static String nombre(ClaveInstrumento clave, long estiloId) {

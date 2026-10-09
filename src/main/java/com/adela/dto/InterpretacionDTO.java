@@ -31,8 +31,13 @@ public record InterpretacionDTO(EsquemaInterpretacion esquema, Double delta, Boo
     public record EscalonDTO(Double totalMin, Double totalMax, Double distancia) {
     }
 
+    /**
+     * Las esquinas se nombran por puntaje (alto = por encima del corte), no por
+     * posición. invertirX / invertirY solo cambian el dibujo: el lado alto va a
+     * la izquierda o abajo, como en la rejilla del inventario de Kolb 3.1.
+     */
     public record PlanoDTO(String ejeX, String ejeY, Double corteX, Double corteY, String xAltoYAlto,
-            String xBajoYAlto, String xBajoYBajo, String xAltoYBajo) {
+            String xBajoYAlto, String xBajoYBajo, String xAltoYBajo, Boolean invertirX, Boolean invertirY) {
     }
 
     public record EstiloLecturaDTO(String nombre, TipoEstilo tipo) {

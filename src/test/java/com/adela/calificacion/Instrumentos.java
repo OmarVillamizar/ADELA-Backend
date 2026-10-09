@@ -89,7 +89,7 @@ final class Instrumentos {
     }
 
     static Plano planoKolb(double corteX, double corteY) {
-        return new Plano(6, 5, corteX, corteY, "Convergente", "Asimilador", "Divergente", "Acomodador");
+        return new Plano(6, 5, corteX, corteY, "Convergente", "Asimilador", "Divergente", "Acomodador", false, false);
     }
 
     /** ILS: opción a suma al polo A, b al polo B; el compuesto A-B lleva las bandas. */

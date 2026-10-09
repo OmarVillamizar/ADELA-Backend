@@ -113,7 +113,7 @@ class CreacionCuestionarioTest {
     @DisplayName("La interpretación por cuadrantes viaja con su plano a guardar")
     void guardaPlano() {
         InterpretacionDTO lectura = new InterpretacionDTO(EsquemaInterpretacion.CUADRANTES, null, null, null, null,
-                new PlanoDTO("Visual", "Auditivo", 6d, 7d, "Convergente", "Asimilador", "Divergente", "Acomodador"),
+                new PlanoDTO("Visual", "Auditivo", 6d, 7d, "Convergente", "Asimilador", "Divergente", "Acomodador", null, null),
                 null);
 
         service.crearCuestionario(dto(lectura));

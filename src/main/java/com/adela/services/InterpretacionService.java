@@ -67,7 +67,7 @@ public class InterpretacionService {
         PlanoDTO plano = c.getEsquemaInterpretacion() != EsquemaInterpretacion.CUADRANTES ? null
                 : planoRepository.findById(c.getId()).map(p -> new PlanoDTO(p.getEjeX().getNombre(),
                         p.getEjeY().getNombre(), p.getCorteX(), p.getCorteY(), p.getXAltoYAlto(), p.getXBajoYAlto(),
-                        p.getXBajoYBajo(), p.getXAltoYBajo())).orElse(null);
+                        p.getXBajoYBajo(), p.getXAltoYBajo(), p.isInvertirX(), p.isInvertirY())).orElse(null);
         List<EstiloLecturaDTO> estilos = c.getEstilos().stream().sorted(Comparator.comparing(Estilo::getId))
                 .map(e -> new EstiloLecturaDTO(e.getNombre(), e.getTipo())).toList();
         return new InterpretacionDTO(c.getEsquemaInterpretacion(), c.getDeltaRelativo(), c.isEsIpsativo(), bandas,
@@ -134,9 +134,11 @@ public class InterpretacionService {
             e.setXBajoYAlto(p.xBajoYAlto().strip());
             e.setXBajoYBajo(p.xBajoYBajo().strip());
             e.setXAltoYBajo(p.xAltoYBajo().strip());
+            e.setInvertirX(Boolean.TRUE.equals(p.invertirX()));
+            e.setInvertirY(Boolean.TRUE.equals(p.invertirY()));
             planoRepository.save(e);
             planoGuardado = new PlanoDTO(p.ejeX(), p.ejeY(), e.getCorteX(), e.getCorteY(), e.getXAltoYAlto(),
-                    e.getXBajoYAlto(), e.getXBajoYBajo(), e.getXAltoYBajo());
+                    e.getXBajoYAlto(), e.getXBajoYBajo(), e.getXAltoYBajo(), e.isInvertirX(), e.isInvertirY());
         } else {
             planoRepository.deleteById(c.getId());
         }

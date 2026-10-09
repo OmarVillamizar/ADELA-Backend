@@ -145,7 +145,7 @@ class InterpretacionServiceTest {
     }
 
     private static PlanoDTO plano(String ejeX, String ejeY, String a, String b, String c, String d) {
-        return new PlanoDTO(ejeX, ejeY, 6d, 7d, a, b, c, d);
+        return new PlanoDTO(ejeX, ejeY, 6d, 7d, a, b, c, d, true, false);
     }
 
     private static InterpretacionDTO cuadrantes(PlanoDTO plano) {
@@ -181,12 +181,13 @@ class InterpretacionServiceTest {
     @DisplayName("Los cortes deben ser finitos; sin corte vale 0")
     void cortesDelPlano() {
         Map<String, String> e = errores(cuadrantes(new PlanoDTO("Activo", "Reflexivo", Double.NaN,
-                Double.POSITIVE_INFINITY, "A", "B", "C", "D")));
+                Double.POSITIVE_INFINITY, "A", "B", "C", "D", null, null)));
         assertTrue(e.containsKey("plano.corteX"));
         assertTrue(e.containsKey("plano.corteY"));
 
         InterpretacionDTO guardado = service.guardar(1L, cuadrantes(new PlanoDTO("Activo", "Reflexivo", null, null,
-                "A", "B", "C", "D")));
+                "A", "B", "C", "D", null, null)));
+        assertEquals(false, guardado.plano().invertirX());
         assertEquals(0d, guardado.plano().corteX());
         assertEquals(0d, guardado.plano().corteY());
     }
@@ -205,6 +206,8 @@ class InterpretacionServiceTest {
         assertEquals(11L, e.getEjeY().getId());
         assertEquals("Convergente", e.getXAltoYAlto());
         assertEquals(7d, e.getCorteY());
+        assertTrue(e.isInvertirX());
+        assertTrue(!e.isInvertirY());
         verify(planos, never()).deleteById(1L);
 
         when(planos.findById(1L)).thenReturn(Optional.of(e));

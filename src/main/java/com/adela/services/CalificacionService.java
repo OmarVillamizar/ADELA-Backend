@@ -71,7 +71,8 @@ public class CalificacionService {
         Plano plano = c.getEsquemaInterpretacion() != EsquemaInterpretacion.CUADRANTES ? null
                 : planoRepository.findById(c.getId())
                         .map(p -> new Plano(p.getEjeX().getId(), p.getEjeY().getId(), p.getCorteX(), p.getCorteY(),
-                                p.getXAltoYAlto(), p.getXBajoYAlto(), p.getXBajoYBajo(), p.getXAltoYBajo()))
+                                p.getXAltoYAlto(), p.getXBajoYAlto(), p.getXBajoYBajo(), p.getXAltoYBajo(),
+                                p.isInvertirX(), p.isInvertirY()))
                         .orElse(null);
         ConfigInterpretacion config = new ConfigInterpretacion(c.getEsquemaInterpretacion(), c.getDeltaRelativo(),
                 bandas, escalones, plano);

@@ -14,7 +14,7 @@ import lombok.Setter;
 
 /**
  * Plano del esquema CUADRANTES: dos estilos como ejes, un corte por eje y el
- * nombre de cada esquina. Hay uno por cuestionario, así que la clave primaria
+ * nombre de cada esquina, más la orientación con que se dibuja. Hay uno por cuestionario, así que la clave primaria
  * es el id del cuestionario (asignado, no generado).
  */
 @Entity
@@ -52,6 +52,14 @@ public class PlanoCuadrantes {
 
     @Column(name = "x_alto_y_bajo", nullable = false, length = 60)
     private String xAltoYBajo;
+
+    /** Solo dibujo: el lado alto de X va a la izquierda. */
+    @Column(name = "invertir_x", nullable = false)
+    private boolean invertirX;
+
+    /** Solo dibujo: el lado alto de Y va abajo. */
+    @Column(name = "invertir_y", nullable = false)
+    private boolean invertirY;
 
     @Override
     public boolean equals(Object o) {
