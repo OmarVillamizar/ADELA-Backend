@@ -58,7 +58,13 @@ springdoc:
     swagger-ui:
         enabled: ${SWAGGER_ENABLED:false}
         path: /docs/swagger-ui.html
-        
+
+# Endpoint /api/dev para poblar grupos con estudiantes simulados. Solo en local:
+# crea usuarios ficticios en la base de datos.
+adela:
+    dev:
+        simulacion: ${DEV_SIMULACION:false}
+
 server:
   port: ${PORT:8080}
   # LimiteTasaFilter limita por IP. Detrás de un proxy (balanceador, Render,
