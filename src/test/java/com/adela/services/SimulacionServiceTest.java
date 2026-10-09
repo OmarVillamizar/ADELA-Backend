@@ -68,6 +68,9 @@ class SimulacionServiceTest {
     @Mock
     private ResultadoCuestionarioService resultadoCuestionarioService;
 
+    @Mock
+    private EvaluacionRespuestas evaluacionRespuestas;
+
     private SimulacionService simulacion;
 
     private Cuestionario cuestionario;
@@ -77,7 +80,7 @@ class SimulacionServiceTest {
     @BeforeEach
     void preparar() {
         simulacion = new SimulacionService(grupoRepository, cuestionarioRepository, estudianteRepository,
-                resultadoCuestionarioRepository, resultadoCuestionarioService);
+                resultadoCuestionarioRepository, resultadoCuestionarioService, evaluacionRespuestas);
 
         cuestionario = new Cuestionario();
         cuestionario.setId(1L);

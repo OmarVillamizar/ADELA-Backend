@@ -10,8 +10,6 @@ import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -60,10 +58,10 @@ public class RespuestaCapsula {
     @Column(name = "cantidad", nullable = false)
     private Map<Long, Double> cantidades = new HashMap<>();
 
-    /** Igual que en las asignaciones de grupo: se declara una vez y no cambia. */
-    @Enumerated(EnumType.STRING)
-    @Column(name = "preferencia_multimodal", length = 15)
-    private PreferenciaMultimodal preferenciaMultimodal;
+    /** Respuesta a la pregunta complementaria, como en los grupos: una vez y fija. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "opcion_complementaria_id")
+    private OpcionComplementaria opcionComplementaria;
 
     @Override
     public boolean equals(Object o) {

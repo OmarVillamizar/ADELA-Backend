@@ -19,9 +19,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.adela.dto.ComplementariaDTO;
 import com.adela.dto.CuestionarioDTO;
 import com.adela.dto.InterpretacionDTO;
-import com.adela.dto.PreferenciaDTO;
 import com.adela.dto.RequestEstudianteEmail;
 import com.adela.dto.RespuestaCuestionarioDTO;
 import com.adela.dto.ResultCuestCompletoDTO;
@@ -142,13 +142,13 @@ public class CuestionarioController {
         return new ResponseEntity<>(resultado, HttpStatus.OK);
     }
 
-    @PostMapping("/mis-cuestionarios/resuelto/{idResultado}/preferencia")
+    @PostMapping("/mis-cuestionarios/resuelto/{idResultado}/complementaria")
     @PreAuthorize("hasRole('ESTUDIANTE')")
-    public ResponseEntity<?> declararPreferencia(@PathVariable Long idResultado,
-            @RequestBody PreferenciaDTO body) {
+    public ResponseEntity<?> responderComplementaria(@PathVariable Long idResultado,
+            @RequestBody ComplementariaDTO.Eleccion body) {
         Estudiante estudiante = (Estudiante) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return ResponseEntity.ok(
-                resultadoCuestionarioService.declararPreferencia(idResultado, estudiante, body.preferencia()));
+                resultadoCuestionarioService.responderComplementaria(idResultado, estudiante, body.opcionId()));
     }
 
     @GetMapping("/reporte/{idCuestionario}/grupo/{idGrupo}")

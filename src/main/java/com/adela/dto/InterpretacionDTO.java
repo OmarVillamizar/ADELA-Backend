@@ -16,12 +16,13 @@ import com.adela.calificacion.TipoEstilo;
  * administrador no ve los ids. estilos es de solo lectura: el GET lo llena para
  * que el editor sepa cuáles son compuestos y el PUT lo ignora.
  *
- * preguntaPreferencia activa la pregunta selectivo/integrativo cuando el perfil
- * reúne todas las modalidades; solo se guarda con RELATIVO_ESCALONADO.
+ * complementaria es la pregunta extra que se hace cuando el perfil destaca
+ * todos los estilos; null = sin pregunta. Solo con RELATIVO o
+ * RELATIVO_ESCALONADO, los esquemas que destacan varios estilos.
  */
 public record InterpretacionDTO(EsquemaInterpretacion esquema, Double delta, Boolean esIpsativo,
         List<BandaDTO> bandas, List<EscalonDTO> escalones, PlanoDTO plano, List<EstiloLecturaDTO> estilos,
-        Boolean preguntaPreferencia) {
+        ComplementariaConfigDTO complementaria) {
 
     public InterpretacionDTO(EsquemaInterpretacion esquema, Double delta, Boolean esIpsativo,
             List<BandaDTO> bandas, List<EscalonDTO> escalones) {
@@ -50,5 +51,14 @@ public record InterpretacionDTO(EsquemaInterpretacion esquema, Double delta, Boo
     }
 
     public record EstiloLecturaDTO(String nombre, TipoEstilo tipo) {
+    }
+
+    public record ComplementariaConfigDTO(String titulo, String introduccion, String enunciado, String nota,
+            List<OpcionComplementariaDTO> opciones) {
+    }
+
+    /** texto y descripcion: al responder. resultado y resultadoDescripcion: en el reporte. */
+    public record OpcionComplementariaDTO(String texto, String descripcion, String resultado,
+            String resultadoDescripcion) {
     }
 }

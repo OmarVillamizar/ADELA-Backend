@@ -16,14 +16,18 @@ import com.adela.calificacion.EscalaBanda;
 import com.adela.calificacion.EsquemaInterpretacion;
 import com.adela.dto.InterpretacionDTO;
 import com.adela.dto.InterpretacionDTO.BandaDTO;
+import com.adela.dto.InterpretacionDTO.ComplementariaConfigDTO;
 import com.adela.dto.InterpretacionDTO.EscalonDTO;
 import com.adela.dto.InterpretacionDTO.EstiloLecturaDTO;
+import com.adela.dto.InterpretacionDTO.OpcionComplementariaDTO;
 import com.adela.dto.InterpretacionDTO.PlanoDTO;
 import com.adela.entities.BandaInterpretacion;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.EscalonRelativo;
 import com.adela.entities.Estilo;
+import com.adela.entities.OpcionComplementaria;
 import com.adela.entities.PlanoCuadrantes;
+import com.adela.entities.PreguntaComplementaria;
 import com.adela.exceptions.AppException;
 import com.adela.exceptions.ErrorCode;
 import com.adela.repositories.BandaInterpretacionRepository;
@@ -71,7 +75,7 @@ public class InterpretacionService {
         List<EstiloLecturaDTO> estilos = c.getEstilos().stream().sorted(Comparator.comparing(Estilo::getId))
                 .map(e -> new EstiloLecturaDTO(e.getNombre(), e.getTipo())).toList();
         return new InterpretacionDTO(c.getEsquemaInterpretacion(), c.getDeltaRelativo(), c.isEsIpsativo(), bandas,
-                escalones, plano, estilos, c.isPreguntaPreferencia());
+                escalones, plano, estilos, complementariaDe(c));
     }
 
     /** Reemplaza toda la configuración: lo que no llega se borra. */
@@ -99,9 +103,7 @@ public class InterpretacionService {
         if (dto.esIpsativo() != null) {
             c.setEsIpsativo(dto.esIpsativo());
         }
-        // Fuera del escalonado no hay perfil por cercanía que la active: se apaga.
-        c.setPreguntaPreferencia(dto.esquema() == EsquemaInterpretacion.RELATIVO_ESCALONADO
-                && Boolean.TRUE.equals(dto.preguntaPreferencia()));
+        aplicarComplementaria(c, dto.complementaria());
         cuestionarioRepository.save(c);
 
         bandaRepository.saveAll(bandas.stream().map(b -> {
@@ -147,7 +149,7 @@ public class InterpretacionService {
         }
 
         return new InterpretacionDTO(c.getEsquemaInterpretacion(), c.getDeltaRelativo(), c.isEsIpsativo(), bandas,
-                escalones, planoGuardado, null, c.isPreguntaPreferencia());
+                escalones, planoGuardado, null, complementariaDe(c));
     }
 
     private Cuestionario cuestionario(Long id) {
@@ -206,7 +208,105 @@ public class InterpretacionService {
         if (dto.esquema() == EsquemaInterpretacion.CUADRANTES) {
             validarPlano(dto.plano(), estilos, errores);
         }
+        if (dto.complementaria() != null) {
+            validarComplementaria(dto.esquema(), dto.complementaria(), errores);
+        }
         return errores;
+    }
+
+    private static void validarComplementaria(EsquemaInterpretacion esquema, ComplementariaConfigDTO p,
+            Map<String, String> errores) {
+        if (!EvaluacionRespuestas.admiteComplementaria(esquema)) {
+            errores.put("complementaria",
+                    "La pregunta complementaria necesita un esquema que destaque estilos (predominante o escalonado)");
+            return;
+        }
+        exigirTexto(errores, "complementaria.titulo", p.titulo(), 150, true, "el título");
+        exigirTexto(errores, "complementaria.introduccion", p.introduccion(), 500, false, "la introducción");
+        exigirTexto(errores, "complementaria.enunciado", p.enunciado(), 500, true, "la pregunta");
+        exigirTexto(errores, "complementaria.nota", p.nota(), 300, false, "la nota");
+        List<OpcionComplementariaDTO> opciones = p.opciones() == null ? List.of() : p.opciones();
+        if (opciones.size() < 2) {
+            errores.put("complementaria.opciones", "La pregunta complementaria necesita al menos 2 opciones");
+        }
+        Set<String> resultados = new HashSet<>();
+        for (int i = 0; i < opciones.size(); i++) {
+            OpcionComplementariaDTO o = opciones.get(i);
+            String campo = "complementaria.opciones[" + i + "]";
+            exigirTexto(errores, campo + ".texto", o.texto(), 200, true, "el texto de la opción");
+            exigirTexto(errores, campo + ".descripcion", o.descripcion(), 1000, false, "la descripción");
+            exigirTexto(errores, campo + ".resultado", o.resultado(), 100, true, "el resultado");
+            exigirTexto(errores, campo + ".resultadoDescripcion", o.resultadoDescripcion(), 1000, false,
+                    "la descripción del resultado");
+            if (o.resultado() != null && !o.resultado().isBlank()
+                    && !resultados.add(o.resultado().strip().toLowerCase())) {
+                errores.put(campo + ".resultado", "Cada opción debe llevar a un resultado distinto");
+            }
+        }
+    }
+
+    private static void exigirTexto(Map<String, String> errores, String campo, String valor, int max,
+            boolean obligatorio, String nombre) {
+        boolean vacio = valor == null || valor.isBlank();
+        if (obligatorio && vacio) {
+            errores.put(campo, "Escribe " + nombre);
+        } else if (!vacio && valor.strip().length() > max) {
+            errores.put(campo, "Escribe " + nombre + " en hasta " + max + " caracteres");
+        }
+    }
+
+    /**
+     * Las opciones se actualizan en su lugar por posición: así, corregir un texto
+     * no borra lo que ya respondieron. Una opción quitada deja a quien la eligió
+     * sin declarar (ON DELETE SET NULL).
+     */
+    private static void aplicarComplementaria(Cuestionario c, ComplementariaConfigDTO dto) {
+        if (dto == null || !EvaluacionRespuestas.admiteComplementaria(c.getEsquemaInterpretacion())) {
+            c.setPreguntaComplementaria(null);
+            return;
+        }
+        PreguntaComplementaria p = c.getPreguntaComplementaria();
+        if (p == null) {
+            p = new PreguntaComplementaria();
+            p.setCuestionario(c);
+            c.setPreguntaComplementaria(p);
+        }
+        p.setTitulo(dto.titulo().strip());
+        p.setIntroduccion(opcional(dto.introduccion()));
+        p.setEnunciado(dto.enunciado().strip());
+        p.setNota(opcional(dto.nota()));
+        List<OpcionComplementaria> actuales = p.getOpciones();
+        for (int i = 0; i < dto.opciones().size(); i++) {
+            OpcionComplementariaDTO o = dto.opciones().get(i);
+            OpcionComplementaria e;
+            if (i < actuales.size()) {
+                e = actuales.get(i);
+            } else {
+                e = new OpcionComplementaria();
+                e.setPregunta(p);
+                actuales.add(e);
+            }
+            e.setOrden(i + 1);
+            e.setTexto(o.texto().strip());
+            e.setDescripcion(opcional(o.descripcion()));
+            e.setResultado(o.resultado().strip());
+            e.setResultadoDescripcion(opcional(o.resultadoDescripcion()));
+        }
+        while (actuales.size() > dto.opciones().size()) {
+            actuales.remove(actuales.size() - 1);
+        }
+    }
+
+    private static String opcional(String s) {
+        return s == null || s.isBlank() ? null : s.strip();
+    }
+
+    static ComplementariaConfigDTO complementariaDe(Cuestionario c) {
+        PreguntaComplementaria p = c.getPreguntaComplementaria();
+        return p == null ? null
+                : new ComplementariaConfigDTO(p.getTitulo(), p.getIntroduccion(), p.getEnunciado(), p.getNota(),
+                        p.getOpciones().stream().map(o -> new OpcionComplementariaDTO(o.getTexto(),
+                                o.getDescripcion(), o.getResultado(), o.getResultadoDescripcion())).toList());
     }
 
     private static void validarPlano(PlanoDTO p, Map<String, Estilo> estilos, Map<String, String> errores) {

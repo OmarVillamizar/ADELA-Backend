@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.adela.dto.CapsulaPublicaDTO;
-import com.adela.dto.PreferenciaDTO;
+import com.adela.dto.ComplementariaDTO;
 import com.adela.dto.RespuestaCapsulaDTO;
 import com.adela.dto.ResultadoCapsulaDTO;
 import com.adela.services.CapsulaService;
@@ -49,9 +49,9 @@ public class CapsulaPublicaController {
         return ResponseEntity.ok(capsulaService.resultado(codigo));
     }
 
-    @PostMapping("/resultados/{codigo}/preferencia")
-    public ResponseEntity<ResultadoCapsulaDTO> declararPreferencia(@PathVariable String codigo,
-            @RequestBody PreferenciaDTO body) {
-        return ResponseEntity.ok(capsulaService.declararPreferencia(codigo, body.preferencia()));
+    @PostMapping("/resultados/{codigo}/complementaria")
+    public ResponseEntity<ResultadoCapsulaDTO> responderComplementaria(@PathVariable String codigo,
+            @RequestBody ComplementariaDTO.Eleccion body) {
+        return ResponseEntity.ok(capsulaService.responderComplementaria(codigo, body.opcionId()));
     }
 }

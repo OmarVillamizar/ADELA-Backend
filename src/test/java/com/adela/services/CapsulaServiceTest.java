@@ -44,7 +44,7 @@ import com.adela.entities.RespuestaCapsula;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.ModoIdentificacion;
 import com.adela.entities.Opcion;
-import com.adela.entities.PreferenciaMultimodal;
+import com.adela.entities.OpcionComplementaria;
 import com.adela.entities.Pregunta;
 import com.adela.entities.Profesor;
 import com.adela.exceptions.AppException;
@@ -371,24 +371,24 @@ class CapsulaServiceTest {
     }
 
     @Test
-    @DisplayName("La preferencia de una cápsula se declara una sola vez")
-    void preferenciaUnaSolaVez() {
-        resolucionGuardada().setPreferenciaMultimodal(PreferenciaMultimodal.SELECTIVO);
+    @DisplayName("La pregunta complementaria de una cápsula se responde una sola vez")
+    void complementariaUnaSolaVez() {
+        resolucionGuardada().setOpcionComplementaria(new OpcionComplementaria());
 
         AppException e = assertThrows(AppException.class,
-                () -> service.declararPreferencia("ABCDEFGH2345", PreferenciaMultimodal.INTEGRATIVO));
-        assertEquals(ErrorCode.PREFERENCIA_YA_DECLARADA, e.getCode());
+                () -> service.responderComplementaria("ABCDEFGH2345", 2L));
+        assertEquals(ErrorCode.COMPLEMENTARIA_YA_RESPONDIDA, e.getCode());
         verify(respuestaCapsulaRepository, never()).save(any());
     }
 
     @Test
-    @DisplayName("Sin la pregunta activada en el cuestionario, la preferencia no se acepta")
-    void preferenciaNoAplica() {
+    @DisplayName("Sin pregunta complementaria en el cuestionario, no se acepta respuesta")
+    void complementariaNoAplica() {
         resolucionGuardada();
 
         AppException e = assertThrows(AppException.class,
-                () -> service.declararPreferencia("ABCDEFGH2345", PreferenciaMultimodal.SELECTIVO));
-        assertEquals(ErrorCode.PREFERENCIA_NO_APLICA, e.getCode());
+                () -> service.responderComplementaria("ABCDEFGH2345", 1L));
+        assertEquals(ErrorCode.COMPLEMENTARIA_NO_APLICA, e.getCode());
         verify(respuestaCapsulaRepository, never()).save(any());
     }
 

@@ -3,7 +3,6 @@ package com.adela.services;
 import java.sql.Date;
 import java.time.LocalDate;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +19,7 @@ import com.adela.calificacion.AgregadoGrupo.Agregado;
 import com.adela.calificacion.ClaveInstrumento;
 import com.adela.calificacion.ResultadoInstrumento;
 import com.adela.dto.CalificacionDTO;
+import com.adela.dto.ComplementariaDTO;
 import com.adela.dto.EstiloResultadoDTO;
 import com.adela.dto.CuestionarioResumidoDTO;
 import com.adela.dto.EstudianteDTO;
@@ -34,7 +34,8 @@ import com.adela.entities.Cuestionario;
 import com.adela.entities.Estudiante;
 import com.adela.entities.Grupo;
 import com.adela.entities.Opcion;
-import com.adela.entities.PreferenciaMultimodal;
+import com.adela.entities.OpcionComplementaria;
+import com.adela.entities.PreguntaComplementaria;
 import com.adela.entities.Profesor;
 import com.adela.entities.ResultadoCuestionario;
 import com.adela.entities.ResultadoPregunta;
@@ -341,39 +342,35 @@ public class ResultadoCuestionarioService {
         res.setEstilos(puntuacion.estilos());
         res.setCalificacion(puntuacion.calificacion());
         res.setPreguntas(EvaluacionRespuestas.preguntasResueltas(c, cantidades));
-        res.setPidePreferencia(EvaluacionRespuestas.pidePreferencia(c, puntuacion.estilos()));
-        res.setPreferenciaMultimodal(resC.getPreferenciaMultimodal());
+        PreguntaComplementaria complementaria = EvaluacionRespuestas.complementaria(c, puntuacion.estilos());
+        res.setComplementaria(complementaria == null ? null : ComplementariaDTO.Pregunta.from(complementaria));
+        res.setRespuestaComplementaria(ComplementariaDTO.Respuesta.from(resC.getOpcionComplementaria()));
 
         return res;
     }
 
     /**
-     * Guarda la preferencia que declara el estudiante. Solo aplica si su perfil
-     * incluye todas las modalidades, y se declara una sola vez: es la respuesta
-     * a una pregunta más del cuestionario, no un ajuste que se pueda cambiar.
+     * Guarda la respuesta del estudiante a la pregunta complementaria. Se
+     * responde una sola vez: es una pregunta más del cuestionario, no un ajuste
+     * que se pueda cambiar.
      */
     @Transactional
-    public ResultCuestCompletoDTO declararPreferencia(Long resultadoId, Estudiante estudiante,
-            PreferenciaMultimodal preferencia) {
-        if (preferencia == null) {
-            throw new AppException(ErrorCode.VALIDACION, "Indica SELECTIVO o INTEGRATIVO.");
-        }
+    public ResultCuestCompletoDTO responderComplementaria(Long resultadoId, Estudiante estudiante, Long opcionId) {
         ResultadoCuestionario resC = resultadoCuestionarioRepository.findById(resultadoId)
                 .orElseThrow(() -> new EntityNotFoundException("El resultado de id " + resultadoId + " no existe"));
         if (!resC.getEstudiante().getEmail().equalsIgnoreCase(estudiante.getEmail())) {
             throw new EntityNotFoundException(
                     "El resultado de id " + resultadoId + " no pertenece al estudiante " + estudiante.getEmail());
         }
-        if (resC.getPreferenciaMultimodal() != null) {
-            throw new AppException(ErrorCode.PREFERENCIA_YA_DECLARADA, "Ya indicaste tu preferencia.");
+        if (resC.getOpcionComplementaria() != null) {
+            throw new AppException(ErrorCode.COMPLEMENTARIA_YA_RESPONDIDA, "Esta pregunta ya fue respondida.");
         }
         ResultCuestCompletoDTO actual = construirResultado(resC);
-        if (!actual.isPidePreferencia()) {
-            throw new AppException(ErrorCode.PREFERENCIA_NO_APLICA, EvaluacionRespuestas.PREFERENCIA_NO_APLICA);
-        }
-        resC.setPreferenciaMultimodal(preferencia);
+        OpcionComplementaria elegida = EvaluacionRespuestas.elegir(resC.getCuestionario(), actual.getEstilos(),
+                null, opcionId);
+        resC.setOpcionComplementaria(elegida);
         resultadoCuestionarioRepository.save(resC);
-        actual.setPreferenciaMultimodal(preferencia);
+        actual.setRespuestaComplementaria(ComplementariaDTO.Respuesta.from(elegida));
         return actual;
     }
     
@@ -428,12 +425,12 @@ public class ResultadoCuestionarioService {
 
         ClaveInstrumento clave = calificacionService.clave(cuestionario);
         List<ResultadoInstrumento> resultados = new LinkedList<>();
-        Map<String, Long> preferencias = new LinkedHashMap<>();
+        List<OpcionComplementaria> elegidas = new LinkedList<>();
         for (ResultadoCuestionario rc : rcs) {
             if (rc.getFechaResolucion() != null) {
                 ResultadoInstrumento r = calificacionService.calificar(cuestionario, clave, cantidades(rc));
                 resultados.add(r);
-                EvaluacionRespuestas.contarPreferencia(preferencias, cuestionario, r, rc.getPreferenciaMultimodal());
+                elegidas.add(rc.getOpcionComplementaria());
                 estudiantesS.add(ResultadoCuestionarioDTO.from(rc));
             } else {
                 estudiantesUS.add(ResultadoCuestionarioDTO.from(rc));
@@ -445,7 +442,7 @@ public class ResultadoCuestionarioService {
         res.setCalificacion(CalificacionDTO.grupal(cuestionario, agregado, clave, resultados));
         res.setEstudiantesResuelto(estudiantesS);
         res.setEstudiantesNoResuelto(estudiantesUS);
-        res.setPreferenciasMultimodales(preferencias.isEmpty() ? null : preferencias);
+        res.setComplementaria(EvaluacionRespuestas.conteo(cuestionario, resultados, elegidas));
 
         return res;
     }

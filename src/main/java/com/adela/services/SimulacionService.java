@@ -22,6 +22,7 @@ import com.adela.entities.Genero;
 import com.adela.entities.Grupo;
 import com.adela.entities.Opcion;
 import com.adela.entities.Pregunta;
+import com.adela.entities.PreguntaComplementaria;
 import com.adela.entities.Profesor;
 import com.adela.entities.ResultadoCuestionario;
 import com.adela.entities.UsuarioEstado;
@@ -65,6 +66,9 @@ public class SimulacionService {
      */
     private static final double OTRA_MARCA = 0.35;
 
+    /** Parte de los simulados a los que les toca y responden la pregunta complementaria. */
+    private static final double RESPONDE_COMPLEMENTARIA = 0.85;
+
     private static final String[] NOMBRES = { "Ana", "Luis", "María", "Carlos", "Laura", "Andrés", "Sofía",
             "Juan", "Valentina", "Diego", "Camila", "Santiago", "Daniela", "Mateo", "Paula", "Sebastián" };
 
@@ -80,6 +84,8 @@ public class SimulacionService {
     private final ResultadoCuestionarioRepository resultadoCuestionarioRepository;
 
     private final ResultadoCuestionarioService resultadoCuestionarioService;
+
+    private final EvaluacionRespuestas evaluacionRespuestas;
 
     private final Random azar = new Random();
 
@@ -115,9 +121,29 @@ public class SimulacionService {
             RespuestaCuestionarioDTO respuesta = responder(preguntas);
             respuesta.setCuestionarioId(cuestionarioId);
             respuesta.setResultadoCuestionarioId(rc.getId());
-            resultadoCuestionarioService.responderCuestionario(respuesta, estudiante);
+            ResultadoCuestionario resuelto = resultadoCuestionarioService.responderCuestionario(respuesta,
+                    estudiante);
+            responderComplementaria(cuestionario, respuesta, resuelto);
         }
         return cantidad;
+    }
+
+    /**
+     * Si le toca la pregunta complementaria, la mayoría la responde al azar y el
+     * resto la deja sin declarar, como pasa con quien no vuelve a su resultado.
+     */
+    private void responderComplementaria(Cuestionario cuestionario, RespuestaCuestionarioDTO respuesta,
+            ResultadoCuestionario resuelto) {
+        PreguntaComplementaria p = cuestionario.getPreguntaComplementaria();
+        if (p == null || azar.nextDouble() >= RESPONDE_COMPLEMENTARIA) {
+            return;
+        }
+        Map<Long, Double> cantidades = new HashMap<>(respuesta.getCantidades());
+        respuesta.getOpcionesSeleccionadasId().forEach(id -> cantidades.put(id, 1.0));
+        if (EvaluacionRespuestas.complementaria(cuestionario,
+                evaluacionRespuestas.puntuar(cuestionario, cantidades).estilos()) != null) {
+            resuelto.setOpcionComplementaria(p.getOpciones().get(azar.nextInt(p.getOpciones().size())));
+        }
     }
 
     private Estudiante estudianteFicticio(Grupo grupo) {

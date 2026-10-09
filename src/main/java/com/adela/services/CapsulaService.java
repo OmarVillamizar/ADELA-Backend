@@ -2,7 +2,6 @@ package com.adela.services;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -22,6 +21,7 @@ import com.adela.dto.CapsulaCrearDTO;
 import com.adela.dto.CapsulaDTO;
 import com.adela.dto.CapsulaPublicaDTO;
 import com.adela.dto.CapsulaReporteDTO;
+import com.adela.dto.ComplementariaDTO;
 import com.adela.dto.CapsulaReporteDTO.ParticipanteDTO;
 import com.adela.dto.CuestionarioParaResponderDTO;
 import com.adela.dto.CuestionarioResumidoDTO;
@@ -33,7 +33,8 @@ import com.adela.entities.Capsula;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.ModoIdentificacion;
 import com.adela.entities.Opcion;
-import com.adela.entities.PreferenciaMultimodal;
+import com.adela.entities.OpcionComplementaria;
+import com.adela.entities.PreguntaComplementaria;
 import com.adela.entities.Profesor;
 import com.adela.entities.RespuestaCapsula;
 import com.adela.exceptions.AppException;
@@ -170,12 +171,12 @@ public class CapsulaService {
         boolean conNombre = capsula.getModoIdentificacion() == ModoIdentificacion.NOMBRE;
         List<ParticipanteDTO> participantes = conNombre ? new ArrayList<>() : null;
         List<ResultadoInstrumento> resultados = new ArrayList<>();
-        Map<String, Long> preferencias = new LinkedHashMap<>();
+        List<OpcionComplementaria> elegidas = new ArrayList<>();
 
         for (RespuestaCapsula r : respuestas) {
             ResultadoInstrumento resultado = calificacionService.calificar(cuestionario, clave, r.getCantidades());
             resultados.add(resultado);
-            EvaluacionRespuestas.contarPreferencia(preferencias, cuestionario, resultado, r.getPreferenciaMultimodal());
+            elegidas.add(r.getOpcionComplementaria());
             if (conNombre) {
                 participantes.add(new ParticipanteDTO(r.getNombre(), r.getRespondidaEn(),
                         resultado.perfilEtiqueta()));
@@ -186,7 +187,7 @@ public class CapsulaService {
         return new CapsulaReporteDTO(CapsulaDTO.from(capsula, respuestas.size()), respuestas.size(),
                 agregado.estilos().stream().map(EstiloResultadoDTO::de).toList(),
                 CalificacionDTO.grupal(cuestionario, agregado, clave, resultados), participantes,
-                preferencias.isEmpty() ? null : preferencias);
+                EvaluacionRespuestas.conteo(cuestionario, resultados, elegidas));
     }
 
     /** Las respuestas caen con ella por ON DELETE CASCADE. */
@@ -289,37 +290,34 @@ public class CapsulaService {
                 respuesta.getCantidades());
         EvaluacionRespuestas.Puntuacion puntuacion = evaluacionRespuestas.puntuar(cuestionario,
                 respuesta.getCantidades());
+        PreguntaComplementaria complementaria = EvaluacionRespuestas.complementaria(cuestionario,
+                puntuacion.estilos());
         return new ResultadoCapsulaDTO(respuesta.getCodigo(), capsula.getNombre(),
                 CuestionarioResumidoDTO.from(cuestionario), respuesta.getNombre(), respuesta.getRespondidaEn(),
                 puntuacion.estilos(), puntuacion.calificacion(), preguntas,
-                EvaluacionRespuestas.pidePreferencia(cuestionario, puntuacion.estilos()),
-                respuesta.getPreferenciaMultimodal());
+                complementaria == null ? null : ComplementariaDTO.Pregunta.from(complementaria),
+                ComplementariaDTO.Respuesta.from(respuesta.getOpcionComplementaria()));
     }
 
     /**
-     * Guarda la preferencia multimodal de una resolución, con el mismo código
-     * que da acceso al resultado. Una sola vez y solo si aplica; se acepta aunque
-     * la cápsula ya esté cerrada, porque la resolución ya estaba hecha.
+     * Guarda la respuesta a la pregunta complementaria, con el mismo código que
+     * da acceso al resultado. Una sola vez y solo si le toca; se acepta aunque la
+     * cápsula ya esté cerrada, porque la resolución ya estaba hecha.
      */
     @Transactional
-    public ResultadoCapsulaDTO declararPreferencia(String codigo, PreferenciaMultimodal preferencia) {
-        if (preferencia == null) {
-            throw new AppException(ErrorCode.VALIDACION, "Indica SELECTIVO o INTEGRATIVO.");
-        }
+    public ResultadoCapsulaDTO responderComplementaria(String codigo, Long opcionId) {
         String normalizado = CodigoAleatorio.normalizar(codigo);
         RespuestaCapsula respuesta = normalizado.length() != LONGITUD_CODIGO_RESULTADO ? null
                 : respuestaCapsulaRepository.findByCodigo(normalizado).orElse(null);
         if (respuesta == null) {
             throw new EntityNotFoundException("No hay un resultado con ese código.");
         }
-        if (respuesta.getPreferenciaMultimodal() != null) {
-            throw new AppException(ErrorCode.PREFERENCIA_YA_DECLARADA, "Ya indicaste tu preferencia.");
+        if (respuesta.getOpcionComplementaria() != null) {
+            throw new AppException(ErrorCode.COMPLEMENTARIA_YA_RESPONDIDA, "Esta pregunta ya fue respondida.");
         }
         ResultadoCapsulaDTO actual = resultadoDe(respuesta);
-        if (!actual.pidePreferencia()) {
-            throw new AppException(ErrorCode.PREFERENCIA_NO_APLICA, EvaluacionRespuestas.PREFERENCIA_NO_APLICA);
-        }
-        respuesta.setPreferenciaMultimodal(preferencia);
+        respuesta.setOpcionComplementaria(EvaluacionRespuestas.elegir(respuesta.getCapsula().getCuestionario(),
+                actual.estilos(), null, opcionId));
         return resultadoDe(respuestaCapsulaRepository.save(respuesta));
     }
 }

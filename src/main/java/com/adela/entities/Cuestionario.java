@@ -17,6 +17,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import lombok.AllArgsConstructor;
 import lombok.Setter;
 import lombok.Getter;
@@ -66,12 +67,13 @@ public class Cuestionario {
     private boolean esIpsativo = false;
 
     /**
-     * Opcional, solo con RELATIVO_ESCALONADO: si el perfil reúne todas las
-     * modalidades, se pregunta si la persona las usa de forma selectiva o
-     * integrativa. Apagado, el perfil multimodal se muestra como siempre.
+     * Opcional: se hace cuando el perfil destaca todos los estilos. null = el
+     * perfil se muestra como siempre, sin pregunta extra.
      */
-    @Column(name = "pregunta_preferencia", nullable = false)
-    private boolean preguntaPreferencia = false;
+    @OneToOne(mappedBy = "cuestionario", cascade = CascadeType.ALL, orphanRemoval = true)
+    @EqualsAndHashCode.Exclude
+    @ToString.Exclude
+    private PreguntaComplementaria preguntaComplementaria;
 
     @OneToMany(mappedBy = "cuestionario", cascade = CascadeType.ALL, orphanRemoval = true)
     @EqualsAndHashCode.Exclude

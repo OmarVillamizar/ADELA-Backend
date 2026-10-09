@@ -20,12 +20,14 @@ import com.adela.calificacion.ResultadoInstrumento;
 import com.adela.calificacion.TipoEstilo;
 import com.adela.calificacion.ValidadorRespuesta;
 import com.adela.dto.CalificacionDTO;
+import com.adela.dto.ComplementariaDTO;
 import com.adela.dto.EstiloResultadoDTO;
 import com.adela.dto.PreguntaResueltaDTO;
 import com.adela.dto.PreguntaResueltaDTO.RespuestaElegidaDTO;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Opcion;
-import com.adela.entities.PreferenciaMultimodal;
+import com.adela.entities.OpcionComplementaria;
+import com.adela.entities.PreguntaComplementaria;
 import com.adela.entities.Pregunta;
 import com.adela.exceptions.AppException;
 import com.adela.exceptions.ErrorCode;
@@ -150,31 +152,81 @@ public class EvaluacionRespuestas {
         }).toList();
     }
 
-    public static final String PREFERENCIA_NO_APLICA =
-            "La preferencia solo aplica cuando el perfil incluye todas las modalidades.";
+    public static final String SIN_DECLARAR = "Sin declarar";
 
-    /**
-     * El cuestionario tiene activada la pregunta de preferencia y el perfil por
-     * distancia de paso reúne todas las modalidades primarias.
-     */
-    public static boolean pidePreferencia(Cuestionario c, List<EstiloResultadoDTO> estilos) {
-        if (!c.isPreguntaPreferencia() || c.getEsquemaInterpretacion() != EsquemaInterpretacion.RELATIVO_ESCALONADO) {
-            return false;
-        }
-        List<EstiloResultadoDTO> primarios = estilos.stream().filter(e -> e.getTipo() == TipoEstilo.PRIMARIO)
-                .toList();
-        return primarios.size() >= 2 && primarios.stream().allMatch(e -> Boolean.TRUE.equals(e.getDominante()));
+    /** Esquemas que destacan varios estilos: los únicos donde "todos destacados" ocurre. */
+    public static boolean admiteComplementaria(EsquemaInterpretacion esquema) {
+        return esquema == EsquemaInterpretacion.RELATIVO || esquema == EsquemaInterpretacion.RELATIVO_ESCALONADO;
     }
 
     /**
-     * Suma una resolución al conteo de preferencias de un reporte agregado
-     * (SELECTIVO, INTEGRATIVO o SIN_DECLARAR), si la pregunta le aplica.
+     * La pregunta complementaria que le toca a un resultado, o null: el
+     * cuestionario la define y el perfil destaca todos los estilos primarios.
      */
-    public static void contarPreferencia(Map<String, Long> conteo, Cuestionario c, ResultadoInstrumento r,
-            PreferenciaMultimodal declarada) {
-        if (pidePreferencia(c, r.estilos().stream().map(EstiloResultadoDTO::de).toList())) {
-            conteo.merge(declarada == null ? "SIN_DECLARAR" : declarada.name(), 1L, Long::sum);
+    public static PreguntaComplementaria complementaria(Cuestionario c, List<EstiloResultadoDTO> estilos) {
+        PreguntaComplementaria p = c.getPreguntaComplementaria();
+        if (p == null || !admiteComplementaria(c.getEsquemaInterpretacion())) {
+            return null;
         }
+        List<EstiloResultadoDTO> primarios = estilos.stream().filter(e -> e.getTipo() == TipoEstilo.PRIMARIO)
+                .toList();
+        boolean todos = primarios.size() >= 2
+                && primarios.stream().allMatch(e -> Boolean.TRUE.equals(e.getDominante()));
+        return todos ? p : null;
+    }
+
+    /**
+     * La opción que se va a guardar como respuesta, si procede: la pregunta le
+     * toca a este resultado, aún no se respondió (una sola vez) y la opción es
+     * de esta pregunta.
+     */
+    public static OpcionComplementaria elegir(Cuestionario c, List<EstiloResultadoDTO> estilos,
+            OpcionComplementaria actual, Long opcionId) {
+        if (actual != null) {
+            throw new AppException(ErrorCode.COMPLEMENTARIA_YA_RESPONDIDA, "Esta pregunta ya fue respondida.");
+        }
+        PreguntaComplementaria p = complementaria(c, estilos);
+        if (p == null) {
+            throw new AppException(ErrorCode.COMPLEMENTARIA_NO_APLICA,
+                    "Esta pregunta solo aplica cuando el perfil destaca todos los estilos.");
+        }
+        return p.getOpciones().stream().filter(o -> o.getId().equals(opcionId)).findFirst()
+                .orElseThrow(() -> new AppException(ErrorCode.VALIDACION, "Elige una de las opciones de la pregunta."));
+    }
+
+    /**
+     * Conteo de un reporte agregado entre las resoluciones a las que les toca la
+     * pregunta: cada resultado en el orden de las opciones (también los que nadie
+     * eligió) y al final "Sin declarar". null si no le toca a nadie.
+     * elegidas va en paralelo a resultados.
+     */
+    public static ComplementariaDTO.Conteo conteo(Cuestionario c, List<ResultadoInstrumento> resultados,
+            List<OpcionComplementaria> elegidas) {
+        PreguntaComplementaria p = c.getPreguntaComplementaria();
+        if (p == null) {
+            return null;
+        }
+        Map<String, Long> respuestas = new LinkedHashMap<>();
+        p.getOpciones().forEach(o -> respuestas.put(o.getResultado(), 0L));
+        long sinDeclarar = 0;
+        boolean alguna = false;
+        for (int i = 0; i < resultados.size(); i++) {
+            if (complementaria(c, resultados.get(i).estilos().stream().map(EstiloResultadoDTO::de).toList()) == null) {
+                continue;
+            }
+            alguna = true;
+            OpcionComplementaria elegida = elegidas.get(i);
+            if (elegida == null) {
+                sinDeclarar++;
+            } else {
+                respuestas.merge(elegida.getResultado(), 1L, Long::sum);
+            }
+        }
+        if (!alguna) {
+            return null;
+        }
+        respuestas.put(SIN_DECLARAR, sinDeclarar);
+        return new ComplementariaDTO.Conteo(p.getTitulo(), respuestas);
     }
 
     public record Puntuacion(List<EstiloResultadoDTO> estilos, CalificacionDTO calificacion) {

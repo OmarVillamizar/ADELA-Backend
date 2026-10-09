@@ -2,6 +2,7 @@ package com.adela.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,12 +27,16 @@ import com.adela.calificacion.EsquemaInterpretacion;
 import com.adela.calificacion.TipoEstilo;
 import com.adela.dto.InterpretacionDTO;
 import com.adela.dto.InterpretacionDTO.BandaDTO;
+import com.adela.dto.InterpretacionDTO.ComplementariaConfigDTO;
 import com.adela.dto.InterpretacionDTO.EscalonDTO;
 import com.adela.dto.InterpretacionDTO.EstiloLecturaDTO;
+import com.adela.dto.InterpretacionDTO.OpcionComplementariaDTO;
 import com.adela.dto.InterpretacionDTO.PlanoDTO;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Estilo;
+import com.adela.entities.OpcionComplementaria;
 import com.adela.entities.PlanoCuadrantes;
+import com.adela.entities.PreguntaComplementaria;
 import com.adela.exceptions.AppException;
 import com.adela.exceptions.ErrorCode;
 import com.adela.repositories.BandaInterpretacionRepository;
@@ -136,16 +141,44 @@ class InterpretacionServiceTest {
     }
 
     @Test
-    @DisplayName("La pregunta de preferencia solo queda activa con el esquema escalonado")
-    void preguntaPreferenciaSoloEscalonado() {
-        List<EscalonDTO> escalones = List.of(new EscalonDTO(1d, 64d, 4d));
-        service.guardar(1L, new InterpretacionDTO(EsquemaInterpretacion.RELATIVO_ESCALONADO, null, null, null,
-                escalones, null, null, true));
-        assertTrue(chaea.isPreguntaPreferencia());
+    @DisplayName("La pregunta complementaria se guarda, se edita en su lugar y se quita")
+    void complementariaSeGuardaYEditaEnSuLugar() {
+        ComplementariaConfigDTO dos = complementaria("A", "B");
+        service.guardar(1L, new InterpretacionDTO(EsquemaInterpretacion.RELATIVO, 10d, null, null, null, null,
+                null, dos));
+        PreguntaComplementaria p = chaea.getPreguntaComplementaria();
+        assertEquals(List.of("A", "B"), p.getOpciones().stream().map(OpcionComplementaria::getResultado).toList());
+        OpcionComplementaria primera = p.getOpciones().get(0);
 
-        service.guardar(1L, new InterpretacionDTO(EsquemaInterpretacion.NINGUNA, null, null, null, null, null,
-                null, true));
-        assertEquals(false, chaea.isPreguntaPreferencia());
+        // Corregir textos conserva la opción (y lo que ya respondieron con ella).
+        service.guardar(1L, new InterpretacionDTO(EsquemaInterpretacion.RELATIVO, 10d, null, null, null, null,
+                null, complementaria("A2", "B", "C")));
+        assertSame(primera, chaea.getPreguntaComplementaria().getOpciones().get(0));
+        assertEquals(List.of("A2", "B", "C"), chaea.getPreguntaComplementaria().getOpciones().stream()
+                .map(OpcionComplementaria::getResultado).toList());
+
+        service.guardar(1L, new InterpretacionDTO(EsquemaInterpretacion.RELATIVO, 10d, null, null, null));
+        assertNull(chaea.getPreguntaComplementaria());
+    }
+
+    @Test
+    @DisplayName("La pregunta complementaria exige esquema que destaque, 2 opciones y resultados distintos")
+    void complementariaValida() {
+        assertTrue(errores(new InterpretacionDTO(EsquemaInterpretacion.BAREMO, null, false, null, null, null, null,
+                complementaria("A", "B"))).containsKey("complementaria"));
+        assertTrue(errores(new InterpretacionDTO(EsquemaInterpretacion.RELATIVO, null, false, null, null, null,
+                null, complementaria("A"))).containsKey("complementaria.opciones"));
+        assertTrue(errores(new InterpretacionDTO(EsquemaInterpretacion.RELATIVO, null, false, null, null, null,
+                null, complementaria("A", "a"))).containsKey("complementaria.opciones[1].resultado"));
+        service.guardar(1L, new InterpretacionDTO(EsquemaInterpretacion.RELATIVO_ESCALONADO, null, false, null,
+                List.of(new EscalonDTO(1d, 64d, 4d)), null, null, complementaria("A", "B")));
+        assertEquals(2, chaea.getPreguntaComplementaria().getOpciones().size());
+    }
+
+    private static ComplementariaConfigDTO complementaria(String... resultados) {
+        return new ComplementariaConfigDTO("Título", null, "¿Cuál te describe?", null,
+                java.util.Arrays.stream(resultados)
+                        .map(r -> new OpcionComplementariaDTO("Opción " + r, null, r, null)).toList());
     }
 
     @Test
