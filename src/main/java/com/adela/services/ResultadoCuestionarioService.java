@@ -17,7 +17,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.adela.calificacion.AgregadoGrupo;
 import com.adela.calificacion.AgregadoGrupo.Agregado;
 import com.adela.calificacion.ClaveInstrumento;
+import com.adela.calificacion.ResultadoEstilo;
 import com.adela.calificacion.ResultadoInstrumento;
+import com.adela.calificacion.TipoEstilo;
 import com.adela.dto.CalificacionDTO;
 import com.adela.dto.ComplementariaDTO;
 import com.adela.dto.EstiloResultadoDTO;
@@ -431,7 +433,12 @@ public class ResultadoCuestionarioService {
                 ResultadoInstrumento r = calificacionService.calificar(cuestionario, clave, cantidades(rc));
                 resultados.add(r);
                 elegidas.add(rc.getOpcionComplementaria());
-                estudiantesS.add(ResultadoCuestionarioDTO.from(rc));
+                ResultadoCuestionarioDTO dto = ResultadoCuestionarioDTO.from(rc);
+                dto.setPerfil(r.perfilEtiqueta());
+                dto.setDominantes(r.estilos().stream()
+                        .filter(e -> e.tipo() == TipoEstilo.PRIMARIO && e.dominante())
+                        .map(ResultadoEstilo::nombre).toList());
+                estudiantesS.add(dto);
             } else {
                 estudiantesUS.add(ResultadoCuestionarioDTO.from(rc));
             }

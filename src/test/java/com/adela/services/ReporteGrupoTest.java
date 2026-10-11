@@ -112,6 +112,18 @@ class ReporteGrupoTest {
     }
 
     @Test
+    @DisplayName("Cada estudiante resuelto trae su perfil y dominantes; el pendiente no")
+    void perfilPorEstudiante() {
+        ResultadoGrupoDTO r = service.obtenerResultadosGrupoCuestionario(1L, 7, profesor);
+
+        assertEquals("Auditivo", r.getEstudiantesResuelto().get(0).getPerfil());
+        assertEquals(List.of("Auditivo"), r.getEstudiantesResuelto().get(0).getDominantes());
+        assertEquals(List.of("Visual"), r.getEstudiantesResuelto().get(1).getDominantes());
+        assertNull(r.getEstudiantesNoResuelto().get(0).getPerfil());
+        assertNull(r.getEstudiantesNoResuelto().get(0).getDominantes());
+    }
+
+    @Test
     @DisplayName("Con cuadrantes el reporte trae el plano y un punto anónimo por resultado calculable")
     void puntosPlano() {
         Cuestionario c = cuestionarios.findById(1L).orElseThrow();

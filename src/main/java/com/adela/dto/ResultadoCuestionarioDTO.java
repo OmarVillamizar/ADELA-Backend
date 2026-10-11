@@ -1,6 +1,7 @@
 package com.adela.dto;
 
 import java.sql.Date;
+import java.util.List;
 
 import com.adela.entities.ResultadoCuestionario;
 
@@ -16,7 +17,11 @@ public class ResultadoCuestionarioDTO {
     private Date fechaResolucion;
     private GrupoResumidoDTO grupo;
     private Long id;
-    
+    // Solo en el reporte de grupo y con el cuestionario resuelto: el resumen
+    // por género y edad cruza el perfil de cada estudiante con sus datos.
+    private String perfil;
+    private List<String> dominantes;
+
     public static ResultadoCuestionarioDTO from(ResultadoCuestionario rc) {
         ResultadoCuestionarioDTO rcd = new ResultadoCuestionarioDTO();
         rcd.setCuestionario(CuestionarioResumidoDTO.from(rc.getCuestionario()));
