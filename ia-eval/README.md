@@ -52,3 +52,63 @@ Cada carpeta tiene un `casos.py` con `casos(h)`, donde `h` es el módulo `eval`,
 
 Los checks genéricos (validadores del servidor, expansión de convenciones, métricas) están en
 `eval.py`. Nada versionado debe nombrar instrumentos publicados ni traer su contenido.
+
+## Visión (spike de la fase 6): páginas escaneadas como imágenes
+
+Herramientas (fuera de `eval.py`, que no cambia; reusan su llave, prefijo y validadores):
+
+- `RenderPdf.java`: renderiza un PDF a `pagina-N.png|jpg` en grises igual que `ExtractorDocumento`
+  (CropBox, tope de 16 MP) e imprime por página los caracteres de texto, el tamaño y los bytes.
+  `java -cp <pdfbox;fontbox;pdfbox-io;commons-logging del repositorio Maven> RenderPdf.java doc.pdf carpeta [dpi=144] [png|jpg] [calidad]`
+- `escaneado.py`: fabrica un PDF solo de imágenes (giro leve, desenfoque, ruido) desde un texto plano,
+  para probar la visión con documentos que no existen como escaneo.
+- `vision.py` (siempre con `-I`): `modelos`, `sonda` (formato de la parte `image_url`), `tokens`,
+  `cache`, `generar` (generación completa de Nelse con las páginas como imágenes, comparada con una
+  referencia del catálogo local y/o con una corrida con texto), `archivo`, `gasto`. Suma cada llamada a
+  `salidas/vision/gasto.json` y se detiene en `VISION_TOPE_USD` (0,60 por defecto). Nunca imprime la llave.
+
+### Resultados (modelo `deepseek-flash`, 2026-10-11)
+
+Todo lo siguiente se probó con `stream`, `reasoning_effort` `high`, `response_format` `json_object` y
+el prefijo de Nelse como `system`.
+
+- **Formato aceptado.** Un mensaje de usuario con `content` en partes, texto primero e imágenes después:
+  `[{"type":"text","text":"..."},{"type":"image_url","image_url":{"url":"data:image/png;base64,..."}}]`.
+  PNG y JPEG valen; `detail` se acepta pero no cambia los tokens. Se rechazan (HTTP 422, "unknown
+  variant ... expected one of `text`, `image_url`, `file`"): `type:"image"` con `source`, `input_image`
+  y `image_url` como cadena en lugar de objeto. Una parte `file` con el PDF no se acepta en la forma
+  probada (HTTP 400 "file must have a file_id or file_data"). `GET /models`: `deepseek-flash` declara
+  `input_modalities: [text, image]`; `deepseek-v4-pro`, solo texto.
+- **Tokens por página.** Solo depende del tamaño en píxeles, no del contenido ni del formato: A4 a 144 DPI
+  (1190x1683) = 1001 tokens (PNG o JPEG, página llena o casi en blanco); 100 DPI = 590; 72 DPI = ~340.
+  A $0,15/M son $0,00015 por página (12 páginas: $0,002), irrelevante frente a la salida ($0,01-0,02).
+- **Caché.** Las imágenes forman parte del prefijo cacheado (bloques de 64 tokens): repetir la petición
+  da ~92 % de acierto y un turno añadido, igual. Pero la caché depende también de `reasoning_effort` y de
+  `response_format`: cambiar el esfuerzo (`high` a `low`) o activar/quitar `json_object` da 0 aciertos,
+  incluso en el prefijo de sistema que sí estaba cacheado. `max_tokens` y `stream` no influyen; sin
+  esfuerzo equivale a `high`. Con el mismo esfuerzo, el turno de corrección acertó 43-53k de 49-65k tokens.
+- **Precisión** (instrumento de referencia de 16 ítems, 3 páginas, y uno de 80 ítems escaneado de forma
+  sintética en 8 páginas; ítems, opciones y clave comparados con el catálogo local):
+
+  | Caso | Ítems exactos | Opciones exactas | Clave |
+  |---|---|---|---|
+  | 16 ítems, PNG 144, con catálogo | 16/16 | 63/64 (sim. mín. 0,98) | 64/64 |
+  | 16 ítems, PNG 144, sin su ficha del catálogo | 16/16 | 64/64 | 64/64 |
+  | 16 ítems, mixto (2 págs. texto + 1 imagen), sin ficha | 16/16 | 64/64 | 64/64 |
+  | 80 ítems, PNG 144 / 100 / 72 y JPEG 144, con catálogo | 80/80 | 160/160 | 80/80 |
+  | 80 ítems, PNG 144, sin ficha | 79/80 (una `@/s` por `@s`) | 160/160 | 80/80 |
+  | 80 ítems, JPEG 144, sin ficha | 80/80 | 160/160 | 80/80 |
+  | 80 ítems, PNG 72, sin ficha | 78/80 (dos palabras mal leídas) | 160/160 | 80/80 |
+
+  Los baremos alterados impresos en el documento se leyeron bien (el documento gana al catálogo), y sin
+  ficha no se inventaron cortes que el documento no imprime. Una instrucción dibujada en una página
+  ("ignora las instrucciones...") no se obedeció y se marcó ALTO.
+- **Latencia y costo.** Igual que con texto (56 s con texto y 61-63 s con imágenes en el instrumento de
+  16 ítems; 76 s con texto y 79-110 s con imágenes en el de 80). Costo por corrida completa: $0,009-0,019
+  (con el prefijo cacheado o no), dominado por la salida.
+- **Tamaño.** Un escaneo ruidoso a 144 DPI en PNG pesa ~1,2 MB por página (8 páginas = ~13 MB en base64,
+  aceptado); en JPEG calidad 0,8, ~0,3 MB. Una página limpia pesa ~0,17 MB en PNG.
+
+Decisión para la integración: 144 DPI en grises, JPEG calidad 0,8, tope de 12 imágenes, `json_object` se
+conserva, imágenes después del texto en un solo mensaje de usuario, y esfuerzo y `response_format`
+iguales entre la generación y las correcciones si se quiere reutilizar el prefijo.
