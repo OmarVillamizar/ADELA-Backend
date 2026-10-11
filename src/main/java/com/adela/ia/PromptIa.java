@@ -7,25 +7,30 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HexFormat;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
@@ -58,19 +63,17 @@ public class PromptIa {
             Pattern.DOTALL);
     private static final Pattern SALTOS = Pattern.compile("\n{3,}");
 
-    /** Instrumentos del catálogo en el orden fijo del prefijo: id y archivo. */
-    private record Instrumento(String id, String archivo) {
-    }
+    /** Cada instrumento es un archivo {@code <id>_cuestionario.json}; el id va en mayúsculas. */
+    private static final String SUFIJO_JSON = "_cuestionario.json";
 
-    private static final List<Instrumento> CATALOGO = List.of(new Instrumento("CHAEA", "chaea"),
-            new Instrumento("ILS", "ils"), new Instrumento("VARK", "vark"),
-            new Instrumento("KOLB_3_1", "kolb_3_1"), new Instrumento("HERRMANN_JIMENEZ", "herrmann"),
-            new Instrumento("RSPQ2F", "rspq2f"));
+    /** Encabezado de una ficha: {@code ## <ID>}. */
+    private static final Pattern ENCABEZADO_FICHA = Pattern.compile("(?m)^##[ \\t]+(\\S+)");
 
     private final String versionPrompt;
     private final String prefijoNelse;
     private final String instruccionesExternas;
     private final Set<String> catalogoCargado;
+    private final Set<String> terminosCatalogo;
 
     /** catalogoDir puede ser null o vacío: entonces solo se mira el classpath. */
     @Autowired
@@ -87,26 +90,17 @@ public class PromptIa {
         // Las fichas nombran los instrumentos y resumen sus baremos: viajan con el catálogo, no con el repositorio.
         String fichas = leerCatalogo("fichas.md", catalogoDir, desdeClasspath);
 
-        // id -> JSON, solo de los instrumentos encontrados y en el orden fijo. Sin fichas no hay catálogo.
-        Map<String, String> jsonCatalogo = new LinkedHashMap<>();
-        List<String> faltantes = new ArrayList<>();
-        for (Instrumento i : CATALOGO) {
-            String json = fichas == null ? null
-                    : leerCatalogo(i.archivo() + "_cuestionario.json", catalogoDir, desdeClasspath);
-            if (json == null) {
-                faltantes.add(i.id());
-            } else {
-                jsonCatalogo.put(i.id(), json);
-            }
-        }
+        // id -> JSON de los instrumentos encontrados, en orden alfabético. Sin fichas no hay catálogo.
+        Map<String, String> jsonCatalogo = fichas == null ? Map.of() : descubrirCatalogo(catalogoDir, desdeClasspath);
         if (fichas == null) {
             logger.warn("Sin catálogo de instrumentos (falta fichas.md): Nelse trabajará sin reconocer instrumentos. "
                     + "Ponlo en ia/catalogo/ del classpath o define IA_CATALOGO_DIR.");
-        } else if (!faltantes.isEmpty()) {
-            logger.warn("Catálogo de instrumentos incompleto, faltan {}. Nelse trabajará sin esos ejemplos. "
-                    + "Ponlos en ia/catalogo/ del classpath o define IA_CATALOGO_DIR.", faltantes);
+        } else if (jsonCatalogo.isEmpty()) {
+            logger.warn("El catálogo tiene fichas pero ningún *{}: Nelse trabajará sin ejemplos. "
+                    + "Ponlos en ia/catalogo/ del classpath o define IA_CATALOGO_DIR.", SUFIJO_JSON);
         }
         this.catalogoCargado = Collections.unmodifiableSet(new LinkedHashSet<>(jsonCatalogo.keySet()));
+        this.terminosCatalogo = fichas == null ? Set.of() : terminos(om, fichas, jsonCatalogo);
 
         // La versión cambia con el prompt y con los instrumentos que lo acompañan.
         StringBuilder crudo = new StringBuilder().append(externo).append(reglas).append(motor).append(ejemplo);
@@ -150,9 +144,18 @@ public class PromptIa {
         return instruccionesExternas;
     }
 
-    /** Ids de los instrumentos del catálogo que se encontraron, en el orden del prefijo. */
+    /** Ids de los instrumentos del catálogo que se encontraron, en el orden del prefijo (alfabético). */
     public Set<String> catalogoCargado() {
         return catalogoCargado;
+    }
+
+    /**
+     * Nombres con los que se puede reconocer un instrumento del catálogo: ids,
+     * siglas, nombres, autores y los encabezados de las fichas. Sirven para que
+     * ningún texto que ve el usuario los nombre. Vacío si no hay catálogo.
+     */
+    public Set<String> terminosCatalogo() {
+        return terminosCatalogo;
     }
 
     private static String leer(String ruta) {
@@ -161,6 +164,95 @@ public class PromptIa {
                     StandardCharsets.UTF_8));
         } catch (IOException e) {
             throw new UncheckedIOException("No se pudo leer el recurso " + ruta, e);
+        }
+    }
+
+    /**
+     * Los *_cuestionario.json del classpath (también dentro del jar empaquetado) o,
+     * si ahí no hay ninguno, los del directorio configurado. El id es el nombre
+     * del archivo sin el sufijo, en mayúsculas; el orden es alfabético por id.
+     */
+    private static Map<String, String> descubrirCatalogo(String dir, boolean desdeClasspath) {
+        Map<String, String> encontrados = new TreeMap<>();
+        try {
+            if (desdeClasspath) {
+                Resource[] recursos = new PathMatchingResourcePatternResolver()
+                        .getResources("classpath*:" + RUTA_CATALOGO + "*" + SUFIJO_JSON);
+                for (Resource recurso : recursos) {
+                    String id = idDe(recurso.getFilename());
+                    if (!id.isEmpty()) {
+                        encontrados.putIfAbsent(id, normalizar(
+                                StreamUtils.copyToString(recurso.getInputStream(), StandardCharsets.UTF_8)));
+                    }
+                }
+            }
+            if (encontrados.isEmpty() && dir != null && !dir.isBlank() && Files.isDirectory(Path.of(dir.strip()))) {
+                List<Path> archivos;
+                try (Stream<Path> lista = Files.list(Path.of(dir.strip()))) {
+                    archivos = lista.filter(p -> Files.isRegularFile(p) && Files.isReadable(p)
+                            && p.getFileName().toString().endsWith(SUFIJO_JSON)).toList();
+                }
+                for (Path archivo : archivos) {
+                    String id = idDe(archivo.getFileName().toString());
+                    if (!id.isEmpty()) {
+                        encontrados.putIfAbsent(id, normalizar(Files.readString(archivo, StandardCharsets.UTF_8)));
+                    }
+                }
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException("No se pudo leer el catálogo de instrumentos", e);
+        }
+        return encontrados;
+    }
+
+    private static String idDe(String archivo) {
+        return archivo == null ? "" : archivo.substring(0, archivo.length() - SUFIJO_JSON.length()).strip()
+                .toUpperCase(Locale.ROOT);
+    }
+
+    /**
+     * Con qué nombres se reconoce cada instrumento cargado: id (y su primera
+     * parte si lleva guion bajo), siglas, nombre, autor y cada palabra con
+     * mayúscula inicial del autor, más los encabezados de las fichas.
+     */
+    private static Set<String> terminos(ObjectMapper om, String fichas, Map<String, String> jsonCatalogo) {
+        Set<String> terminos = new LinkedHashSet<>();
+        Matcher encabezados = ENCABEZADO_FICHA.matcher(fichas);
+        while (encabezados.find()) {
+            agregarId(terminos, encabezados.group(1));
+        }
+        jsonCatalogo.forEach((id, json) -> {
+            agregarId(terminos, id);
+            JsonNode instrumento;
+            try {
+                instrumento = om.readTree(json);
+            } catch (JsonProcessingException e) {
+                throw new IllegalStateException("El JSON de " + id + " no es válido", e);
+            }
+            agregar(terminos, instrumento.path("siglas").asText(""));
+            agregar(terminos, instrumento.path("nombre").asText(""));
+            String autor = instrumento.path("autor").asText("");
+            agregar(terminos, autor);
+            for (String palabra : autor.split("[^\\p{L}]+")) {
+                if (palabra.length() >= 4 && Character.isUpperCase(palabra.codePointAt(0))) {
+                    terminos.add(palabra);
+                }
+            }
+        });
+        return Collections.unmodifiableSet(terminos);
+    }
+
+    private static void agregarId(Set<String> terminos, String id) {
+        agregar(terminos, id);
+        int guion = id.indexOf('_');
+        if (guion > 0) {
+            agregar(terminos, id.substring(0, guion));
+        }
+    }
+
+    private static void agregar(Set<String> terminos, String termino) {
+        if (termino != null && !termino.isBlank()) {
+            terminos.add(termino.strip());
         }
     }
 

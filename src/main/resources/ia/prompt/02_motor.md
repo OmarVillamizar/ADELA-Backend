@@ -41,7 +41,7 @@ esIpsativo: always null (ADELA derives it from the formats).
 - NINGUNA: scores only. Bands, if any, are shown as labels.
 - BAREMO: each score gets its band label. No dominant style.
 - RELATIVO: dominant = primaries with POMP >= max POMP - delta.
-- RELATIVO_ESCALONADO (Fleming 2001): sort primaries by raw score desc; add the next while its gap
+- RELATIVO_ESCALONADO (stepping distance): sort primaries by raw score desc; add the next while its gap
   to the previous <= distancia; distancia = escalon whose [totalMin, totalMax] contains the total
   of all primary raw scores. No escalon for that total -> no profile.
 - NIVEL_SUPERIOR: a primary is dominant when its score is inside its band with the highest orden.

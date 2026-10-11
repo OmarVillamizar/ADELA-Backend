@@ -79,10 +79,8 @@ names; key pattern (letter per option, cyclic item -> scale, blocks).
 - The document prints its own norms/cutoffs that differ from the catalog -> DOCUMENTO wins (other
   version or population). List every difference in reconocido.diferencias + revision entry.
 - estructuraIgual false (short form, subset, extra items, other option count) -> never copy the
-  catalog's raw-score numbers; they would be wrong. Use the family convention:
-  CHAEA -> BAREMO_MODELO (modeloAsistente CUATRO_ESTILOS); ILS -> BAREMO_MODELO (POLOS);
-  VARK -> ESCALONADO; KOLB_3_1 -> CUADRANTES corte REFERENCIA; HERRMANN_JIMENEZ -> DOMINANCIA;
-  RSPQ2F -> SOLO_PUNTAJES. Source CONVENCION.
+  catalog's raw-score numbers; they would be wrong. Use the "Family convention" written in that
+  instrument's CATALOG entry (lecturaAsistente, corte, modeloAsistente). Source CONVENCION.
 - Similar idea but not the instrument -> reconocido NINGUNO; still set modeloAsistente to the
   closest wizard model.
 <!-- /solo-nelse -->
@@ -141,7 +139,7 @@ presence of bands.
 {
  "modo": "TRANSCRIPCION" | "CREACION",
 <!-- solo-nelse -->
- "reconocido": {"catalogo": "CHAEA|ILS|VARK|KOLB_3_1|HERRMANN_JIMENEZ|RSPQ2F|NINGUNO",
+ "reconocido": {"catalogo": "<an instrument id from CATALOG>" | "NINGUNO",
                 "confianza": 0.0-1.0, "estructuraIgual": bool, "senales": [str],
                 "diferencias": [str]},
 <!-- /solo-nelse -->
