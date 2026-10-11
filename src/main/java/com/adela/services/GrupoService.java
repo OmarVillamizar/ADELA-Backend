@@ -1,10 +1,15 @@
 package com.adela.services;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,24 +61,78 @@ public class GrupoService {
                 .orElseThrow(() -> new EntityNotFoundException("Grupo no encontrado con el ID: " + id));
     }
 
+    private static final Pattern CORREO = Pattern.compile("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$");
+
+    private static final int LARGO_MAXIMO = 100;
+
+    /**
+     * El correo es la clave del estudiante y Google lo entrega en minúsculas: un
+     * " Ana@UFPS.edu.co" de una hoja de cálculo no encontraba a la estudiante y
+     * creaba otra con ese correo, que nunca podría iniciar sesión.
+     */
+    private static String normalizarCorreo(String email) {
+        return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private static String nombreValido(String nombre) {
+        String limpio = nombre == null ? "" : nombre.trim();
+        if (limpio.isEmpty()) {
+            throw new AppException(ErrorCode.VALIDACION, "El nombre del grupo es obligatorio.");
+        }
+        if (limpio.length() > LARGO_MAXIMO) {
+            throw new AppException(ErrorCode.VALIDACION,
+                    "El nombre del grupo admite como mucho " + LARGO_MAXIMO + " caracteres.");
+        }
+        return limpio;
+    }
+
     /**
      * Resuelve los correos a estudiantes, creando los que aún no existan. Los
-     * nuevos quedan INCOMPLETA hasta que entren y completen su perfil.
+     * nuevos quedan INCOMPLETA hasta que entren y completen su perfil. Valida
+     * todos antes de tocar nada, para que un correo mal escrito no deje media
+     * lista aplicada.
      */
-    private Set<Estudiante> resolverOCrear(Set<EstudianteCrearDTO> solicitados) {
-        Set<Estudiante> resultado = new HashSet<>();
+    private Set<Estudiante> resolverOCrear(Collection<EstudianteCrearDTO> solicitados) {
+        Map<String, String> nombrePorCorreo = new LinkedHashMap<>();
+        List<String> invalidos = new ArrayList<>();
         for (EstudianteCrearDTO dto : solicitados) {
-            Optional<Estudiante> existente = estudianteRepository.findById(dto.getEmail());
+            if (dto == null) {
+                continue;
+            }
+            String email = normalizarCorreo(dto.getEmail());
+            if (!CORREO.matcher(email).matches() || email.length() > LARGO_MAXIMO) {
+                invalidos.add(dto.getEmail());
+                continue;
+            }
+            String nombre = dto.getNombre() == null ? "" : dto.getNombre().trim();
+            if (nombre.length() > LARGO_MAXIMO) {
+                nombre = nombre.substring(0, LARGO_MAXIMO);
+            }
+            nombrePorCorreo.merge(email, nombre, (previo, nuevo) -> previo.isEmpty() ? nuevo : previo);
+        }
+        if (!invalidos.isEmpty()) {
+            throw new AppException(ErrorCode.VALIDACION, "Correos no válidos: " + invalidos);
+        }
+
+        Set<Estudiante> resultado = new HashSet<>();
+        nombrePorCorreo.forEach((email, nombre) -> {
+            Optional<Estudiante> existente = estudianteRepository.findById(email);
             if (existente.isPresent()) {
-                resultado.add(existente.get());
+                Estudiante estudiante = existente.get();
+                // Un preinscrito sin nombre lo toma de la lista; el de alguien que
+                // ya entró manda sobre lo que diga la hoja del profesor.
+                if ((estudiante.getNombre() == null || estudiante.getNombre().isBlank()) && !nombre.isEmpty()) {
+                    estudiante.setNombre(nombre);
+                }
+                resultado.add(estudiante);
             } else {
                 Estudiante nuevo = new Estudiante();
-                nuevo.setEmail(dto.getEmail());
-                nuevo.setNombre(dto.getNombre());
+                nuevo.setEmail(email);
+                nuevo.setNombre(nombre.isEmpty() ? null : nombre);
                 nuevo.setEstado(UsuarioEstado.INCOMPLETA);
                 resultado.add(nuevo);
             }
-        }
+        });
         return resultado;
     }
 
@@ -106,18 +165,32 @@ public class GrupoService {
         return GrupoDetalleDTO.from(delProfesor(id, profesor));
     }
 
+    /** El profesor distingue sus grupos por nombre; dos iguales serían indistinguibles. */
+    private void exigirNombreLibre(String nombre, Profesor profesor, Integer excepto) {
+        boolean ocupado = grupoRepository.findByProfesor(profesor).stream()
+                .anyMatch(g -> g.getNombre().trim().equalsIgnoreCase(nombre)
+                        && (excepto == null || g.getId() != excepto));
+        if (ocupado) {
+            throw new AppException(ErrorCode.GRUPO_DUPLICADO, "Ya tienes un grupo llamado \"" + nombre + "\".");
+        }
+    }
+
+    /**
+     * Un grupo puede nacer vacío: el profesor lo crea antes de tener la lista y
+     * la carga después desde el detalle.
+     */
     @Transactional
     public GrupoDetalleDTO crear(GrupoDTO datos, Profesor profesor) {
-        if (datos.getNombre() == null || datos.getEstudiantes() == null) {
-            throw new AppException(ErrorCode.VALIDACION, "Faltan campos requeridos: nombre y estudiantes.");
-        }
+        String nombre = nombreValido(datos.getNombre());
+        exigirNombreLibre(nombre, profesor, null);
+        Set<Estudiante> estudiantes = resolverOCrear(
+                datos.getEstudiantes() == null ? List.of() : datos.getEstudiantes());
 
         Grupo grupo = new Grupo();
-        grupo.setNombre(datos.getNombre());
+        grupo.setNombre(nombre);
         grupo.setProfesor(profesor);
         grupo = grupoRepository.save(grupo);
 
-        Set<Estudiante> estudiantes = resolverOCrear(datos.getEstudiantes());
         for (Estudiante estudiante : estudiantes) {
             estudiante.getGrupos().add(grupo);
         }
@@ -135,12 +208,14 @@ public class GrupoService {
      */
     @Transactional
     public GrupoDetalleDTO actualizar(int id, GrupoDTO datos, Profesor profesor) {
-        if (datos.getNombre() == null || datos.getEstudiantes() == null) {
+        if (datos.getEstudiantes() == null) {
             throw new AppException(ErrorCode.VALIDACION, "Faltan campos requeridos: nombre y estudiantes.");
         }
+        String nombre = nombreValido(datos.getNombre());
 
         Grupo grupo = delProfesor(id, profesor);
-        grupo.setNombre(datos.getNombre());
+        exigirNombreLibre(nombre, profesor, id);
+        grupo.setNombre(nombre);
 
         Set<Estudiante> deseados = resolverOCrear(datos.getEstudiantes());
 
@@ -177,13 +252,18 @@ public class GrupoService {
         grupoRepository.delete(grupo);
     }
 
+    /**
+     * Mismo criterio que crear: los correos que aún no existen se preinscriben.
+     * Antes exigía que todos existieran, así que una lista de clase cargada desde
+     * el detalle fallaba entera por un solo estudiante que no había entrado nunca.
+     */
     @Transactional
-    public GrupoDetalleDTO agregarEstudiantes(int id, List<String> emails, Profesor profesor) {
+    public GrupoDetalleDTO agregarEstudiantes(int id, List<EstudianteCrearDTO> solicitados, Profesor profesor) {
         Grupo grupo = delProfesor(id, profesor);
-        // Validar antes de mutar: la versión anterior añadía al grupo dentro del
-        // mismo bucle que recogía los correos inválidos, así que con la transacción
-        // abierta habría persistido las altas y devuelto 400 igualmente.
-        Set<Estudiante> estudiantes = exigirExistentes(emails);
+        // Validar antes de mutar: resolverOCrear rechaza la lista entera si un
+        // correo no es válido, sin haber añadido a nadie.
+        Set<Estudiante> estudiantes = resolverOCrear(solicitados);
+        estudiantes.removeAll(grupo.getEstudiantes());
 
         for (Estudiante estudiante : estudiantes) {
             grupo.getEstudiantes().add(estudiante);

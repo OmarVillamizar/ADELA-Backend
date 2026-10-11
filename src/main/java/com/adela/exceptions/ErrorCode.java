@@ -35,6 +35,7 @@ public enum ErrorCode {
     // Grupos
     ESTUDIANTES_NO_ENCONTRADOS(HttpStatus.BAD_REQUEST),
     ESTUDIANTE_NO_EN_GRUPO(HttpStatus.CONFLICT),
+    GRUPO_DUPLICADO(HttpStatus.CONFLICT),
 
     // Cuestionarios
     CUESTIONARIO_BLOQUEADO(HttpStatus.CONFLICT),

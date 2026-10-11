@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.adela.dto.EstudianteCrearDTO;
 import com.adela.dto.GrupoDTO;
 import com.adela.dto.GrupoDetalleDTO;
 import com.adela.dto.GrupoResumidoDTO;
@@ -74,8 +75,8 @@ public class GrupoController {
     @PostMapping("/{id}/estudiantes")
     @PreAuthorize("hasRole('PROFESOR') or hasRole('ADMINISTRADOR')")
     public ResponseEntity<GrupoDetalleDTO> agregarEstudiantesAlGrupo(@PathVariable int id,
-            @RequestBody List<String> emails) {
-        return ResponseEntity.ok(grupoService.agregarEstudiantes(id, emails, autenticado()));
+            @RequestBody List<EstudianteCrearDTO> estudiantes) {
+        return ResponseEntity.ok(grupoService.agregarEstudiantes(id, estudiantes, autenticado()));
     }
 
     @DeleteMapping("/{id}/estudiantes/{email}")
