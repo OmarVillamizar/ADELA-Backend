@@ -77,6 +77,7 @@ public class PromptIa {
     private final String prefijoNelse;
     private final String instruccionesExternas;
     private final String correccion;
+    private final String refinamiento;
     private final Set<String> catalogoCargado;
     private final Map<String, String> jsonCatalogo;
     private final Set<String> terminosCatalogo;
@@ -95,6 +96,8 @@ public class PromptIa {
         String ejemplo = leer(RUTA_PROMPT + "ejemplo_externo.json");
         String correccionCruda = leer(RUTA_PROMPT + "04_correccion.md");
         this.correccion = CABECERA_COMENTARIO.matcher(correccionCruda).replaceFirst("");
+        String refinamientoCrudo = leer(RUTA_PROMPT + "05_refinamiento.md");
+        this.refinamiento = CABECERA_COMENTARIO.matcher(refinamientoCrudo).replaceFirst("");
         // Las fichas nombran los instrumentos y resumen sus baremos: viajan con el catálogo, no con el repositorio.
         String fichas = leerCatalogo("fichas.md", catalogoDir, desdeClasspath);
 
@@ -111,11 +114,11 @@ public class PromptIa {
         this.jsonCatalogo = Collections.unmodifiableMap(new TreeMap<>(jsonCatalogo));
         this.terminosCatalogo = fichas == null ? Set.of() : terminos(om, fichas, jsonCatalogo);
 
-        // La versión cambia con el prompt y con los instrumentos que lo acompañan. La corrección
-        // entra aunque no esté en el prefijo: cambiarla cambia lo que Nelse hace, y las métricas
-        // que citan la versión deben poder distinguirlo.
+        // La versión cambia con el prompt y con los instrumentos que lo acompañan. La corrección y
+        // el refinamiento entran aunque no estén en el prefijo: cambiarlos cambia lo que Nelse
+        // hace, y las métricas que citan la versión deben poder distinguirlo.
         StringBuilder crudo = new StringBuilder().append(externo).append(reglas).append(motor).append(ejemplo)
-                .append(correccionCruda);
+                .append(correccionCruda).append(refinamientoCrudo);
         if (fichas != null) {
             crudo.append(fichas);
         }
@@ -168,6 +171,15 @@ public class PromptIa {
      */
     public String correccion() {
         return correccion;
+    }
+
+    /**
+     * Instrucciones del turno de refinamiento, como mensaje de usuario tras el JSON vigente
+     * (nunca en el prefijo). Terminan en el encabezado de las respuestas: el orquestador
+     * agrega debajo lo que la persona contestó.
+     */
+    public String refinamiento() {
+        return refinamiento;
     }
 
     /** Ids de los instrumentos del catálogo que se encontraron, en el orden del prefijo (alfabético). */

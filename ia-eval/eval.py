@@ -125,7 +125,8 @@ def version_prompt():
     """Igual que PromptIa.versionPrompt(): coincide con la cabecera de /instrucciones si el catálogo es el mismo."""
     fichas = catalogo_fichas()
     crudo = "".join(leer(os.path.join(PROMPT, n)) for n in ("00_externo.md", "01_reglas.md", "02_motor.md",
-                                                           "ejemplo_externo.json", "04_correccion.md"))
+                                                           "ejemplo_externo.json", "04_correccion.md",
+                                                           "05_refinamiento.md"))
     if fichas is not None:
         crudo += fichas
         crudo += "".join(i + "\n" + j for i, j in catalogo_json(fichas).items())

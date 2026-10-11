@@ -243,6 +243,34 @@ class PromptIaTest {
         }
     }
 
+    // ---------------------------------------------------------------- Refinamiento
+
+    @Test
+    @DisplayName("El refinamiento se carga sin su comentario de cabecera, termina en las respuestas y no va en el prefijo")
+    void refinamiento() {
+        PromptIa prompt = nuevo();
+        String refinamiento = prompt.refinamiento();
+
+        assertTrue(refinamiento.startsWith("# REFINEMENT TURN"), refinamiento.substring(0, 40));
+        assertFalse(refinamiento.contains("<!--"));
+        assertTrue(refinamiento.contains("{\"patch\": []}"));
+        assertTrue(refinamiento.endsWith("# TEACHER'S ANSWERS\n"));
+        assertFalse(prompt.prefijoNelse().contains("REFINEMENT TURN"));
+        assertFalse(prompt.instruccionesExternas().contains("REFINEMENT TURN"));
+        assertEquals(refinamiento, nuevo().refinamiento());
+    }
+
+    @Test
+    @DisplayName("El refinamiento no nombra ningún instrumento del catálogo")
+    void refinamientoSinTerminosDelCatalogo() {
+        PromptIa prompt = nuevo();
+        assumeFalse(prompt.terminosCatalogo().isEmpty(), "El catálogo no está en el classpath");
+
+        for (String termino : prompt.terminosCatalogo()) {
+            assertFalse(palabraCompleta(termino).matcher(prompt.refinamiento()).find(), termino);
+        }
+    }
+
     // ---------------------------------------------------------------- Términos
 
     @Test
