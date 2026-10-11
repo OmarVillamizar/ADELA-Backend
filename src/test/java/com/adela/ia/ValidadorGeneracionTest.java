@@ -9,14 +9,21 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.util.StreamUtils;
 
 import com.adela.calificacion.EscalaBanda;
@@ -42,7 +49,8 @@ class ValidadorGeneracionTest {
 
     private static final ObjectMapper OM = new ObjectMapper();
 
-    private final ValidadorGeneracion validador = new ValidadorGeneracion(OM);
+    /** Sin catálogo: nada que sanear, y las pruebas no dependen de qué haya en el classpath. */
+    private final ValidadorGeneracion validador = new ValidadorGeneracion(OM, new PromptIa(OM, null, false));
 
     // ---------------------------------------------------------------- Armado
 
@@ -120,20 +128,28 @@ class ValidadorGeneracionTest {
 
     // ---------------------------------------------------------------- Catálogo y ejemplo
 
-    @ParameterizedTest
-    @ValueSource(strings = { "chaea", "ils", "vark", "kolb_3_1", "herrmann", "rspq2f" })
-    @DisplayName("Cada instrumento del catálogo pasa sin errores duros ni avisos de cobertura")
-    void catalogoPasa(String archivo) throws IOException {
-        // El catálogo tiene licencia de terceros: no está en GitHub ni en el Docker.
-        String ruta = "ia/catalogo/" + archivo + "_cuestionario.json";
-        assumeTrue(new ClassPathResource(ruta).exists(), "El catálogo no está en el classpath: " + ruta);
-        JsonNode cuestionario = json(recurso(ruta));
+    /**
+     * Cada instrumento del catálogo que haya en el classpath pasa sin errores duros ni
+     * marcas. El catálogo tiene licencia de terceros y no está en GitHub ni en el Docker:
+     * sin él la prueba se omite.
+     */
+    @TestFactory
+    @DisplayName("Cada instrumento del catálogo pasa sin errores duros ni avisos")
+    Stream<DynamicTest> catalogoPasa() throws IOException {
+        Resource[] catalogo = new PathMatchingResourcePatternResolver()
+                .getResources("classpath*:ia/catalogo/*_cuestionario.json");
+        assumeTrue(catalogo.length > 0, "El catálogo no está en el classpath");
 
-        ResultadoImportacion r = validador.validar(new LectorJsonTolerante.Entrada(cuestionario, null, null));
+        return Arrays.stream(catalogo).map(recurso -> DynamicTest.dynamicTest(recurso.getFilename(), () -> {
+            JsonNode cuestionario = json(
+                    StreamUtils.copyToString(recurso.getInputStream(), StandardCharsets.UTF_8));
 
-        assertTrue(r.erroresDuros().isEmpty(), r.erroresDuros().toString());
-        assertNotNull(r.cuestionario());
-        assertTrue(r.marcas().isEmpty(), r.marcas().toString());
+            ResultadoImportacion r = validador.validar(new LectorJsonTolerante.Entrada(cuestionario, null, null));
+
+            assertTrue(r.erroresDuros().isEmpty(), r.erroresDuros().toString());
+            assertNotNull(r.cuestionario());
+            assertTrue(r.marcas().isEmpty(), r.marcas().toString());
+        }));
     }
 
     @Test
@@ -591,6 +607,76 @@ class ValidadorGeneracionTest {
         assertTrue(r.marcas().isEmpty(), r.marcas().toString());
         String salida = OM.writeValueAsString(r);
         assertFalse(salida.contains("__proto__") || salida.contains("prototype") || salida.contains("admin"), salida);
+    }
+
+    // ---------------------------------------------------------------- Nombres del catálogo
+
+    private static final String ANALISIS_CON_NOMBRES = """
+            {"reconocido": {"catalogo": "ALFA", "senales": ["Parece ALFA", "siglas AFX"],
+                            "diferencias": ["Difiere de Escala Alfa"]},
+             "lectura": {"motivo": "Regla de afx", "sugerencia": "Usar la de Gómez",
+                         "descartados": [{"esquema": "BAREMO", "porque": "ALFA no lo usa"}]},
+             "faltantes": ["Falta el baremo de ALFA"],
+             "noSoportado": [{"que": "Ítem de alfa", "resolucion": "Se omitió (AFX)"}],
+             "revision": [{"prioridad": 1, "riesgo": "ALTO", "seccion": "clave", "ubicacion": "Hoja de ALFA",
+                           "porque": "Compara con afx, ítem 2", "comoVerificar": "Busca a Gómez"}],
+             "preguntasAlProfesor": ["¿Es ALFA o alfabeto?"]}""";
+
+    private static final String REEMPLAZO = "un instrumento de referencia";
+
+    @Test
+    @DisplayName("Los nombres del catálogo se reemplazan en el informe y en las marcas, nunca en el cuestionario")
+    void saneaElInformeYLasMarcas(@TempDir Path dir) throws IOException {
+        Files.writeString(dir.resolve("alfa_cuestionario.json"),
+                "{\"nombre\": \"Escala Alfa\", \"siglas\": \"AFX\", \"autor\": \"Ana Pérez Gómez\"}");
+        Files.writeString(dir.resolve("fichas.md"), "## ALFA\n- Ficha.\n");
+        ValidadorGeneracion conCatalogo = new ValidadorGeneracion(OM, new PromptIa(OM, dir.toString(), false));
+        CuestionarioDTO dto = base();
+        dto.getPreguntas().get(0).setPregunta("Afirmación sobre ALFA y afx");
+        dto.setAutor("Ana Pérez Gómez");
+
+        ResultadoImportacion r = conCatalogo.validar(new LectorJsonTolerante.Entrada(OM.valueToTree(dto),
+                json(ANALISIS_CON_NOMBRES), null));
+
+        // El cuestionario es del usuario: intacto.
+        assertEquals("Afirmación sobre ALFA y afx", r.cuestionario().getPreguntas().get(0).getPregunta());
+        assertEquals("Ana Pérez Gómez", r.cuestionario().getAutor());
+        // El informe, saneado; el id de reconocido.catalogo no se muestra y queda como está.
+        AnalisisIa a = r.analisis();
+        assertEquals("ALFA", a.reconocido().catalogo());
+        assertEquals(List.of("Parece " + REEMPLAZO, "siglas " + REEMPLAZO), a.reconocido().senales());
+        // El nombre completo gana a su propia palabra: un solo reemplazo.
+        assertEquals(List.of("Difiere de " + REEMPLAZO), a.reconocido().diferencias());
+        assertEquals("Regla de " + REEMPLAZO, a.lectura().motivo());
+        assertEquals("Usar la de " + REEMPLAZO, a.lectura().sugerencia());
+        assertEquals(REEMPLAZO + " no lo usa", a.lectura().descartados().get(0).porque());
+        assertEquals("BAREMO", a.lectura().descartados().get(0).esquema());
+        assertEquals(List.of("Falta el baremo de " + REEMPLAZO), a.faltantes());
+        assertEquals("Ítem de " + REEMPLAZO, a.noSoportado().get(0).que());
+        assertEquals("Se omitió (" + REEMPLAZO + ")", a.noSoportado().get(0).resolucion());
+        AnalisisIa.Revision revision = a.revision().get(0);
+        assertEquals("Hoja de " + REEMPLAZO, revision.ubicacion());
+        assertEquals("Compara con " + REEMPLAZO + ", ítem 2", revision.porque());
+        assertEquals("Busca a " + REEMPLAZO, revision.comoVerificar());
+        assertEquals("clave", revision.seccion());
+        // Solo la palabra completa: "alfabeto" no es "alfa".
+        assertEquals(List.of("¿Es " + REEMPLAZO + " o alfabeto?"), a.preguntasAlProfesor());
+        // Las marcas del modelo salen del mismo texto, y las referencias se conservan.
+        Marca marca = marcas(r, Marca.MODELO, Marca.ALTO, "clave").get(0);
+        assertEquals("Hoja de " + REEMPLAZO + ": Compara con " + REEMPLAZO + ", ítem 2", marca.mensaje());
+        assertEquals("Busca a " + REEMPLAZO, marca.comoVerificar());
+        assertEquals(List.of("pregunta:2"), marca.refs());
+        assertTrue(r.erroresDuros().isEmpty(), r.erroresDuros().toString());
+    }
+
+    @Test
+    @DisplayName("Sin catálogo no se reemplaza nada")
+    void sinCatalogoNoSanea() throws IOException {
+        ResultadoImportacion r = validar(base(), ANALISIS_CON_NOMBRES);
+
+        assertEquals("Regla de afx", r.analisis().lectura().motivo());
+        assertEquals("Hoja de ALFA: Compara con afx, ítem 2",
+                marcas(r, Marca.MODELO, Marca.ALTO, "clave").get(0).mensaje());
     }
 
     // ---------------------------------------------------------------- Marcas del modelo

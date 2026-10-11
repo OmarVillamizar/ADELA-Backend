@@ -84,11 +84,15 @@ public class ValidadorGeneracion {
 
     private final ObjectMapper om;
 
-    public ValidadorGeneracion(ObjectMapper om) {
+    /** Quita los nombres de instrumentos del catálogo de lo que ve el usuario. */
+    private final SaneadorTerminos saneador;
+
+    public ValidadorGeneracion(ObjectMapper om, PromptIa promptIa) {
         // Como el POST: las propiedades desconocidas se ignoran. Un null dentro de una lista es
         // un error de lectura con su ruta, no un NullPointerException más adelante.
         this.om = om.copy().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         this.om.configOverride(List.class).setSetterInfo(JsonSetter.Value.forContentNulls(Nulls.FAIL));
+        this.saneador = new SaneadorTerminos(promptIa.terminosCatalogo());
     }
 
     public ResultadoImportacion validar(LectorJsonTolerante.Entrada entrada) {
@@ -121,7 +125,10 @@ public class ValidadorGeneracion {
         ContenidoSospechoso.revisar(dto).forEach(m -> agregar(marcas, m));
         marcasDeOrigen(analisis, lectura, marcas);
         marcasDelModelo(analisis, dto, marcas);
-        return new ResultadoImportacion(dto, analisis, ordenar(marcas), errores);
+        // Solo el informe y las marcas: el cuestionario es del usuario y no se toca. Se sanea antes de
+        // ordenar para que dos mensajes que solo diferían en el nombre queden como un duplicado.
+        marcas.replaceAll(c -> new Candidata(saneador.sanear(c.marca()), c.prioridad()));
+        return new ResultadoImportacion(dto, saneador.sanear(analisis), ordenar(marcas), errores);
     }
 
     // ---------------------------------------------------------------- L1
