@@ -1,0 +1,44 @@
+ESCALA DE AUTORREGULACIÓN DEL ESTUDIO (EAE-12)
+Autora: M. Pérez (2019). Versión 1.0.                                   Página 1 de 2
+
+Datos del estudiante:  Edad: ____   Sexo: ____   Programa: ______________
+
+Instrucciones: Lea cada afirmación y marque con qué frecuencia le ocurre:
+1 = Nunca   2 = Casi nunca   3 = A veces   4 = Casi siempre   5 = Siempre
+
+1. Antes de estudiar defino qué temas voy a repasar.            1  2  3  4  5
+2. Mientras estudio compruebo si estoy entendiendo lo que       1  2  3  4  5
+   leo.
+3. Al terminar un examen analizo en qué me equivoqué.           1  2  3  4  5
+4. Empiezo a estudiar sin saber qué necesito aprender.          1  2  3  4  5
+5. Si me distraigo, retomo la lectura desde donde perdí el      1  2  3  4  5
+   hilo.
+6. Comparo mis resultados con las metas que me había propuesto. 1  2  3  4  5
+7. Organizo mi tiempo de estudio en un horario semanal.         1  2  3  4  5
+8. Me hago preguntas para saber si domino el tema.              1  2  3  4  5
+9. Después de una entrega reviso qué podría mejorar la próxima  1  2  3  4  5
+   vez.
+10. Reúno los materiales que necesito antes de empezar.         1  2  3  4  5
+11. Sigo leyendo aunque no entienda lo que dice el texto.       1  2  3  4  5
+12. Pido retroalimentación a mis profesores sobre mi desempeño. 1  2  3  4  5
+13. ¿Qué estrategia de estudio te funciona mejor? (respuesta abierta)
+    ____________________________________________
+
+© 2019 M. Pérez – uso académico                                   Página 2 de 2
+CORRECCIÓN
+Sume los ítems de cada subescala:
+- Planificación: 1, 4*, 7, 10
+- Monitoreo: 2, 5, 8, 11*
+- Evaluación: 3, 6, 9, 12
+(*) Ítems inversos: 1=5, 2=4, 3=3, 4=2, 5=1.
+Puntaje total de autorregulación = Planificación + Monitoreo + Evaluación.
+
+BAREMOS (puntaje directo por subescala, rango 4–20)
+Grupo 15–17 años:               Bajo 4–8    Medio 9–14    Alto 15–20
+Grupo 18–25 años (universitarios): Bajo 4–9    Medio 10–15   Alto 16–20
+
+INTERPRETACIÓN
+Un nivel Bajo en Planificación indica que el estudiante suele iniciar sus tareas sin un plan
+claro; se recomienda trabajar con agendas y metas semanales. Un nivel Alto en Monitoreo indica
+que el estudiante detecta a tiempo cuándo no comprende y ajusta su forma de estudiar. Un nivel
+Medio en Evaluación sugiere que revisa sus resultados de forma ocasional.

@@ -39,3 +39,8 @@ CLAUDE.md
 
 ### Catálogo de instrumentos con licencia de terceros: no se publica ###
 /src/main/resources/ia/catalogo/
+
+### Evaluación de la IA: casos que nombran instrumentos publicados y salidas de las corridas ###
+/ia-eval/casos/
+/ia-eval/salidas/
+__pycache__/
