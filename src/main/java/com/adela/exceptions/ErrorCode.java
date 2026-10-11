@@ -52,7 +52,13 @@ public enum ErrorCode {
     CLAVE_INCONSISTENTE(HttpStatus.INTERNAL_SERVER_ERROR),
 
     // Cápsulas
-    CAPSULA_CERRADA(HttpStatus.CONFLICT);
+    CAPSULA_CERRADA(HttpStatus.CONFLICT),
+
+    // Asistente IA
+    IA_DESHABILITADA(HttpStatus.SERVICE_UNAVAILABLE),
+    IA_NO_DISPONIBLE(HttpStatus.BAD_GATEWAY),
+    IA_RESPUESTA_INVALIDA(HttpStatus.UNPROCESSABLE_ENTITY),
+    DOCUMENTO_INVALIDO(HttpStatus.BAD_REQUEST);
 
     private final HttpStatus status;
 

@@ -69,6 +69,22 @@ adela:
         # terceros y no va en el repositorio. Si falta en el classpath (ia/catalogo/),
         # se busca en este directorio; sin él Nelse no reconoce instrumentos.
         catalogo-dir: ${IA_CATALOGO_DIR:}
+        # Nelse (generación con el modelo) queda apagada por defecto: sin llave o con
+        # habilitada=false solo funciona la importación de JSON ("Con tu propia IA"),
+        # que no llama a ningún proveedor. La llave va solo en AI_API, nunca en este archivo.
+        habilitada: ${IA_HABILITADA:false}
+        base-url: ${IA_BASE_URL:https://api.deepseek.com}
+        modelo: ${IA_MODELO:deepseek-flash}
+        api-key: ${AI_API:}
+        # Tope de toda la petición, no solo de la conexión: un PDF largo con razonamiento alto tarda.
+        timeout: ${IA_TIMEOUT:180s}
+        esfuerzo-generar: ${IA_ESFUERZO_GENERAR:high}
+        esfuerzo-corregir: ${IA_ESFUERZO_CORREGIR:low}
+        max-salida: ${IA_MAX_SALIDA:32000}
+        cuota-diaria: ${IA_CUOTA_DIARIA:30}
+        max-mb: ${IA_MAX_MB:15}
+        max-paginas: ${IA_MAX_PAGINAS:40}
+        max-imagenes: ${IA_MAX_IMAGENES:12}
 
 server:
   port: ${PORT:8080}
