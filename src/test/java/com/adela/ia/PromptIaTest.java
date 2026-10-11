@@ -200,6 +200,21 @@ class PromptIaTest {
         salida.closeEntry();
     }
 
+    @Test
+    @DisplayName("catalogoJson devuelve el JSON del instrumento por id sin distinguir mayúsculas, y vacío si no está")
+    void catalogoJsonPorId(@TempDir Path dir) throws IOException {
+        archivo(dir, "alfa_cuestionario.json", "{\"nombre\": \"A\"}");
+        archivo(dir, "fichas.md", FICHAS);
+        PromptIa prompt = conDirectorio(dir);
+
+        assertEquals("{\"nombre\": \"A\"}", prompt.catalogoJson("ALFA").orElseThrow());
+        assertEquals("{\"nombre\": \"A\"}", prompt.catalogoJson(" alfa ").orElseThrow());
+        assertTrue(prompt.catalogoJson("BETA").isEmpty());
+        assertTrue(prompt.catalogoJson("").isEmpty());
+        assertTrue(prompt.catalogoJson(null).isEmpty());
+        assertTrue(conDirectorio(dir.resolve("no-existe")).catalogoJson("ALFA").isEmpty());
+    }
+
     // ---------------------------------------------------------------- Corrección
 
     @Test

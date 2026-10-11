@@ -87,15 +87,29 @@ public class ValidadorGeneracion {
     /** Quita los nombres de instrumentos del catálogo de lo que ve el usuario. */
     private final SaneadorTerminos saneador;
 
+    /** L4 contra lo que Nelse le dio al modelo y contra el catálogo; solo la usa la vía Nelse. */
+    private final ProcedenciaNelse procedencia;
+
     public ValidadorGeneracion(ObjectMapper om, PromptIa promptIa) {
         // Como el POST: las propiedades desconocidas se ignoran. Un null dentro de una lista es
         // un error de lectura con su ruta, no un NullPointerException más adelante.
         this.om = om.copy().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         this.om.configOverride(List.class).setSetterInfo(JsonSetter.Value.forContentNulls(Nulls.FAIL));
         this.saneador = new SaneadorTerminos(promptIa.terminosCatalogo());
+        this.procedencia = new ProcedenciaNelse(this.om, promptIa);
     }
 
+    /** Importación (JSON de una IA externa): no hay documento, así que no hay chequeos de procedencia contra él. */
     public ResultadoImportacion validar(LectorJsonTolerante.Entrada entrada) {
+        return validar(entrada, null);
+    }
+
+    /**
+     * Vía Nelse: además de L1 a L4 de la importación, comprueba contra la fuente que el
+     * modelo recibió que las cifras, el catálogo y los enunciados no sean inventados.
+     * Con fuente null es exactamente la importación.
+     */
+    public ResultadoImportacion validar(LectorJsonTolerante.Entrada entrada, FuenteNelse fuente) {
         CuestionarioDTO dto;
         try {
             dto = om.treeToValue(entrada.cuestionario(), CuestionarioDTO.class);
@@ -125,6 +139,9 @@ public class ValidadorGeneracion {
         ContenidoSospechoso.revisar(dto).forEach(m -> agregar(marcas, m));
         marcasDeOrigen(analisis, lectura, marcas);
         marcasDelModelo(analisis, dto, marcas);
+        if (fuente != null) {
+            procedencia.revisar(dto, analisis, fuente).forEach(m -> agregar(marcas, m));
+        }
         // Solo el informe y las marcas: el cuestionario es del usuario y no se toca. Se sanea antes de
         // ordenar para que dos mensajes que solo diferían en el nombre queden como un duplicado.
         marcas.replaceAll(c -> new Candidata(saneador.sanear(c.marca()), c.prioridad()));

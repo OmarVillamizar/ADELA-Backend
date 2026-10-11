@@ -13,6 +13,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
@@ -77,6 +78,7 @@ public class PromptIa {
     private final String instruccionesExternas;
     private final String correccion;
     private final Set<String> catalogoCargado;
+    private final Map<String, String> jsonCatalogo;
     private final Set<String> terminosCatalogo;
 
     /** catalogoDir puede ser null o vacío: entonces solo se mira el classpath. */
@@ -106,6 +108,7 @@ public class PromptIa {
                     + "Ponlos en ia/catalogo/ del classpath o define IA_CATALOGO_DIR.", SUFIJO_JSON);
         }
         this.catalogoCargado = Collections.unmodifiableSet(new LinkedHashSet<>(jsonCatalogo.keySet()));
+        this.jsonCatalogo = Collections.unmodifiableMap(new TreeMap<>(jsonCatalogo));
         this.terminosCatalogo = fichas == null ? Set.of() : terminos(om, fichas, jsonCatalogo);
 
         // La versión cambia con el prompt y con los instrumentos que lo acompañan. La corrección
@@ -170,6 +173,15 @@ public class PromptIa {
     /** Ids de los instrumentos del catálogo que se encontraron, en el orden del prefijo (alfabético). */
     public Set<String> catalogoCargado() {
         return catalogoCargado;
+    }
+
+    /**
+     * JSON del instrumento del catálogo con ese id (sin importar mayúsculas), para comparar
+     * contra lo que generó el modelo. Vacío si no se cargó. No toca el prefijo ni la versión.
+     */
+    public Optional<String> catalogoJson(String id) {
+        return id == null ? Optional.empty()
+                : Optional.ofNullable(jsonCatalogo.get(id.strip().toUpperCase(Locale.ROOT)));
     }
 
     /**
