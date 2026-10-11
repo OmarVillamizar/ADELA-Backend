@@ -1,0 +1,958 @@
+{
+ "formato": "adela-cuestionario/1",
+ "cuestionario": {
+  "nombre": "Escala de Autorregulación del Estudio",
+  "siglas": "EAE-12",
+  "descripcion": "Escala de Autorregulación del Estudio (EAE-12). Instrumento de 12 afirmaciones con respuesta tipo Likert de frecuencia (1 = Nunca a 5 = Siempre) que mide tres subescalas de autorregulación del aprendizaje: Planificación, Monitoreo y Evaluación, cada una con 4 ítems (puntaje directo 4–20 por subescala). Los ítems 4 (Planificación) y 11 (Monitoreo) se puntúan de forma inversa según la tabla de corrección del documento. El puntaje total de autorregulación es la suma de las tres subescalas (rango 12–60).",
+  "autor": "M. Pérez",
+  "version": "1.0",
+  "estilos": [
+   {
+    "id": 1,
+    "nombre": "Planificación",
+    "tipo": "PRIMARIO",
+    "coeficientes": null
+   },
+   {
+    "id": 2,
+    "nombre": "Monitoreo",
+    "tipo": "PRIMARIO",
+    "coeficientes": null
+   },
+   {
+    "id": 3,
+    "nombre": "Evaluación",
+    "tipo": "PRIMARIO",
+    "coeficientes": null
+   },
+   {
+    "id": 4,
+    "nombre": "Autorregulación total",
+    "tipo": "COMPUESTO",
+    "coeficientes": [
+     {
+      "estiloId": 1,
+      "coeficiente": 1
+     },
+     {
+      "estiloId": 2,
+      "coeficiente": 1
+     },
+     {
+      "estiloId": 3,
+      "coeficiente": 1
+     }
+    ]
+   }
+  ],
+  "preguntas": [
+   {
+    "pregunta": "Antes de estudiar defino qué temas voy a repasar.",
+    "orden": 1,
+    "formato": "UNICA",
+    "obligatoria": true,
+    "minSelecciones": null,
+    "maxSelecciones": null,
+    "puntosRepartir": null,
+    "opciones": [
+     {
+      "orden": 1,
+      "respuesta": "Nunca",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 1
+       }
+      ]
+     },
+     {
+      "orden": 2,
+      "respuesta": "Casi nunca",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 2
+       }
+      ]
+     },
+     {
+      "orden": 3,
+      "respuesta": "A veces",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 3
+       }
+      ]
+     },
+     {
+      "orden": 4,
+      "respuesta": "Casi siempre",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 4
+       }
+      ]
+     },
+     {
+      "orden": 5,
+      "respuesta": "Siempre",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pregunta": "Mientras estudio compruebo si estoy entendiendo lo que leo.",
+    "orden": 2,
+    "formato": "UNICA",
+    "obligatoria": true,
+    "minSelecciones": null,
+    "maxSelecciones": null,
+    "puntosRepartir": null,
+    "opciones": [
+     {
+      "orden": 1,
+      "respuesta": "Nunca",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 1
+       }
+      ]
+     },
+     {
+      "orden": 2,
+      "respuesta": "Casi nunca",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 2
+       }
+      ]
+     },
+     {
+      "orden": 3,
+      "respuesta": "A veces",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 3
+       }
+      ]
+     },
+     {
+      "orden": 4,
+      "respuesta": "Casi siempre",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 4
+       }
+      ]
+     },
+     {
+      "orden": 5,
+      "respuesta": "Siempre",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pregunta": "Al terminar un examen analizo en qué me equivoqué.",
+    "orden": 3,
+    "formato": "UNICA",
+    "obligatoria": true,
+    "minSelecciones": null,
+    "maxSelecciones": null,
+    "puntosRepartir": null,
+    "opciones": [
+     {
+      "orden": 1,
+      "respuesta": "Nunca",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 1
+       }
+      ]
+     },
+     {
+      "orden": 2,
+      "respuesta": "Casi nunca",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 2
+       }
+      ]
+     },
+     {
+      "orden": 3,
+      "respuesta": "A veces",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 3
+       }
+      ]
+     },
+     {
+      "orden": 4,
+      "respuesta": "Casi siempre",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 4
+       }
+      ]
+     },
+     {
+      "orden": 5,
+      "respuesta": "Siempre",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pregunta": "Empiezo a estudiar sin saber qué necesito aprender.",
+    "orden": 4,
+    "formato": "UNICA",
+    "obligatoria": true,
+    "minSelecciones": null,
+    "maxSelecciones": null,
+    "puntosRepartir": null,
+    "opciones": [
+     {
+      "orden": 1,
+      "respuesta": "Nunca",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 5
+       }
+      ]
+     },
+     {
+      "orden": 2,
+      "respuesta": "Casi nunca",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 4
+       }
+      ]
+     },
+     {
+      "orden": 3,
+      "respuesta": "A veces",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 3
+       }
+      ]
+     },
+     {
+      "orden": 4,
+      "respuesta": "Casi siempre",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 2
+       }
+      ]
+     },
+     {
+      "orden": 5,
+      "respuesta": "Siempre",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 1
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pregunta": "Si me distraigo, retomo la lectura desde donde perdí el hilo.",
+    "orden": 5,
+    "formato": "UNICA",
+    "obligatoria": true,
+    "minSelecciones": null,
+    "maxSelecciones": null,
+    "puntosRepartir": null,
+    "opciones": [
+     {
+      "orden": 1,
+      "respuesta": "Nunca",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 1
+       }
+      ]
+     },
+     {
+      "orden": 2,
+      "respuesta": "Casi nunca",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 2
+       }
+      ]
+     },
+     {
+      "orden": 3,
+      "respuesta": "A veces",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 3
+       }
+      ]
+     },
+     {
+      "orden": 4,
+      "respuesta": "Casi siempre",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 4
+       }
+      ]
+     },
+     {
+      "orden": 5,
+      "respuesta": "Siempre",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pregunta": "Comparo mis resultados con las metas que me había propuesto.",
+    "orden": 6,
+    "formato": "UNICA",
+    "obligatoria": true,
+    "minSelecciones": null,
+    "maxSelecciones": null,
+    "puntosRepartir": null,
+    "opciones": [
+     {
+      "orden": 1,
+      "respuesta": "Nunca",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 1
+       }
+      ]
+     },
+     {
+      "orden": 2,
+      "respuesta": "Casi nunca",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 2
+       }
+      ]
+     },
+     {
+      "orden": 3,
+      "respuesta": "A veces",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 3
+       }
+      ]
+     },
+     {
+      "orden": 4,
+      "respuesta": "Casi siempre",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 4
+       }
+      ]
+     },
+     {
+      "orden": 5,
+      "respuesta": "Siempre",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pregunta": "Organizo mi tiempo de estudio en un horario semanal.",
+    "orden": 7,
+    "formato": "UNICA",
+    "obligatoria": true,
+    "minSelecciones": null,
+    "maxSelecciones": null,
+    "puntosRepartir": null,
+    "opciones": [
+     {
+      "orden": 1,
+      "respuesta": "Nunca",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 1
+       }
+      ]
+     },
+     {
+      "orden": 2,
+      "respuesta": "Casi nunca",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 2
+       }
+      ]
+     },
+     {
+      "orden": 3,
+      "respuesta": "A veces",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 3
+       }
+      ]
+     },
+     {
+      "orden": 4,
+      "respuesta": "Casi siempre",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 4
+       }
+      ]
+     },
+     {
+      "orden": 5,
+      "respuesta": "Siempre",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pregunta": "Me hago preguntas para saber si domino el tema.",
+    "orden": 8,
+    "formato": "UNICA",
+    "obligatoria": true,
+    "minSelecciones": null,
+    "maxSelecciones": null,
+    "puntosRepartir": null,
+    "opciones": [
+     {
+      "orden": 1,
+      "respuesta": "Nunca",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 1
+       }
+      ]
+     },
+     {
+      "orden": 2,
+      "respuesta": "Casi nunca",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 2
+       }
+      ]
+     },
+     {
+      "orden": 3,
+      "respuesta": "A veces",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 3
+       }
+      ]
+     },
+     {
+      "orden": 4,
+      "respuesta": "Casi siempre",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 4
+       }
+      ]
+     },
+     {
+      "orden": 5,
+      "respuesta": "Siempre",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pregunta": "Después de una entrega reviso qué podría mejorar la próxima vez.",
+    "orden": 9,
+    "formato": "UNICA",
+    "obligatoria": true,
+    "minSelecciones": null,
+    "maxSelecciones": null,
+    "puntosRepartir": null,
+    "opciones": [
+     {
+      "orden": 1,
+      "respuesta": "Nunca",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 1
+       }
+      ]
+     },
+     {
+      "orden": 2,
+      "respuesta": "Casi nunca",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 2
+       }
+      ]
+     },
+     {
+      "orden": 3,
+      "respuesta": "A veces",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 3
+       }
+      ]
+     },
+     {
+      "orden": 4,
+      "respuesta": "Casi siempre",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 4
+       }
+      ]
+     },
+     {
+      "orden": 5,
+      "respuesta": "Siempre",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pregunta": "Reúno los materiales que necesito antes de empezar.",
+    "orden": 10,
+    "formato": "UNICA",
+    "obligatoria": true,
+    "minSelecciones": null,
+    "maxSelecciones": null,
+    "puntosRepartir": null,
+    "opciones": [
+     {
+      "orden": 1,
+      "respuesta": "Nunca",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 1
+       }
+      ]
+     },
+     {
+      "orden": 2,
+      "respuesta": "Casi nunca",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 2
+       }
+      ]
+     },
+     {
+      "orden": 3,
+      "respuesta": "A veces",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 3
+       }
+      ]
+     },
+     {
+      "orden": 4,
+      "respuesta": "Casi siempre",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 4
+       }
+      ]
+     },
+     {
+      "orden": 5,
+      "respuesta": "Siempre",
+      "pesos": [
+       {
+        "estiloId": 1,
+        "peso": 5
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pregunta": "Sigo leyendo aunque no entienda lo que dice el texto.",
+    "orden": 11,
+    "formato": "UNICA",
+    "obligatoria": true,
+    "minSelecciones": null,
+    "maxSelecciones": null,
+    "puntosRepartir": null,
+    "opciones": [
+     {
+      "orden": 1,
+      "respuesta": "Nunca",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 5
+       }
+      ]
+     },
+     {
+      "orden": 2,
+      "respuesta": "Casi nunca",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 4
+       }
+      ]
+     },
+     {
+      "orden": 3,
+      "respuesta": "A veces",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 3
+       }
+      ]
+     },
+     {
+      "orden": 4,
+      "respuesta": "Casi siempre",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 2
+       }
+      ]
+     },
+     {
+      "orden": 5,
+      "respuesta": "Siempre",
+      "pesos": [
+       {
+        "estiloId": 2,
+        "peso": 1
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "pregunta": "Pido retroalimentación a mis profesores sobre mi desempeño.",
+    "orden": 12,
+    "formato": "UNICA",
+    "obligatoria": true,
+    "minSelecciones": null,
+    "maxSelecciones": null,
+    "puntosRepartir": null,
+    "opciones": [
+     {
+      "orden": 1,
+      "respuesta": "Nunca",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 1
+       }
+      ]
+     },
+     {
+      "orden": 2,
+      "respuesta": "Casi nunca",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 2
+       }
+      ]
+     },
+     {
+      "orden": 3,
+      "respuesta": "A veces",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 3
+       }
+      ]
+     },
+     {
+      "orden": 4,
+      "respuesta": "Casi siempre",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 4
+       }
+      ]
+     },
+     {
+      "orden": 5,
+      "respuesta": "Siempre",
+      "pesos": [
+       {
+        "estiloId": 3,
+        "peso": 5
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "interpretacion": {
+   "esquema": "BAREMO",
+   "delta": 10,
+   "esIpsativo": null,
+   "bandas": [
+    {
+     "estilo": "Planificación",
+     "escala": "BRUTO",
+     "limiteInferior": 4,
+     "limiteSuperior": 9,
+     "etiqueta": "Bajo",
+     "orden": 1
+    },
+    {
+     "estilo": "Planificación",
+     "escala": "BRUTO",
+     "limiteInferior": 10,
+     "limiteSuperior": 15,
+     "etiqueta": "Medio",
+     "orden": 2
+    },
+    {
+     "estilo": "Planificación",
+     "escala": "BRUTO",
+     "limiteInferior": 16,
+     "limiteSuperior": 20,
+     "etiqueta": "Alto",
+     "orden": 3
+    },
+    {
+     "estilo": "Monitoreo",
+     "escala": "BRUTO",
+     "limiteInferior": 4,
+     "limiteSuperior": 9,
+     "etiqueta": "Bajo",
+     "orden": 1
+    },
+    {
+     "estilo": "Monitoreo",
+     "escala": "BRUTO",
+     "limiteInferior": 10,
+     "limiteSuperior": 15,
+     "etiqueta": "Medio",
+     "orden": 2
+    },
+    {
+     "estilo": "Monitoreo",
+     "escala": "BRUTO",
+     "limiteInferior": 16,
+     "limiteSuperior": 20,
+     "etiqueta": "Alto",
+     "orden": 3
+    },
+    {
+     "estilo": "Evaluación",
+     "escala": "BRUTO",
+     "limiteInferior": 4,
+     "limiteSuperior": 9,
+     "etiqueta": "Bajo",
+     "orden": 1
+    },
+    {
+     "estilo": "Evaluación",
+     "escala": "BRUTO",
+     "limiteInferior": 10,
+     "limiteSuperior": 15,
+     "etiqueta": "Medio",
+     "orden": 2
+    },
+    {
+     "estilo": "Evaluación",
+     "escala": "BRUTO",
+     "limiteInferior": 16,
+     "limiteSuperior": 20,
+     "etiqueta": "Alto",
+     "orden": 3
+    }
+   ],
+   "escalones": [],
+   "plano": null,
+   "complementaria": null
+  }
+ },
+ "analisis": {
+  "modo": "TRANSCRIPCION",
+  "modeloAsistente": "ENFOQUES",
+  "lectura": {
+   "esquema": "BAREMO",
+   "lecturaAsistente": null,
+   "corte": null,
+   "motivo": "El documento imprime una tabla de normas por subescala con cortes sobre el puntaje directo (rango 4–20): «Grupo 18–25 años (universitarios): Bajo 4–9 Medio 10–15 Alto 16–20». No hay regla de predominio ni perfiles.",
+   "descartados": [
+    {
+     "esquema": "NINGUNA",
+     "porque": "El documento sí imprime baremos con etiquetas por subescala."
+    },
+    {
+     "esquema": "RELATIVO",
+     "porque": "No se define estilo predominante; el resultado es un nivel por subescala más un total."
+    },
+    {
+     "esquema": "NIVEL_SUPERIOR",
+     "porque": "No hay niveles primaria/secundaria/terciaria ni dominancia por orden."
+    }
+   ],
+   "sugerencia": null
+  },
+  "origen": {
+   "items": "DOCUMENTO",
+   "clave": "DOCUMENTO",
+   "compuestos": "DOCUMENTO",
+   "bandas": "DOCUMENTO",
+   "escalones": "VACIO",
+   "plano": "VACIO",
+   "complementaria": "VACIO"
+  },
+  "faltantes": [
+   "No hay baremo general (único) en el documento: solo baremos por grupo de edad (15–17 y 18–25).",
+   "No hay baremo ni corte para el puntaje total de autorregulación (rango 12–60)."
+  ],
+  "noSoportado": [
+   {
+    "que": "Baremo del grupo 15–17 años (Bajo 4–8, Medio 9–14, Alto 15–20)",
+    "resolucion": "No se modela. Se aplicó el baremo del grupo 18–25 años (universitarios) por ser el más cercano a la población objetivo; la otra norma queda fuera del cuestionario."
+   },
+   {
+    "que": "Ítem 13 abierto: «¿Qué estrategia de estudio te funciona mejor? (respuesta abierta)»",
+    "resolucion": "Omitido: ADELA no soporta ítems abiertos ni codificación de texto libre."
+   },
+   {
+    "que": "Campos de encabezado «Datos del estudiante: Edad / Sexo / Programa»",
+    "resolucion": "Omitidos: no son ítems puntuables ni demografía modelable en el cuestionario."
+   }
+  ],
+  "revision": [
+   {
+    "prioridad": 1,
+    "riesgo": "ALTO",
+    "seccion": "bandas",
+    "ubicacion": "BAREMOS (puntaje directo por subescala, rango 4–20), página 2",
+    "porque": "El documento imprime DOS normas por grupo de edad. Se aplicó solo la del «Grupo 18–25 años (universitarios): Bajo 4–9 / Medio 10–15 / Alto 16–20» y se descartó la de 15–17 años (Bajo 4–8 / Medio 9–14 / Alto 15–20). Si la población evaluada es de 15–17 años, todas las etiquetas de banda son incorrectas.",
+    "comoVerificar": "Confirmar con la autora/profesor qué grupo de edad corresponde a la aplicación y, si se usan ambos, evaluar si ADELA debe cargarse dos veces (una por grupo)."
+   },
+   {
+    "prioridad": 2,
+    "riesgo": "ALTO",
+    "seccion": "clave",
+    "ubicacion": "Sección CORRECCIÓN: «Planificación: 1, 4*, 7, 10» y «Monitoreo: 2, 5, 8, 11*»; «(*) Ítems inversos: 1=5, 2=4, 3=3, 4=2, 5=1»",
+    "porque": "Se invirtieron los pesos de los ítems 4 y 11 (Nunca = 5 … Siempre = 1). Si la inversión no se aplica, la subescala queda mal puntuada y el rango real deja de ser 4–20.",
+    "comoVerificar": "Revisar en el JSON que las opciones del ítem 4 (Planificación) y del ítem 11 (Monitoreo) tengan pesos 5,4,3,2,1, y que el resto de los ítems de esas subescalas tengan 1,2,3,4,5."
+   },
+   {
+    "prioridad": 3,
+    "riesgo": "MEDIO",
+    "seccion": "items",
+    "ubicacion": "Ítem 13, página 2: «¿Qué estrategia de estudio te funciona mejor? (respuesta abierta)»",
+    "porque": "Ítem abierto no expresable en ADELA; fue omitido, por lo que el cuestionario cargado tiene 12 ítems y no 13.",
+    "comoVerificar": "Decidir junto al profesor si el ítem 13 se elimina del formulario o se aplica por fuera de ADELA."
+   },
+   {
+    "prioridad": 4,
+    "riesgo": "MEDIO",
+    "seccion": "compuestos",
+    "ubicacion": "CORRECCIÓN: «Puntaje total de autorregulación = Planificación + Monitoreo + Evaluación»",
+    "porque": "El total se modeló como COMPUESTO aditivo (rango 12–60) sin bandas, porque el documento no imprime baremo para el total. Queda un puntaje sin interpretación asociada.",
+    "comoVerificar": "Confirmar si existe un corte para el total (12–60) o si debe mostrarse solo el valor bruto."
+   }
+  ],
+  "preguntasAlProfesor": [
+   "¿El baremo a aplicar es el del grupo 18–25 años (universitarios: Bajo 4–9 / Medio 10–15 / Alto 16–20) o el del grupo 15–17 años (Bajo 4–8 / Medio 9–14 / Alto 15–20)?",
+   "¿Debe conservarse el ítem 13 abierto y, si es así, cómo se registra (fuera de ADELA)?",
+   "¿Existe algún corte o baremo para el puntaje total de autorregulación (12–60), o se muestra solo el valor bruto?",
+   "¿El cuestionario se aplica a estudiantes universitarios, o se necesita una versión para 15–17 años?",
+   "¿Se deben registrar los datos demográficos (edad, sexo, programa) junto con las respuestas?"
+  ]
+ }
+}
