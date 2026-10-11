@@ -36,3 +36,6 @@ build/
 .atl/
 AGENTS.md
 CLAUDE.md
+
+### Catálogo de instrumentos con licencia de terceros: no se publica ###
+/src/main/resources/ia/catalogo/
