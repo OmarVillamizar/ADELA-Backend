@@ -12,6 +12,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -88,6 +90,27 @@ class GlobalExceptionHandlerTest {
         assertEquals(HttpStatus.CONFLICT, res.getStatusCode());
         assertEquals(ErrorCode.CODIGO_DUPLICADO.name(), res.getBody().code());
         assertEquals(Map.of("codigo", "Ya está en uso"), res.getBody().fields());
+    }
+
+    @Test
+    @DisplayName("Un archivo que supera el máximo de subida es DOCUMENTO_INVALIDO 400, no 500")
+    void archivoDemasiadoGrandeEs400() {
+        ResponseEntity<ApiError> res = handler.handleArchivoGrande(new MaxUploadSizeExceededException(15L * 1024 * 1024),
+                peticion("/api/ia/cuestionarios/trabajos"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, res.getStatusCode());
+        assertEquals(ErrorCode.DOCUMENTO_INVALIDO.name(), res.getBody().code());
+        assertEquals("El archivo supera el tamaño máximo permitido.", res.getBody().message());
+    }
+
+    @Test
+    @DisplayName("Una subida multipart ilegible también es DOCUMENTO_INVALIDO 400")
+    void subidaIlegibleEs400() {
+        ResponseEntity<ApiError> res = handler.handleSubidaIlegible(new MultipartException("cuerpo cortado"),
+                peticion("/api/ia/cuestionarios/trabajos"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, res.getStatusCode());
+        assertEquals(ErrorCode.DOCUMENTO_INVALIDO.name(), res.getBody().code());
     }
 
     @Test

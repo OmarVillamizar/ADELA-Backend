@@ -15,6 +15,8 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -73,6 +75,28 @@ public class GlobalExceptionHandler {
         logger.warn("[{}] Cuerpo ilegible en {}: {}", traceId, request.getRequestURI(), ex.getMessage());
         return construir(ErrorCode.VALIDACION, "El cuerpo de la petición no tiene un formato válido.", null, traceId,
                 request);
+    }
+
+    /**
+     * El archivo supera spring.servlet.multipart.max-file-size / max-request-size (adela.ia.max-mb).
+     * Sin este handler cae en handleInesperado: un PDF demasiado grande, que es un error de quien
+     * lo sube, se vería como una avería con traceId.
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiError> handleArchivoGrande(MaxUploadSizeExceededException ex,
+            HttpServletRequest request) {
+        String traceId = nuevoTraceId();
+        logger.warn("[{}] Archivo demasiado grande en {}", traceId, request.getRequestURI());
+        return construir(ErrorCode.DOCUMENTO_INVALIDO, "El archivo supera el tamaño máximo permitido.", null,
+                traceId, request);
+    }
+
+    /** Subida mal formada o interrumpida (cuerpo multipart ilegible): también es del cliente. */
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ApiError> handleSubidaIlegible(MultipartException ex, HttpServletRequest request) {
+        String traceId = nuevoTraceId();
+        logger.warn("[{}] Subida ilegible en {}: {}", traceId, request.getRequestURI(), ex.getMessage());
+        return construir(ErrorCode.DOCUMENTO_INVALIDO, "No se pudo leer el archivo enviado.", null, traceId, request);
     }
 
     /**
