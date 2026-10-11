@@ -64,6 +64,11 @@ springdoc:
 adela:
     dev:
         simulacion: ${DEV_SIMULACION:false}
+    ia:
+        # El catálogo (fichas.md y los JSON de los instrumentos) tiene licencia de
+        # terceros y no va en el repositorio. Si falta en el classpath (ia/catalogo/),
+        # se busca en este directorio; sin él Nelse no reconoce instrumentos.
+        catalogo-dir: ${IA_CATALOGO_DIR:}
 
 server:
   port: ${PORT:8080}
