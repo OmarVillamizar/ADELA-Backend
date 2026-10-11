@@ -119,6 +119,11 @@ public class PromptIa {
         }
         jsonCatalogo.forEach((id, json) -> prefijo.append("\n\nEXAMPLE ").append(id).append(":\n")
                 .append(compacto(om, json, id)));
+        if (jsonCatalogo.isEmpty()) {
+            // Sin ejemplos del catálogo, el genérico mantiene una referencia de formato y de análisis.
+            prefijo.append("\n\n# EXAMPLE (generic instrument, format reference only)\n")
+                    .append(compacto(om, ejemplo, "ejemplo externo"));
+        }
         this.prefijoNelse = SALTOS.matcher(prefijo.toString()).replaceAll("\n\n");
 
         // Los archivos terminan en salto de línea: al unirlos con "\n\n" quedarían tres seguidos.

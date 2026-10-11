@@ -123,6 +123,8 @@ class PromptIaTest {
         assertFalse(Pattern.compile("EXAMPLE [A-Z0-9_]+:\\n\\{").matcher(prompt.prefijoNelse()).find());
         assertFalse(prompt.prefijoNelse().contains("solo-nelse"));
         assertTrue(prompt.prefijoNelse().startsWith("# ROLE"));
+        // Sin catálogo queda el ejemplo genérico como referencia de formato.
+        assertTrue(prompt.prefijoNelse().contains("# EXAMPLE (generic instrument, format reference only)\n{"));
         assertTrue(prompt.versionPrompt().matches("[0-9a-f]{12}"));
         assertEquals(prompt.prefijoNelse(), conDirectorio(vacio).prefijoNelse());
     }
