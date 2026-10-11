@@ -63,6 +63,9 @@ public class PromptIa {
             Pattern.DOTALL);
     private static final Pattern SALTOS = Pattern.compile("\n{3,}");
 
+    /** Comentario HTML al inicio de un archivo: documenta el archivo para quien lo edita, no es para el modelo. */
+    private static final Pattern CABECERA_COMENTARIO = Pattern.compile("\\A<!--.*?-->\\s*", Pattern.DOTALL);
+
     /** Cada instrumento es un archivo {@code <id>_cuestionario.json}; el id va en mayúsculas. */
     private static final String SUFIJO_JSON = "_cuestionario.json";
 
@@ -72,6 +75,7 @@ public class PromptIa {
     private final String versionPrompt;
     private final String prefijoNelse;
     private final String instruccionesExternas;
+    private final String correccion;
     private final Set<String> catalogoCargado;
     private final Set<String> terminosCatalogo;
 
@@ -87,6 +91,8 @@ public class PromptIa {
         String reglas = leer(RUTA_PROMPT + "01_reglas.md");
         String motor = leer(RUTA_PROMPT + "02_motor.md");
         String ejemplo = leer(RUTA_PROMPT + "ejemplo_externo.json");
+        String correccionCruda = leer(RUTA_PROMPT + "04_correccion.md");
+        this.correccion = CABECERA_COMENTARIO.matcher(correccionCruda).replaceFirst("");
         // Las fichas nombran los instrumentos y resumen sus baremos: viajan con el catálogo, no con el repositorio.
         String fichas = leerCatalogo("fichas.md", catalogoDir, desdeClasspath);
 
@@ -102,8 +108,11 @@ public class PromptIa {
         this.catalogoCargado = Collections.unmodifiableSet(new LinkedHashSet<>(jsonCatalogo.keySet()));
         this.terminosCatalogo = fichas == null ? Set.of() : terminos(om, fichas, jsonCatalogo);
 
-        // La versión cambia con el prompt y con los instrumentos que lo acompañan.
-        StringBuilder crudo = new StringBuilder().append(externo).append(reglas).append(motor).append(ejemplo);
+        // La versión cambia con el prompt y con los instrumentos que lo acompañan. La corrección
+        // entra aunque no esté en el prefijo: cambiarla cambia lo que Nelse hace, y las métricas
+        // que citan la versión deben poder distinguirlo.
+        StringBuilder crudo = new StringBuilder().append(externo).append(reglas).append(motor).append(ejemplo)
+                .append(correccionCruda);
         if (fichas != null) {
             crudo.append(fichas);
         }
@@ -147,6 +156,15 @@ public class PromptIa {
     /** Instrucciones para la IA externa: sin catálogo ni nombres de instrumentos, con un ejemplo genérico. */
     public String instruccionesExternas() {
         return instruccionesExternas;
+    }
+
+    /**
+     * Instrucciones del turno de corrección, para enviar como mensaje de usuario después del
+     * documento (nunca dentro del prefijo cacheado). Terminan en el encabezado de la lista:
+     * el orquestador agrega debajo un "- ubicación: mensaje" por error duro.
+     */
+    public String correccion() {
+        return correccion;
     }
 
     /** Ids de los instrumentos del catálogo que se encontraron, en el orden del prefijo (alfabético). */

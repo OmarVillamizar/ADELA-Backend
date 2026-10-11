@@ -200,6 +200,34 @@ class PromptIaTest {
         salida.closeEntry();
     }
 
+    // ---------------------------------------------------------------- Corrección
+
+    @Test
+    @DisplayName("La corrección se carga sin su comentario de cabecera, termina en la lista de errores y no va en el prefijo")
+    void correccion() {
+        PromptIa prompt = nuevo();
+        String correccion = prompt.correccion();
+
+        assertTrue(correccion.startsWith("# CORRECTION TURN"), correccion.substring(0, 40));
+        assertFalse(correccion.contains("<!--"));
+        assertTrue(correccion.contains("{\"patch\": []}"));
+        assertTrue(correccion.endsWith("# HARD ERRORS TO FIX\n"));
+        assertFalse(prompt.prefijoNelse().contains("CORRECTION TURN"));
+        assertFalse(prompt.instruccionesExternas().contains("CORRECTION TURN"));
+        assertEquals(correccion, nuevo().correccion());
+    }
+
+    @Test
+    @DisplayName("La corrección no nombra ningún instrumento del catálogo")
+    void correccionSinTerminosDelCatalogo() {
+        PromptIa prompt = nuevo();
+        assumeFalse(prompt.terminosCatalogo().isEmpty(), "El catálogo no está en el classpath");
+
+        for (String termino : prompt.terminosCatalogo()) {
+            assertFalse(palabraCompleta(termino).matcher(prompt.correccion()).find(), termino);
+        }
+    }
+
     // ---------------------------------------------------------------- Términos
 
     @Test
