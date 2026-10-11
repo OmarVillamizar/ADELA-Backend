@@ -27,6 +27,16 @@ spring:
         # version 1 en lugar de intentar recrearlo desde cero.
         baseline-on-migrate: true
         baseline-version: 1
+    servlet:
+        multipart:
+            # Solo lo usa la subida del PDF de Nelse (la importacion de JSON no es multipart),
+            # asi que el tope es el mismo adela.ia.max-mb: Tomcat corta antes de leer todo el
+            # archivo a memoria. max-request-size no puede ser "max-mb + algo" (los
+            # placeholders no suman): queda igual, y ExtractorDocumento vuelve a comprobar el
+            # tamano con un mensaje claro. Cubre el campo de instrucciones salvo que el PDF
+            # pese justo el maximo.
+            max-file-size: ${IA_MAX_MB:15}MB
+            max-request-size: ${IA_MAX_MB:15}MB
     application:
         name: adela
     security:
