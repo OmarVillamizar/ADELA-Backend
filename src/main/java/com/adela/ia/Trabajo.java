@@ -8,6 +8,7 @@ import java.util.concurrent.Future;
 
 import com.adela.exceptions.AppException;
 import com.adela.exceptions.ErrorCode;
+import com.adela.ia.ClienteLlm.MensajeLlm;
 import com.adela.ia.ClienteLlm.UsoLlm;
 import com.adela.ia.EstadoTrabajo.ErrorTrabajo;
 import com.adela.ia.EstadoTrabajo.Estado;
@@ -31,8 +32,12 @@ public final class Trabajo {
      * Lo que se conserva del resultado para el único refinamiento: la fuente con que se
      * validó, el mensaje de usuario original (para repetir el prefijo cacheado), el JSON
      * vigente y el resultado que se devuelve si el refinamiento falla.
+     *
+     * El mensaje de usuario trae las imágenes de las páginas escaneadas, los mismos bytes que
+     * la generación: se guardan (hasta el TTL del trabajo) en vez de volver a renderizar el PDF,
+     * que ya no se conserva y cuyo render podría no ser idéntico, lo que rompería la caché.
      */
-    record Contexto(FuenteNelse fuente, String mensajeUsuario, ObjectNode raiz, String formato,
+    record Contexto(FuenteNelse fuente, MensajeLlm usuario, ObjectNode raiz, String formato,
             ResultadoNelse previo) {
     }
 
@@ -54,6 +59,8 @@ public final class Trabajo {
         int reasoningTokens;
         int rondas;
         int regeneraciones;
+        /** Páginas que viajan como imagen en esta corrida (solo se registra el número, nunca los bytes). */
+        int imagenes;
         private final long inicio = System.nanoTime();
         private long fin;
 

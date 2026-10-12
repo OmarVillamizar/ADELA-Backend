@@ -3,9 +3,12 @@ package com.adela.ia;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,8 +37,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  * decide dentro de las reglas del prompt; el código lee, valida, corrige y marca.
  *
  * <pre>
- * LEYENDO     PDF a texto limpio (si hay PDF)
- * GENERANDO   modelo: prefijo fijo + DOCUMENTO + PROFESOR
+ * LEYENDO     PDF a texto limpio y, en las páginas escaneadas, imágenes (si hay PDF)
+ * GENERANDO   modelo: prefijo fijo + DOCUMENTO (+ imágenes) + PROFESOR
  * VALIDANDO   ValidadorGeneracion: errores duros y marcas
  * CORRIGIENDO si hay errores duros: modelo -> JSON Patch -> aplicar -> VALIDANDO (hasta 2 rondas)
  * LISTO       resultado (con los errores duros que queden, para que la persona los arregle en el editor)
@@ -46,7 +49,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
  *
  * El orden de los mensajes no se toca: prefijo del sistema, luego DOCUMENTO/PROFESOR y por
  * último los turnos de corrección, de modo que cada llamada reutiliza de la caché del
- * proveedor todo lo anterior (plan, tácticas 1 y 2).
+ * proveedor todo lo anterior (plan, tácticas 1 y 2). Las imágenes forman parte de ese prefijo:
+ * las correcciones y el ajuste reenvían el mismo mensaje de usuario, con los mismos bytes. La caché
+ * también depende del esfuerzo de razonamiento y del formato de respuesta, por eso corregir usa
+ * el esfuerzo de generar por defecto y toda llamada pide JSON.
  *
  * Refinamiento: una vez por trabajo, sobre un resultado LISTO, con el mismo mecanismo de
  * patch. Si no se logra aplicar, el trabajo vuelve a LISTO con el resultado anterior intacto y
@@ -181,11 +187,11 @@ public class GeneradorCuestionarioService {
         long medios = contar(r, "MEDIO");
         long bajos = contar(r, "BAJO");
         logger.info("Trabajo IA {}: estado={} segundos={} tokens[entrada={} cacheHit={} cacheMiss={} salida={} "
-                + "razonamiento={}] usd={} rondas={} regeneraciones={} marcas[alto={} medio={} bajo={}] "
+                + "razonamiento={}] usd={} rondas={} regeneraciones={} imagenes={} marcas[alto={} medio={} bajo={}] "
                 + "erroresDuros={} versionPrompt={}", t.id(), estado, m.segundos(), m.promptTokens, m.cacheHit,
                 m.cacheMiss, m.completionTokens, m.reasoningTokens, String.format(Locale.ROOT, "%.5f", m.usd()),
-                m.rondas, m.regeneraciones, altos, medios, bajos, r == null ? 0 : r.erroresDuros().size(),
-                prompt.versionPrompt());
+                m.rondas, m.regeneraciones, m.imagenes, altos, medios, bajos,
+                r == null ? 0 : r.erroresDuros().size(), prompt.versionPrompt());
     }
 
     private static long contar(ResultadoNelse r, String riesgo) {
@@ -196,28 +202,39 @@ public class GeneradorCuestionarioService {
 
     private Cierre generar(Trabajo t, byte[] pdf, String instrucciones) {
         t.fase(Fase.LEYENDO, 5);
+        // documento es solo el texto de las páginas que lo tienen: contra eso comprueba L4. Lo que ve
+        // el modelo (documentoModelo) suma los marcadores de las páginas que van como imagen.
         String documento = null;
-        int paginasImagen = 0;
+        String documentoModelo = null;
+        List<byte[]> imagenes = List.of();
+        int omitidas = 0;
         boolean hayInstrucciones = instrucciones != null && !instrucciones.isBlank();
         if (pdf != null) {
-            DocumentoExtraido extraido = extractor.extraer(pdf);
+            List<PaginaExtraida> paginas = extractor.extraer(pdf).paginas();
             // Una página escaneada solo trae ruido de texto: se deja vacía (conservando su posición
-            // para el marcador de página) y se cuenta, que L4 avisa de lo que no se pudo comprobar.
-            List<String> textos = extraido.paginas().stream().map(p -> p.escaneada() ? "" : p.texto()).toList();
-            documento = LimpiadorTexto.unir(LimpiadorTexto.limpiar(textos));
-            paginasImagen = (int) extraido.paginas().stream().filter(PaginaExtraida::escaneada).count();
-            if (documento.isBlank() && !hayInstrucciones) {
+            // para el marcador de página); su contenido viaja en la imagen.
+            List<String> limpias = LimpiadorTexto
+                    .limpiar(paginas.stream().map(p -> p.escaneada() ? "" : p.texto()).toList());
+            documento = LimpiadorTexto.unir(limpias);
+            List<Integer> conImagen = paginas.stream().filter(p -> p.imagen() != null).map(PaginaExtraida::numero)
+                    .toList();
+            imagenes = paginas.stream().map(PaginaExtraida::imagen).filter(Objects::nonNull).toList();
+            // Las que pasaron el tope no van ni como texto ni como imagen: L4 se lo avisa a la persona.
+            omitidas = (int) paginas.stream().filter(PaginaExtraida::imagenOmitida).count();
+            documentoModelo = documentoParaElModelo(limpias, conImagen);
+            if (documento.isBlank() && imagenes.isEmpty() && !hayInstrucciones) {
                 throw new AppException(ErrorCode.DOCUMENTO_INVALIDO,
-                        "El PDF no tiene texto legible; la lectura de escaneados llega pronto.");
+                        "El PDF no tiene texto legible. Sube otra versión o describe lo que necesitas en las instrucciones.");
             }
         }
         comprobar(t);
 
-        FuenteNelse fuente = new FuenteNelse(documento, instrucciones, paginasImagen);
-        String mensajeUsuario = mensajeUsuario(documento, instrucciones);
-        List<MensajeLlm> base = base(mensajeUsuario);
+        FuenteNelse fuente = new FuenteNelse(documento, instrucciones, imagenes.size(), omitidas);
+        MensajeLlm usuario = new MensajeLlm("user", mensajeUsuario(documentoModelo, instrucciones), imagenes);
+        List<MensajeLlm> base = base(usuario);
 
         Medicion m = t.medicion();
+        m.imagenes = imagenes.size();
         Generado generado = pedirGeneracion(t, base);
         if (generado == null && m.regeneraciones == 0) {
             m.regeneraciones++;
@@ -236,7 +253,7 @@ public class GeneradorCuestionarioService {
                     "Nelse produjo un cuestionario que no se pudo leer. Inténtalo de nuevo.");
         }
         ResultadoNelse resultado = resultado(m, v);
-        t.contexto(new Contexto(fuente, mensajeUsuario, salida.raiz(), generado.formato(), resultado));
+        t.contexto(new Contexto(fuente, usuario, salida.raiz(), generado.formato(), resultado));
         return new Cierre(resultado, null);
     }
 
@@ -362,7 +379,8 @@ public class GeneradorCuestionarioService {
     private Cierre refinar(Trabajo t, Contexto c, SolicitudRefinamiento solicitud) {
         t.fase(Fase.REFINANDO, 5);
         Medicion m = t.medicion();
-        List<MensajeLlm> base = base(c.mensajeUsuario());
+        m.imagenes = c.usuario().imagenesJpeg().size();
+        List<MensajeLlm> base = base(c.usuario());
         List<MensajeLlm> conversacion = new ArrayList<>(base);
         conversacion.add(new MensajeLlm("assistant", serializar(c.raiz())));
         conversacion.add(new MensajeLlm("user", prompt.refinamiento() + solicitud.paraElModelo()));
@@ -374,7 +392,7 @@ public class GeneradorCuestionarioService {
 
         String profesor = c.fuente().profesor() == null ? "" : c.fuente().profesor() + "\n\n";
         FuenteNelse fuente = new FuenteNelse(c.fuente().documento(), profesor + solicitud.comoFuente(),
-                c.fuente().paginasImagen());
+                c.fuente().paginasImagen(), c.fuente().paginasOmitidas());
         Salida salida = validarYCorregir(t, base, new Generado(refinado, null, c.formato()), fuente, false);
 
         ResultadoImportacion v = salida.validacion();
@@ -387,8 +405,35 @@ public class GeneradorCuestionarioService {
     // ---------------------------------------------------------------- Apoyos
 
     /** Prefijo fijo y mensaje de usuario: lo que no cambia entre la generación, las correcciones y el ajuste. */
-    private List<MensajeLlm> base(String mensajeUsuario) {
-        return List.of(new MensajeLlm("system", prompt.prefijoNelse()), new MensajeLlm("user", mensajeUsuario));
+    private List<MensajeLlm> base(MensajeLlm usuario) {
+        return List.of(new MensajeLlm("system", prompt.prefijoNelse()), usuario);
+    }
+
+    /**
+     * El cuerpo de DOCUMENTO cuando hay páginas escaneadas adjuntas como imagen (con ninguna es
+     * solo el texto limpio, igual que siempre). limpias lleva una entrada por página, vacía la que
+     * no tiene texto; paginasImagen son los números de las que se adjuntan, en orden.
+     *
+     * Es la disposición que se midió en el spike de visión (ia-eval/vision.py): el texto bajo sus
+     * marcadores, cada página-imagen con su marcador y el cuerpo vacío para fijar su posición, y
+     * una nota final con sus números. Si todo son imágenes, 1 a N, basta la nota. El backend la
+     * escribe, no la persona: el hueco DOCUMENTO se conserva para que las reglas de procedencia
+     * (el documento es dato, origen DOCUMENTO) apliquen igual. Cambiar estas frases es cambiar el
+     * prompt efectivo: hay que repetir los casos de ia-eval (los mismos textos están en eval.py).
+     */
+    static String documentoParaElModelo(List<String> limpias, List<Integer> paginasImagen) {
+        if (paginasImagen.isEmpty()) {
+            return LimpiadorTexto.unir(limpias);
+        }
+        int n = paginasImagen.size();
+        boolean todasDesdeLaUno = paginasImagen.equals(IntStream.rangeClosed(1, n).boxed().toList());
+        if (todasDesdeLaUno && limpias.stream().allMatch(String::isBlank)) {
+            return "(sin texto: el documento llega como " + n + " imágenes de páginas escaneadas, adjuntas a "
+                    + "continuación en orden: páginas 1 a " + n + ")";
+        }
+        return LimpiadorTexto.unir(limpias, paginasImagen) + "\n\n(las páginas "
+                + paginasImagen.stream().map(String::valueOf).collect(Collectors.joining(", "))
+                + " no tienen texto: llegan como imágenes adjuntas a continuación, en ese orden)";
     }
 
     /** Igual que ia-eval/eval.py (mensaje_usuario): así es como se evaluó el prompt. */

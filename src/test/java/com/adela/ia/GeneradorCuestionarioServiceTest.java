@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -197,41 +198,219 @@ class GeneradorCuestionarioServiceTest {
         Trabajo t = servicio.crear(EMAIL, new byte[] { 1 }, null);
 
         assertEquals(Estado.LISTO, t.estado().estado());
-        String usuario = peticiones(1).get(0).mensajes().get(1).contenido();
-        assertTrue(usuario.startsWith("DOCUMENTO:\n--- página 1 ---\nAfirmación uno de un documento ficticio."),
-                usuario);
-        assertTrue(usuario.endsWith("\n\nPROFESOR:\n(sin instrucciones)"), usuario);
+        MensajeLlm usuario = peticiones(1).get(0).mensajes().get(1);
+        assertTrue(usuario.contenido().startsWith("DOCUMENTO:\n--- página 1 ---\nAfirmación uno de un documento ficticio."),
+                usuario.contenido());
+        assertTrue(usuario.contenido().endsWith("\n\nPROFESOR:\n(sin instrucciones)"), usuario.contenido());
     }
 
     @Test
-    @DisplayName("PDF escaneado sin instrucciones: FALLIDO DOCUMENTO_INVALIDO y no se llama al modelo")
-    void pdfSinTextoNiInstrucciones() {
+    @DisplayName("Un PDF solo de texto manda exactamente el mensaje de siempre: una cadena, sin imágenes ni notas")
+    void pdfDeTextoNoCambiaElMensaje() throws Exception {
         when(extractor.extraer(any())).thenReturn(new DocumentoExtraido(
-                List.of(new PaginaExtraida(1, "3", true, new byte[] { 1 }, false))));
+                List.of(new PaginaExtraida(1, "Afirmación uno de un documento ficticio.", false, null, false),
+                        new PaginaExtraida(2, "Afirmación dos de un documento ficticio.", false, null, false))));
+        responde(respuesta(buena()));
+
+        servicio.crear(EMAIL, new byte[] { 1 }, INSTRUCCIONES);
+
+        assertEquals(new MensajeLlm("user", "DOCUMENTO:\n--- página 1 ---\nAfirmación uno de un documento ficticio.\n\n"
+                + "--- página 2 ---\nAfirmación dos de un documento ficticio.\n\nPROFESOR:\n" + INSTRUCCIONES),
+                peticiones(1).get(0).mensajes().get(1));
+        assertTrue(peticiones(1).get(0).mensajes().get(1).imagenesJpeg().isEmpty());
+    }
+
+    @Test
+    @DisplayName("PDF sin texto, sin imágenes que leer y sin instrucciones: FALLIDO DOCUMENTO_INVALIDO sin llamar al modelo")
+    void pdfSinNadaQueLeer() {
+        // Una escaneada que no cupo en el tope (ni texto ni imagen) y una de texto que la limpieza deja vacía.
+        when(extractor.extraer(any())).thenReturn(new DocumentoExtraido(
+                List.of(new PaginaExtraida(1, "3", true, null, true),
+                        new PaginaExtraida(2, "https://ejemplo.test/solo-una-direccion-web-sin-contenido", false, null,
+                                false))));
 
         EstadoTrabajo e = servicio.crear(EMAIL, new byte[] { 1 }, null).estado();
 
         assertConError(e, ErrorCode.DOCUMENTO_INVALIDO);
-        assertTrue(e.error().mensaje().contains("escaneados"));
+        assertTrue(e.error().mensaje().contains("texto legible"));
         verifyNoLlm();
     }
 
     @Test
-    @DisplayName("PDF escaneado con instrucciones: sigue, sin DOCUMENTO, y L4 sabe cuántas páginas eran imagen")
-    void pdfEscaneadoConInstrucciones() throws Exception {
+    @DisplayName("PDF sin texto ni imágenes pero con instrucciones: sigue como si no hubiera PDF")
+    void pdfSinNadaQueLeerConInstrucciones() throws Exception {
         when(extractor.extraer(any())).thenReturn(new DocumentoExtraido(
-                List.of(new PaginaExtraida(1, "", true, new byte[] { 1 }, false),
-                        new PaginaExtraida(2, "", true, new byte[] { 1 }, false))));
+                List.of(new PaginaExtraida(1, "3", true, null, true))));
         responde(respuesta(buena()));
 
         EstadoTrabajo e = servicio.crear(EMAIL, new byte[] { 1 }, INSTRUCCIONES).estado();
 
         assertEquals(Estado.LISTO, e.estado());
-        assertEquals("PROFESOR:\n" + INSTRUCCIONES, peticiones(1).get(0).mensajes().get(1).contenido());
+        assertEquals(new MensajeLlm("user", "PROFESOR:\n" + INSTRUCCIONES), peticiones(1).get(0).mensajes().get(1));
+    }
+
+    // ---------------------------------------------------------------- Visión
+
+    private static final byte[] PAGINA_1 = { (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 1 };
+    private static final byte[] PAGINA_2 = { (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 2 };
+    private static final byte[] PAGINA_3 = { (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 3 };
+
+    private static final String TEXTO_PAGINA_1 = "Afirmación de la primera página de un documento ficticio.";
+    private static final String TEXTO_PAGINA_3 = "Afirmación de la tercera página de un documento ficticio.";
+
+    private void extrae(PaginaExtraida... paginas) {
+        when(extractor.extraer(any())).thenReturn(new DocumentoExtraido(List.of(paginas)));
+    }
+
+    @Test
+    @DisplayName("PDF solo de imágenes: DOCUMENTO es la nota, las páginas van adjuntas en orden y L4 sabe que son imagen")
+    void pdfEscaneado() throws Exception {
+        extrae(new PaginaExtraida(1, "", true, PAGINA_1, false), new PaginaExtraida(2, "", true, PAGINA_2, false),
+                new PaginaExtraida(3, "3", true, PAGINA_3, false));
+        responde(respuesta(buena()));
+
+        EstadoTrabajo e = servicio.crear(EMAIL, new byte[] { 1 }, null).estado();
+
+        assertEquals(Estado.LISTO, e.estado());
+        MensajeLlm usuario = peticiones(1).get(0).mensajes().get(1);
+        assertEquals("user", usuario.rol());
+        assertEquals("DOCUMENTO:\n(sin texto: el documento llega como 3 imágenes de páginas escaneadas, adjuntas a "
+                + "continuación en orden: páginas 1 a 3)\n\nPROFESOR:\n(sin instrucciones)", usuario.contenido());
+        assertEquals(3, usuario.imagenesJpeg().size());
+        assertSame(PAGINA_1, usuario.imagenesJpeg().get(0));
+        assertSame(PAGINA_2, usuario.imagenesJpeg().get(1));
+        assertSame(PAGINA_3, usuario.imagenesJpeg().get(2));
+        ArgumentCaptor<FuenteNelse> fuente = ArgumentCaptor.forClass(FuenteNelse.class);
+        verify(validador).validar(any(), fuente.capture());
+        assertEquals(3, fuente.getValue().paginasImagen());
+        assertEquals(0, fuente.getValue().paginasOmitidas());
+        assertFalse(fuente.getValue().hayDocumento());
+    }
+
+    @Test
+    @DisplayName("PDF escaneado con instrucciones: las imágenes viajan con el mensaje y PROFESOR queda después de la nota")
+    void pdfEscaneadoConInstrucciones() throws Exception {
+        extrae(new PaginaExtraida(1, "", true, PAGINA_1, false), new PaginaExtraida(2, "", true, PAGINA_2, false));
+        responde(respuesta(buena()));
+
+        EstadoTrabajo e = servicio.crear(EMAIL, new byte[] { 1 }, INSTRUCCIONES).estado();
+
+        assertEquals(Estado.LISTO, e.estado());
+        MensajeLlm usuario = peticiones(1).get(0).mensajes().get(1);
+        assertEquals("DOCUMENTO:\n(sin texto: el documento llega como 2 imágenes de páginas escaneadas, adjuntas a "
+                + "continuación en orden: páginas 1 a 2)\n\nPROFESOR:\n" + INSTRUCCIONES, usuario.contenido());
+        assertEquals(2, usuario.imagenesJpeg().size());
         ArgumentCaptor<FuenteNelse> fuente = ArgumentCaptor.forClass(FuenteNelse.class);
         verify(validador).validar(any(), fuente.capture());
         assertEquals(2, fuente.getValue().paginasImagen());
         assertFalse(fuente.getValue().hayDocumento());
+    }
+
+    @Test
+    @DisplayName("PDF mixto: el texto bajo sus marcadores, la página-imagen con el suyo vacío y la nota con su número")
+    void pdfMixto() throws Exception {
+        extrae(new PaginaExtraida(1, TEXTO_PAGINA_1, false, null, false),
+                new PaginaExtraida(2, "", true, PAGINA_2, false),
+                new PaginaExtraida(3, TEXTO_PAGINA_3, false, null, false));
+        responde(respuesta(buena()));
+
+        servicio.crear(EMAIL, new byte[] { 1 }, null);
+
+        MensajeLlm usuario = peticiones(1).get(0).mensajes().get(1);
+        assertEquals("DOCUMENTO:\n--- página 1 ---\n" + TEXTO_PAGINA_1 + "\n\n--- página 2 (imagen adjunta) ---\n\n"
+                + "--- página 3 ---\n" + TEXTO_PAGINA_3 + "\n\n(las páginas 2 no tienen texto: llegan como imágenes "
+                + "adjuntas a continuación, en ese orden)\n\nPROFESOR:\n(sin instrucciones)", usuario.contenido());
+        assertEquals(1, usuario.imagenesJpeg().size());
+        assertSame(PAGINA_2, usuario.imagenesJpeg().get(0));
+        // L4 compara contra el texto de las páginas con texto, sin marcadores ni nota de imagen.
+        ArgumentCaptor<FuenteNelse> fuente = ArgumentCaptor.forClass(FuenteNelse.class);
+        verify(validador).validar(any(), fuente.capture());
+        assertEquals("--- página 1 ---\n" + TEXTO_PAGINA_1 + "\n\n--- página 3 ---\n" + TEXTO_PAGINA_3,
+                fuente.getValue().documento());
+        assertEquals(1, fuente.getValue().paginasImagen());
+    }
+
+    @Test
+    @DisplayName("Las frases de DOCUMENTO con imágenes están fijadas: son las que midió el spike y las de ia-eval")
+    void textoDelDocumentoConImagenes() {
+        // Solo imágenes, de la 1 a la N.
+        assertEquals("(sin texto: el documento llega como 3 imágenes de páginas escaneadas, adjuntas a continuación "
+                + "en orden: páginas 1 a 3)",
+                GeneradorCuestionarioService.documentoParaElModelo(List.of("", "", ""), List.of(1, 2, 3)));
+        // Mixto, con la imagen al final y otra en medio.
+        assertEquals("--- página 1 ---\nUno\n\n--- página 2 (imagen adjunta) ---\n\n--- página 3 ---\nTres\n\n"
+                + "--- página 4 (imagen adjunta) ---\n\n(las páginas 2, 4 no tienen texto: llegan como imágenes "
+                + "adjuntas a continuación, en ese orden)",
+                GeneradorCuestionarioService.documentoParaElModelo(List.of("Uno", "", "Tres", ""), List.of(2, 4)));
+        // Sin texto pero las imágenes no empiezan en la 1: la nota "1 a N" mentiría, vale la disposición general.
+        assertEquals("--- página 2 (imagen adjunta) ---\n\n--- página 3 (imagen adjunta) ---\n\n(las páginas 2, 3 no "
+                + "tienen texto: llegan como imágenes adjuntas a continuación, en ese orden)",
+                GeneradorCuestionarioService.documentoParaElModelo(List.of("", "", ""), List.of(2, 3)));
+        // Sin imágenes: el texto limpio de siempre.
+        assertEquals("--- página 1 ---\nUno\n\n--- página 3 ---\nTres",
+                GeneradorCuestionarioService.documentoParaElModelo(List.of("Uno", "", "Tres"), List.of()));
+    }
+
+    @Test
+    @DisplayName("Páginas fuera del tope de imágenes: MEDIO en 'items' avisa cuántas no se enviaron, y no entran al mensaje")
+    void paginasOmitidas() throws Exception {
+        extrae(new PaginaExtraida(1, "", true, PAGINA_1, false), new PaginaExtraida(2, "", true, null, true),
+                new PaginaExtraida(3, "", true, null, true));
+        responde(respuesta(buena()));
+
+        EstadoTrabajo e = servicio.crear(EMAIL, new byte[] { 1 }, null).estado();
+
+        assertEquals(Estado.LISTO, e.estado());
+        MensajeLlm usuario = peticiones(1).get(0).mensajes().get(1);
+        assertEquals(1, usuario.imagenesJpeg().size());
+        assertTrue(usuario.contenido().contains("1 imágenes de páginas escaneadas"), usuario.contenido());
+        List<Marca> avisos = e.resultado().marcas().stream().filter(m -> m.mensaje().contains("no se enviaron")).toList();
+        assertEquals(1, avisos.size());
+        assertEquals(Marca.MEDIO, avisos.get(0).riesgo());
+        assertEquals(Marca.VALIDADOR, avisos.get(0).origen());
+        assertEquals("items", avisos.get(0).seccion());
+        assertTrue(avisos.get(0).mensaje().startsWith("2 páginas escaneadas no se enviaron a Nelse (tope de 1 imagen)"),
+                avisos.get(0).mensaje());
+    }
+
+    @Test
+    @DisplayName("Corregir reenvía el mismo prefijo con los mismos bytes de imagen, y el mismo esfuerzo si así se configura")
+    void correccionReenviaLasImagenes() throws Exception {
+        GeneradorCuestionarioService mismoEsfuerzo = new GeneradorCuestionarioService(llm, prompt, validador, extractor,
+                trabajos, OM, "high", "high", 32000);
+        extrae(new PaginaExtraida(1, "", true, PAGINA_1, false), new PaginaExtraida(2, "", true, PAGINA_2, false));
+        responde(respuesta(conError()), respuesta(PATCH_ARREGLA));
+
+        EstadoTrabajo e = mismoEsfuerzo.crear(EMAIL, new byte[] { 1 }, null).estado();
+
+        assertEquals(Estado.LISTO, e.estado());
+        List<PeticionLlm> ps = peticiones(2);
+        assertEquals(ps.get(0).esfuerzo(), ps.get(1).esfuerzo());
+        assertTrue(ps.get(0).json() && ps.get(1).json());
+        List<MensajeLlm> segunda = ps.get(1).mensajes();
+        assertEquals(4, segunda.size());
+        assertEquals(ps.get(0).mensajes(), segunda.subList(0, 2));
+        // El mismo objeto, no una copia: es lo que garantiza bytes idénticos y, con ello, el acierto de caché.
+        assertSame(ps.get(0).mensajes().get(1), segunda.get(1));
+        assertSame(PAGINA_1, segunda.get(1).imagenesJpeg().get(0));
+        assertSame(PAGINA_2, segunda.get(1).imagenesJpeg().get(1));
+        assertTrue(segunda.get(2).imagenesJpeg().isEmpty());
+        assertTrue(segunda.get(3).imagenesJpeg().isEmpty());
+    }
+
+    @Test
+    @DisplayName("Refinar también reenvía el mensaje original con sus imágenes")
+    void refinarReenviaLasImagenes() throws Exception {
+        extrae(new PaginaExtraida(1, "", true, PAGINA_1, false));
+        responde(respuesta(buena()), respuesta(PATCH_VACIO));
+        Trabajo t = servicio.crear(EMAIL, new byte[] { 1 }, null);
+
+        servicio.refinar(EMAIL, t.id(), respuestaDelProfesor());
+
+        List<PeticionLlm> ps = peticiones(2);
+        assertSame(ps.get(0).mensajes().get(1), ps.get(1).mensajes().get(1));
+        assertSame(PAGINA_1, ps.get(1).mensajes().get(1).imagenesJpeg().get(0));
+        verify(extractor, times(1)).extraer(any());
     }
 
     private void verifyNoLlm() {

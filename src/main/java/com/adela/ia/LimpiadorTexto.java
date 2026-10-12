@@ -1,6 +1,7 @@
 package com.adela.ia;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -81,15 +82,28 @@ final class LimpiadorTexto {
      * desde 1). Las páginas vacías se omiten: no aportan y el marcador solo gastaría tokens.
      */
     static String unir(List<String> limpias) {
+        return unir(limpias, Set.of());
+    }
+
+    /**
+     * Igual, pero una página que viaja como imagen conserva su marcador "--- página N (imagen
+     * adjunta) ---" con el cuerpo vacío: así el modelo sabe en qué posición del documento va
+     * cada imagen, que se adjuntan aparte y en orden. paginasImagen son números de página, desde 1.
+     */
+    static String unir(List<String> limpias, Collection<Integer> paginasImagen) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < limpias.size(); i++) {
-            if (limpias.get(i).isBlank()) {
+            boolean imagen = paginasImagen.contains(i + 1);
+            if (limpias.get(i).isBlank() && !imagen) {
                 continue;
             }
             if (sb.length() > 0) {
                 sb.append("\n\n");
             }
-            sb.append("--- página ").append(i + 1).append(" ---\n").append(limpias.get(i));
+            sb.append("--- página ").append(i + 1).append(imagen ? " (imagen adjunta) ---" : " ---");
+            if (!imagen) {
+                sb.append('\n').append(limpias.get(i));
+            }
         }
         return sb.toString();
     }
