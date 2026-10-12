@@ -28,8 +28,24 @@ public interface ClienteLlm {
     record PeticionLlm(List<MensajeLlm> mensajes, String esfuerzo, int maxTokens, boolean json) {
     }
 
-    /** rol: "system", "user" o "assistant". Solo texto. */
-    record MensajeLlm(String rol, String contenido) {
+    /**
+     * rol: "system", "user" o "assistant". imagenesJpeg son páginas escaneadas que viajan en el
+     * mismo mensaje, después del texto y en orden; null o vacío = mensaje de solo texto, que el
+     * cliente manda con el contenido como cadena (igual que antes de existir las imágenes).
+     *
+     * Los bytes se comparan por referencia al comparar mensajes: los turnos de corrección reenvían
+     * el mismo objeto, no una copia, y así es como se garantiza que el prefijo (imágenes incluidas)
+     * sea idéntico y salga de la caché del proveedor.
+     */
+    record MensajeLlm(String rol, String contenido, List<byte[]> imagenesJpeg) {
+
+        public MensajeLlm {
+            imagenesJpeg = imagenesJpeg == null ? List.of() : List.copyOf(imagenesJpeg);
+        }
+
+        public MensajeLlm(String rol, String contenido) {
+            this(rol, contenido, List.of());
+        }
     }
 
     /**

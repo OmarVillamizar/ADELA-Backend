@@ -1,5 +1,6 @@
 package com.adela.ia;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -15,6 +16,7 @@ import java.net.http.HttpClient;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
@@ -137,6 +139,58 @@ class ClienteLlmTest {
         assertEquals("Eres un asistente.", json.path("messages").path(0).path("content").asText());
         assertEquals("user", json.path("messages").path(1).path("role").asText());
         assertEquals("Hola \"mundo\"", json.path("messages").path(1).path("content").asText());
+    }
+
+    @Test
+    @DisplayName("Un mensaje de solo texto va con el contenido como cadena, byte por byte como antes de las imágenes")
+    void cuerpoDeSoloTextoNoCambia() throws Exception {
+        AtomicReference<String> cuerpo = new AtomicReference<>();
+        String base = servir(ex -> {
+            cuerpo.set(new String(ex.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            sse(ex, contenido("\"ok\""), "data: [DONE]");
+        });
+
+        cliente(base, LLAVE, TIMEOUT, true).completar(peticion(true), null);
+
+        // Si esto cambia, el prefijo que el proveedor tiene en caché deja de coincidir.
+        assertEquals("{\"model\":\"modelo-falso\",\"messages\":[{\"role\":\"system\",\"content\":\"Eres un asistente.\"},"
+                + "{\"role\":\"user\",\"content\":\"Hola \\\"mundo\\\"\"}],\"stream\":true,"
+                + "\"stream_options\":{\"include_usage\":true},\"reasoning_effort\":\"high\",\"max_tokens\":1234,"
+                + "\"response_format\":{\"type\":\"json_object\"}}", cuerpo.get());
+    }
+
+    @Test
+    @DisplayName("Con imágenes el contenido es un arreglo: el texto primero y cada página como data URI JPEG, en orden")
+    void cuerpoConImagenes() throws Exception {
+        byte[] primera = { (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, 1, 2, 3 };
+        byte[] segunda = { (byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xFB, (byte) 0xFF, 0, 9 };
+        AtomicReference<JsonNode> cuerpo = new AtomicReference<>();
+        String base = servir(ex -> {
+            cuerpo.set(OM.readTree(ex.getRequestBody().readAllBytes()));
+            sse(ex, contenido("\"ok\""), "data: [DONE]");
+        });
+        PeticionLlm peticion = new PeticionLlm(List.of(new MensajeLlm("system", "Eres un asistente."),
+                new MensajeLlm("user", "DOCUMENTO:\ntexto", List.of(primera, segunda))), "high", 1234, true);
+
+        cliente(base, LLAVE, TIMEOUT, true).completar(peticion, null);
+
+        JsonNode mensajes = cuerpo.get().path("messages");
+        assertEquals(2, mensajes.size());
+        // El mensaje sin imágenes conserva su forma de cadena aunque otro del mismo pedido las lleve.
+        assertEquals("Eres un asistente.", mensajes.path(0).path("content").asText());
+        JsonNode partes = mensajes.path(1).path("content");
+        assertTrue(partes.isArray());
+        assertEquals(3, partes.size());
+        assertEquals("text", partes.path(0).path("type").asText());
+        assertEquals("DOCUMENTO:\ntexto", partes.path(0).path("text").asText());
+        byte[][] enviadas = { primera, segunda };
+        for (int i = 0; i < enviadas.length; i++) {
+            JsonNode parte = partes.path(i + 1);
+            assertEquals("image_url", parte.path("type").asText());
+            String url = parte.path("image_url").path("url").asText();
+            assertTrue(url.startsWith("data:image/jpeg;base64,"), "página " + (i + 1));
+            assertArrayEquals(enviadas[i], Base64.getDecoder().decode(url.substring("data:image/jpeg;base64,".length())));
+        }
     }
 
     @Test

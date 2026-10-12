@@ -11,6 +11,7 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -51,6 +52,7 @@ public class ClienteLlmHttp implements ClienteLlm {
     private static final Duration TIEMPO_CONEXION = Duration.ofSeconds(10);
     /** El avance se informa a lo sumo cada tanto: el sondeo del frontend es de 2 s, no hace falta más. */
     private static final long INTERVALO_PROGRESO_NS = TimeUnit.MILLISECONDS.toNanos(250);
+    private static final String PREFIJO_JPEG = "data:image/jpeg;base64,";
 
     /**
      * El timeout de HttpRequest vence al recibir las cabeceras, no cuenta la lectura del
@@ -135,7 +137,7 @@ public class ClienteLlmHttp implements ClienteLlm {
         ObjectNode raiz = om.createObjectNode();
         raiz.put("model", modelo);
         ArrayNode mensajes = raiz.putArray("messages");
-        p.mensajes().forEach(m -> mensajes.addObject().put("role", m.rol()).put("content", m.contenido()));
+        p.mensajes().forEach(m -> agregar(mensajes, m));
         raiz.put("stream", true);
         raiz.putObject("stream_options").put("include_usage", true);
         if (p.esfuerzo() != null) {
@@ -149,6 +151,26 @@ public class ClienteLlmHttp implements ClienteLlm {
             return om.writeValueAsString(raiz);
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("No se pudo armar la petición a la IA", e);
+        }
+    }
+
+    /**
+     * Sin imágenes el contenido es una cadena, como siempre: el cuerpo no cambia ni un byte y el
+     * prefijo cacheado del proveedor sigue valiendo. Con imágenes es un arreglo de partes: el texto
+     * primero y cada página después, como data URI y en el orden recibido (el único formato que el
+     * proveedor aceptó en el spike: {@code image_url} como objeto).
+     */
+    private void agregar(ArrayNode mensajes, MensajeLlm m) {
+        ObjectNode mensaje = mensajes.addObject().put("role", m.rol());
+        if (m.imagenesJpeg().isEmpty()) {
+            mensaje.put("content", m.contenido());
+            return;
+        }
+        ArrayNode partes = mensaje.putArray("content");
+        partes.addObject().put("type", "text").put("text", m.contenido());
+        for (byte[] jpeg : m.imagenesJpeg()) {
+            partes.addObject().put("type", "image_url").putObject("image_url")
+                    .put("url", PREFIJO_JPEG + Base64.getEncoder().encodeToString(jpeg));
         }
     }
 
