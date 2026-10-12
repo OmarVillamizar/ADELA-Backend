@@ -13,9 +13,10 @@ Modo externo: ADELA_URL (def. http://localhost:8091) y ADELA_TOKEN (JWT de un AD
 Salidas en ia-eval/salidas/ (ignorado por git).
 
 Casos: genericos/casos.py (versionado) y casos/casos.py (local, ignorado; ahí van los que
-nombran instrumentos). Ver README.md.
+nombran instrumentos). Un caso con 'imagenes' (carpeta pagina-N.jpg) manda las páginas como imágenes,
+con el mismo mensaje que el backend. Ver README.md.
 """
-import argparse, hashlib, importlib.util, json, os, re, sys, time, urllib.request, urllib.error
+import argparse, base64, hashlib, importlib.util, json, os, re, sys, time, urllib.request, urllib.error
 from concurrent.futures import ThreadPoolExecutor
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -139,10 +140,23 @@ def largo(s):
 
 
 # ---------------------------------------------------------------- modelo
-def chat(system, user, effort="high", json_mode=True):
+def mensaje_con_imagenes(user, imagenes):
+    """Mensaje de usuario como lo arma ClienteLlmHttp: sin imágenes, el texto a secas; con ellas, un arreglo
+    de partes (el texto primero y cada página después, como data URI, en el orden dado)."""
+    if not imagenes:
+        return {"role": "user", "content": user}
+    mime = lambda r: "image/jpeg" if r.lower().endswith((".jpg", ".jpeg")) else "image/png"
+    def uri(r):
+        with open(r, "rb") as f:
+            return f"data:{mime(r)};base64," + base64.b64encode(f.read()).decode()
+    return {"role": "user", "content": [{"type": "text", "text": user}] +
+            [{"type": "image_url", "image_url": {"url": uri(r)}} for r in imagenes]}
+
+
+def chat(system, user, effort="high", json_mode=True, imagenes=()):
     body = {"model": MODEL, "stream": True, "stream_options": {"include_usage": True},
             "reasoning_effort": effort,
-            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+            "messages": [{"role": "system", "content": system}, mensaje_con_imagenes(user, imagenes)]}
     if json_mode:  # la IA externa de la vida real responde en el chat, sin modo JSON
         body["response_format"] = {"type": "json_object"}
     r = urllib.request.Request(BASE + "/chat/completions", data=json.dumps(body).encode(),
@@ -447,14 +461,66 @@ def cargar_casos():
             continue
         MODELO_BAREMO.update(getattr(m, "MODELO_BAREMO", {}))
         for n, c in nuevos.items():
-            todos[n] = dict({"excluir": (), "doc": None, "prof": None, "chequeos": None}, origen=origen, **c)
+            caso = dict({"excluir": (), "doc": None, "prof": None, "chequeos": None, "imagenes": None},
+                        origen=origen, **c)
+            if caso["imagenes"] and caso["doc"]:
+                avisos.append(f"caso {n} no cargado: tiene 'imagenes' y 'doc' (un caso con imágenes es de solo escaneadas)")
+                continue
+            todos[n] = caso
     return todos, avisos
+
+
+def paginas_imagen(carpeta):
+    """[(número, ruta)] de las pagina-N.png|jpg de una carpeta (relativa a ia-eval/ o absoluta), en orden.
+
+    Salen de ia-eval/RenderPdf.java (mismo render que ExtractorDocumento; con 'jpg' y calidad 0,8 son los
+    bytes que viajan en producción). Un escaneo solo de imágenes es el caso de las páginas 1 a N seguidas."""
+    d = os.path.join(AQUI, carpeta)
+    hallados = []
+    for n in os.listdir(d):
+        m = re.fullmatch(r"pagina-(\d+)\.(?:png|jpe?g)", n, re.I)
+        if m:
+            hallados.append((int(m.group(1)), os.path.join(d, n)))
+    if not hallados:
+        sys.exit(f"{carpeta}: no hay archivos pagina-N.png|jpg")
+    return sorted(hallados)
+
+
+def documento_con_imagenes(textos, paginas_con_imagen):
+    """El cuerpo de DOCUMENTO cuando hay páginas adjuntas como imagen: espejo de
+    GeneradorCuestionarioService.documentoParaElModelo (el test de Java fija estas mismas frases).
+
+    textos: una entrada por página, '' la que no tiene texto (ya limpio). paginas_con_imagen: sus números."""
+    if not paginas_con_imagen:
+        return "\n\n".join(f"--- página {i} ---\n{t}" for i, t in enumerate(textos, 1) if t.strip())
+    n = len(paginas_con_imagen)
+    if list(paginas_con_imagen) == list(range(1, n + 1)) and not any(t.strip() for t in textos):
+        return (f"(sin texto: el documento llega como {n} imágenes de páginas escaneadas, "
+                f"adjuntas a continuación en orden: páginas 1 a {n})")
+    partes = []
+    for i, t in enumerate(textos, 1):
+        if i in paginas_con_imagen:
+            partes.append(f"--- página {i} (imagen adjunta) ---")
+        elif t.strip():
+            partes.append(f"--- página {i} ---\n{t}")
+    lista = ", ".join(str(i) for i in paginas_con_imagen)
+    return ("\n\n".join(partes) + f"\n\n(las páginas {lista} no tienen texto: llegan como imágenes adjuntas "
+            "a continuación, en ese orden)")
+
+
+def imagenes_de(caso):
+    """Rutas de las páginas de un caso con imágenes, en orden de página; [] si el caso es de solo texto."""
+    return [r for _, r in paginas_imagen(caso["imagenes"])] if caso["imagenes"] else []
 
 
 def mensaje_usuario(caso):
     user = ""
-    if caso["doc"]:
-        user += "DOCUMENTO:\n" + caso["doc"] + "\n\n"
+    doc = caso["doc"]
+    if caso["imagenes"]:
+        numeros = [k for k, _ in paginas_imagen(caso["imagenes"])]
+        doc = documento_con_imagenes([""] * numeros[-1], numeros)
+    if doc:
+        user += "DOCUMENTO:\n" + doc + "\n\n"
     return user + "PROFESOR:\n" + (caso["prof"] or "(sin instrucciones)")
 
 
@@ -465,8 +531,9 @@ def guardar(nombre, sufijo, datos):
 
 
 def correr(nombre, caso):
-    met, crudo = chat(sistema(caso["excluir"]), mensaje_usuario(caso))
-    res = {"caso": nombre, "metricas": met}
+    imagenes = imagenes_de(caso)
+    met, crudo = chat(sistema(caso["excluir"]), mensaje_usuario(caso), imagenes=imagenes)
+    res = {"caso": nombre, "metricas": met, **({"imagenes": len(imagenes)} if imagenes else {})}
     try:
         salida = json.loads(crudo)
         c, a = salida["cuestionario"], salida["analisis"]
@@ -575,8 +642,9 @@ def listar(todos, avisos):
         print("AVISO:", a)
     print(f"Casos ({len(todos)}):")
     for n, c in todos.items():
+        imagenes = f"  imagenes={len(paginas_imagen(c['imagenes']))}" if c["imagenes"] else ""
         print(f"  {n:<28} [{c['origen']}] excluir={list(c['excluir'])}  documento={len(c['doc'] or '')}  "
-              f"instrucciones={len(c['prof'] or '')}  chequeos={'sí' if c['chequeos'] else 'no'}")
+              f"instrucciones={len(c['prof'] or '')}{imagenes}  chequeos={'sí' if c['chequeos'] else 'no'}")
 
 
 def main():
@@ -591,10 +659,14 @@ def main():
         return listar(todos, avisos)
     for a in avisos:
         print("AVISO:", a)
-    sel = args.casos or list(todos)
+    # El modo externo prueba las instrucciones para la IA del profesor, que no recibe imágenes: los casos
+    # escaneados no corren ahí (sin nombres se omiten; nombrados, es un error).
+    sel = args.casos or [n for n in todos if not (args.externo and todos[n]["imagenes"])]
     desconocidos = [n for n in sel if n not in todos]
     if desconocidos or not sel:
         sys.exit(f"Casos desconocidos: {desconocidos}. Disponibles: {list(todos)}")
+    if args.externo and any(todos[n]["imagenes"] for n in sel):
+        sys.exit("El modo externo no admite casos con imágenes: " + ", ".join(n for n in sel if todos[n]["imagenes"]))
     if args.externo:
         token = os.environ.get("ADELA_TOKEN", "").strip()
         if not token:

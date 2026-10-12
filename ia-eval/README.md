@@ -53,9 +53,19 @@ Cada carpeta tiene un `casos.py` con `casos(h)`, donde `h` es el módulo `eval`,
 Los checks genéricos (validadores del servidor, expansión de convenciones, métricas) están en
 `eval.py`. Nada versionado debe nombrar instrumentos publicados ni traer su contenido.
 
+**Casos escaneados.** Un caso puede traer `imagenes` (carpeta con `pagina-N.jpg`, relativa a `ia-eval/` o
+absoluta) en lugar de `doc`: `eval.py` manda las páginas como imágenes igual que el backend (un solo mensaje
+de usuario, texto primero e imágenes después en orden, como data URI) y el cuerpo de `DOCUMENTO` es el que
+arma `GeneradorCuestionarioService.documentoParaElModelo` (`documento_con_imagenes` en `eval.py` es su
+espejo; las frases están fijadas en `GeneradorCuestionarioServiceTest`). Las carpetas salen de
+`RenderPdf.java <pdf> <carpeta> 144 jpg 0.8` (mismo render y calidad que `ExtractorDocumento`). `--listar` los
+cuenta (`imagenes=N`) sin leer la llave ni llamar a la API; el modo `--externo` los omite (la IA externa del
+profesor no recibe imágenes) y falla si se nombran.
+
 ## Visión (spike de la fase 6): páginas escaneadas como imágenes
 
-Herramientas (fuera de `eval.py`, que no cambia; reusan su llave, prefijo y validadores):
+Herramientas (aparte de `eval.py`, del que reusan llave, prefijo y validadores; los casos escaneados del
+arnés normal están descritos arriba):
 
 - `RenderPdf.java`: renderiza un PDF a `pagina-N.png|jpg` en grises igual que `ExtractorDocumento`
   (CropBox, tope de 16 MP) e imprime por página los caracteres de texto, el tamaño y los bytes.
