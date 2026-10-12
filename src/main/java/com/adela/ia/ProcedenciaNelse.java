@@ -88,6 +88,7 @@ final class ProcedenciaNelse {
         Map<String, String> origenes = origenes(analisis);
         cifrasContraLaFuente(dto, origenes, fuente, marcas);
         contraElCatalogo(dto, analisis, origenes, marcas);
+        paginasOmitidas(fuente, marcas);
         // En CREACION no hay documento que copiar: la fidelidad y la numeración no aplican.
         if (!esCreacion(analisis)) {
             fidelidad(dto, fuente, marcas);
@@ -130,6 +131,18 @@ final class ProcedenciaNelse {
             }
             Set<String> refs = new LinkedHashSet<>();
             faltantes.values().forEach(refs::addAll);
+            if (documento && fuente.paginasImagen() > 0) {
+                // Las cifras de una página escaneada no están en el texto contra el que se busca: que no
+                // aparezcan no prueba que se inventaron. Se pide verificarlas, no se acusa (MEDIO, no ALTO).
+                marcas.add(Marca.validador(Marca.MEDIO, seccion, limitar(refs, MAX_REFS),
+                        "Cifras de '" + seccion + "' que la IA atribuye al documento (" + lista(faltantes.keySet())
+                                + ") y no aparecen en el texto; pueden estar en las páginas escaneadas: "
+                                + "verifícalas contra el original.",
+                        "Búscalas en las páginas escaneadas del original. Si no están, fueron calculadas o "
+                                + "inventadas: bórralas o elige una lectura del asistente para que ADELA calcule "
+                                + "el baremo."));
+                continue;
+            }
             String fuenteDicha = documento ? "al documento" : "a tus instrucciones";
             String dondeBuscar = documento ? "en el documento original (o en tus instrucciones)"
                     : "en lo que escribiste en las instrucciones";
@@ -383,6 +396,26 @@ final class ProcedenciaNelse {
                         + " que faltan.",
                 "Si el documento imprime sus propios valores, esos mandan; si no, cópialos tal cual del catálogo "
                         + "o deja la sección vacía y elige una lectura del asistente."));
+    }
+
+    // ---------------------------------------------------------------- Páginas que no llegaron
+
+    /**
+     * Las escaneadas que pasaron el tope de imágenes no se mandaron en ninguna forma: Nelse no
+     * sabe que existen y puede entregar el cuestionario sin sus ítems. Solo la persona puede
+     * notarlo, así que se le dice. Aplica también si el modelo declaró CREACION.
+     */
+    private static void paginasOmitidas(FuenteNelse fuente, List<Marca> marcas) {
+        int omitidas = fuente.paginasOmitidas();
+        if (omitidas <= 0) {
+            return;
+        }
+        marcas.add(Marca.validador(Marca.MEDIO, "items", List.of(),
+                omitidas + (omitidas == 1 ? " página escaneada no se envió" : " páginas escaneadas no se enviaron")
+                        + " a Nelse (tope de " + fuente.paginasImagen()
+                        + (fuente.paginasImagen() == 1 ? " imagen" : " imágenes") + "): revisa que no falten ítems.",
+                "Compara el cuestionario con el original; si faltan ítems, agrégalos en el editor o sube el "
+                        + "documento por partes."));
     }
 
     // ---------------------------------------------------------------- Fidelidad al documento

@@ -199,6 +199,38 @@ class ProcedenciaTest {
     }
 
     @Test
+    @DisplayName("Con páginas escaneadas una cifra ausente del texto baja a MEDIO: pudo estar en la imagen")
+    void cifraAusenteConImagenes() throws IOException {
+        CuestionarioDTO dto = conBandas(banda("A", 3, 5, 1), banda("A", 6, 9, 2));
+
+        ResultadoImportacion r = nelse(dto, origenes("bandas", "DOCUMENTO"),
+                new FuenteNelse(pagina("Nivel bajo de 3 a 5."), null, 2));
+
+        assertTrue(marcas(r, Marca.ALTO, "bandas").isEmpty(), r.marcas().toString());
+        Marca m = unica(marcas(r, Marca.MEDIO, "bandas"));
+        assertTrue(m.mensaje().contains("(6)"), m.mensaje());
+        assertTrue(m.mensaje().contains("no aparecen en el texto; pueden estar en las páginas escaneadas: "
+                + "verifícalas contra el original"), m.mensaje());
+        assertEquals(List.of("estilo:A"), m.refs());
+        assertFalse(m.comoVerificar().isBlank());
+    }
+
+    @Test
+    @DisplayName("Con páginas escaneadas, las cifras que sí están en el texto siguen sin marca, y las de PROFESOR siguen en ALTO")
+    void cifrasConImagenesSegunElOrigen() throws IOException {
+        CuestionarioDTO dto = conBandas(banda("A", 3, 5, 1), banda("A", 6, 9, 2));
+
+        ResultadoImportacion presentes = nelse(dto, origenes("bandas", "DOCUMENTO"),
+                new FuenteNelse(pagina("Bajo de 3 a 5; alto de 6 a 9."), null, 2));
+        assertTrue(marcas(presentes, null, "bandas").isEmpty(), presentes.marcas().toString());
+
+        // Las instrucciones son texto: una imagen no las respalda ni las excusa.
+        ResultadoImportacion profesor = nelse(dto, origenes("bandas", "PROFESOR"),
+                new FuenteNelse(pagina("Cortes 5 y 6."), "Usa niveles bajo y alto.", 2));
+        assertEquals(1, marcas(profesor, Marca.ALTO, "bandas").size(), profesor.marcas().toString());
+    }
+
+    @Test
     @DisplayName("Los extremos de cada grupo de bandas no se exigen: 'hasta 6' o '9 o más' no imprimen el tope")
     void extremosExentos() throws IOException {
         CuestionarioDTO dto = conBandas(banda("A", 3, 5, 1), banda("A", 6, 9, 2));
@@ -724,6 +756,35 @@ class ProcedenciaTest {
         Marca m = unica(marcas(nelse(base(), null, new FuenteNelse("", null, 1)), Marca.MEDIO, "items"));
 
         assertTrue(m.mensaje().contains("1 página") && m.mensaje().contains("imagen"), m.mensaje());
+    }
+
+    @Test
+    @DisplayName("Páginas escaneadas fuera del tope de imágenes: MEDIO en 'items' con cuántas y el tope")
+    void paginasOmitidas() throws IOException {
+        List<Marca> items = marcas(nelse(base(), null, new FuenteNelse("", null, 12, 3)), Marca.MEDIO, "items");
+
+        Marca m = items.stream().filter(x -> x.mensaje().contains("no se enviaron")).findFirst().orElseThrow();
+        assertEquals("3 páginas escaneadas no se enviaron a Nelse (tope de 12 imágenes): revisa que no falten ítems.",
+                m.mensaje());
+        assertTrue(m.refs().isEmpty());
+        assertFalse(m.comoVerificar().isBlank());
+        // La marca de "leído desde imagen" es otra y sigue estando.
+        assertEquals(2, items.size(), items.toString());
+
+        Marca una = marcas(nelse(base(), null, new FuenteNelse("", null, 1, 1)), Marca.MEDIO, "items").stream()
+                .filter(x -> x.mensaje().contains("no se envió")).findFirst().orElseThrow();
+        assertTrue(una.mensaje().startsWith("1 página escaneada no se envió a Nelse (tope de 1 imagen)"), una.mensaje());
+    }
+
+    @Test
+    @DisplayName("Sin páginas omitidas no hay aviso de tope, y en CREACION el aviso se da igual")
+    void paginasOmitidasSoloSiHay() throws IOException {
+        assertTrue(marcas(nelse(base(), null, new FuenteNelse("", null, 12)), null, "items").stream()
+                .noneMatch(x -> x.mensaje().contains("no se envi")));
+
+        ResultadoImportacion creacion = nelse(base(), "{\"modo\": \"CREACION\"}", new FuenteNelse(null, "Haz uno", 12, 2));
+        assertEquals(1, marcas(creacion, Marca.MEDIO, "items").stream()
+                .filter(x -> x.mensaje().contains("no se enviaron")).count(), creacion.marcas().toString());
     }
 
     @Test
