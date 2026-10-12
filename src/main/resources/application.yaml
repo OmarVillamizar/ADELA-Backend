@@ -89,7 +89,10 @@ adela:
         # Tope de toda la petición, no solo de la conexión: un PDF largo con razonamiento alto tarda.
         timeout: ${IA_TIMEOUT:180s}
         esfuerzo-generar: ${IA_ESFUERZO_GENERAR:high}
-        esfuerzo-corregir: ${IA_ESFUERZO_CORREGIR:low}
+        # Igual al de generar a propósito: la caché del proveedor depende también del esfuerzo, y
+        # corregir con otro (p. ej. low tras high) paga de nuevo todo el prefijo (sistema, documento
+        # e imágenes), ~$0,007 más por ronda. Se puede bajar con IA_ESFUERZO_CORREGIR si se acepta eso.
+        esfuerzo-corregir: ${IA_ESFUERZO_CORREGIR:high}
         max-salida: ${IA_MAX_SALIDA:32000}
         cuota-diaria: ${IA_CUOTA_DIARIA:30}
         max-mb: ${IA_MAX_MB:15}
