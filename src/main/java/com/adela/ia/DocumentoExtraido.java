@@ -20,13 +20,15 @@ public record DocumentoExtraido(List<PaginaExtraida> paginas) {
      * @param texto         texto tal como lo extrajo PDFBox, sin limpiar; puede ser corto
      *                      o vacío si la página es escaneada
      * @param escaneada     tiene tan poco texto que el contenido está en una imagen
-     * @param imagenPng     PNG en grises de la página, solo si es escaneada y entró en el
-     *                      tope de imágenes; si no, {@code null}
+     * @param imagen        JPEG en grises de la página, solo si es escaneada y entró en el
+     *                      tope de imágenes; si no, {@code null}. El nombre no dice el formato
+     *                      a propósito: es el que decide {@link ExtractorDocumento}, y quien lo
+     *                      manda al modelo ({@link ClienteLlm.MensajeLlm}) lo declara como JPEG.
      * @param imagenOmitida escaneada pero sin imagen por el tope de imágenes. Se marca en vez
      *                      de descartarla en silencio: ese contenido no llegará al modelo y
      *                      la persona debe saberlo.
      */
-    public record PaginaExtraida(int numero, String texto, boolean escaneada, byte[] imagenPng,
+    public record PaginaExtraida(int numero, String texto, boolean escaneada, byte[] imagen,
             boolean imagenOmitida) {
     }
 }

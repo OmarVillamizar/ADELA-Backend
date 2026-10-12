@@ -37,7 +37,8 @@ import com.adela.ia.DocumentoExtraido.PaginaExtraida;
 class ExtractorDocumentoTest {
 
     private static final String TEXTO_LARGO = "Pregunta ficticia numero %d: me gusta aprender con ejemplos concretos y practicos.";
-    private static final byte[] PNG = { (byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A };
+    /** Inicio de todo JPEG: marcador SOI (FF D8) y el comienzo del siguiente marcador (FF). */
+    private static final byte[] JPEG = { (byte) 0xFF, (byte) 0xD8, (byte) 0xFF };
 
     /** Límites holgados; cada prueba usa el constructor de bytes para estrechar el que prueba. */
     private final ExtractorDocumento extractor = con(40, 12, 15L * 1024 * 1024);
@@ -98,7 +99,7 @@ class ExtractorDocumentoTest {
         assertEquals(1, p.numero());
         assertTrue(p.texto().contains("Pregunta ficticia numero 1"));
         assertFalse(p.escaneada());
-        assertNull(p.imagenPng());
+        assertNull(p.imagen());
         assertFalse(p.imagenOmitida());
     }
 
@@ -113,17 +114,17 @@ class ExtractorDocumentoTest {
     // ---------------------------------------------------------------- Escaneadas
 
     @Test
-    @DisplayName("una página sin texto es escaneada y trae un PNG en grises")
+    @DisplayName("una página sin texto es escaneada y trae un JPEG en grises")
     void paginaEscaneada() throws IOException {
         PaginaExtraida p = extractor.extraer(pdf((String) null)).paginas().get(0);
 
         assertTrue(p.escaneada());
         assertFalse(p.imagenOmitida());
-        assertNotNull(p.imagenPng());
-        for (int i = 0; i < PNG.length; i++) {
-            assertEquals(PNG[i], p.imagenPng()[i], "byte " + i + " de la firma PNG");
+        assertNotNull(p.imagen());
+        for (int i = 0; i < JPEG.length; i++) {
+            assertEquals(JPEG[i], p.imagen()[i], "byte " + i + " de la firma JPEG");
         }
-        BufferedImage img = ImageIO.read(new ByteArrayInputStream(p.imagenPng()));
+        BufferedImage img = ImageIO.read(new ByteArrayInputStream(p.imagen()));
         assertEquals(BufferedImage.TYPE_BYTE_GRAY, img.getType());
         // A4 = 595 x 842 pt; a 144 DPI (el doble de 72) son ~1190 x 1684 px.
         assertEquals(595 * 2, img.getWidth(), 4);
@@ -136,7 +137,7 @@ class ExtractorDocumentoTest {
         PaginaExtraida corta = extractor.extraer(pdf("Figura 1")).paginas().get(0);
         assertTrue(corta.escaneada());
         assertTrue(corta.texto().contains("Figura 1"));
-        assertNotNull(corta.imagenPng());
+        assertNotNull(corta.imagen());
 
         assertTrue(ExtractorDocumento.esEscaneada("a".repeat(ExtractorDocumento.MIN_CARACTERES_TEXTO - 1)));
         assertFalse(ExtractorDocumento.esEscaneada("a".repeat(ExtractorDocumento.MIN_CARACTERES_TEXTO)));
@@ -152,9 +153,9 @@ class ExtractorDocumentoTest {
         assertEquals(3, doc.paginas().size());
         assertFalse(doc.paginas().get(0).escaneada());
         assertTrue(doc.paginas().get(1).escaneada());
-        assertNotNull(doc.paginas().get(1).imagenPng());
+        assertNotNull(doc.paginas().get(1).imagen());
         assertFalse(doc.paginas().get(2).escaneada());
-        assertNull(doc.paginas().get(2).imagenPng());
+        assertNull(doc.paginas().get(2).imagen());
         assertEquals(2, doc.paginas().get(1).numero());
         assertTrue(doc.paginas().get(2).texto().contains("numero 3"));
     }
@@ -167,12 +168,12 @@ class ExtractorDocumentoTest {
         DocumentoExtraido doc = conTope.extraer(pdf((String) null, (String) null, (String) null, TEXTO_LARGO.formatted(4)));
 
         assertEquals(4, doc.paginas().size());
-        assertNotNull(doc.paginas().get(0).imagenPng());
-        assertNotNull(doc.paginas().get(1).imagenPng());
+        assertNotNull(doc.paginas().get(0).imagen());
+        assertNotNull(doc.paginas().get(1).imagen());
         PaginaExtraida omitida = doc.paginas().get(2);
         assertTrue(omitida.escaneada());
         assertTrue(omitida.imagenOmitida());
-        assertNull(omitida.imagenPng());
+        assertNull(omitida.imagen());
         assertFalse(doc.paginas().get(3).imagenOmitida());
     }
 
@@ -188,7 +189,7 @@ class ExtractorDocumentoTest {
 
         PaginaExtraida p = extractor.extraer(enorme).paginas().get(0);
 
-        BufferedImage img = ImageIO.read(new ByteArrayInputStream(p.imagenPng()));
+        BufferedImage img = ImageIO.read(new ByteArrayInputStream(p.imagen()));
         assertTrue((long) img.getWidth() * img.getHeight() <= 16_100_000L);
     }
 

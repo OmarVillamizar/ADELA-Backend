@@ -5,9 +5,15 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
+import javax.imageio.stream.MemoryCacheImageOutputStream;
 
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -28,7 +34,7 @@ import com.adela.ia.DocumentoExtraido.PaginaExtraida;
 
 /**
  * Lee el PDF que sube el administrador: texto por página y, para las páginas que son
- * una foto, un PNG en grises que se le manda al modelo (que tiene visión).
+ * una foto, un JPEG en grises que se le manda al modelo (que tiene visión).
  *
  * Todo lo que no sirve (vacío, grande, otro formato, protegido, ilegible) sale como
  * {@code DOCUMENTO_INVALIDO} con un mensaje para la persona. Los mensajes y los logs
@@ -55,6 +61,13 @@ public class ExtractorDocumento {
      * página declarada de varios metros pide gigas de memoria al renderizar: se baja el DPI.
      */
     private static final double MAX_PIXELES = 16_000_000d;
+
+    /**
+     * JPEG y no PNG: en el spike dio los mismos tokens y la misma lectura, y un cuarto del peso en
+     * escaneos con ruido (~0,3 MB frente a ~1,2 MB por página; con 12 páginas el cuerpo de la
+     * petición pasa de ~20 MB a ~5 MB).
+     */
+    private static final float CALIDAD_JPEG = 0.8f;
 
     private static final long MB = 1024L * 1024L;
 
@@ -146,7 +159,7 @@ public class ExtractorDocumento {
             if (!esEscaneada(texto)) {
                 paginas.add(new PaginaExtraida(numero, texto, false, null, false));
             } else if (imagenes < maxImagenes) {
-                paginas.add(new PaginaExtraida(numero, texto, true, renderizarPng(doc, renderizador, numero - 1), false));
+                paginas.add(new PaginaExtraida(numero, texto, true, renderizarJpeg(doc, renderizador, numero - 1), false));
                 imagenes++;
             } else {
                 paginas.add(new PaginaExtraida(numero, texto, true, null, true));
@@ -159,7 +172,7 @@ public class ExtractorDocumento {
         return texto.strip().replaceAll("\\s+", " ").length() < MIN_CARACTERES_TEXTO;
     }
 
-    private byte[] renderizarPng(PDDocument doc, PDFRenderer renderizador, int indice) throws IOException {
+    private byte[] renderizarJpeg(PDDocument doc, PDFRenderer renderizador, int indice) throws IOException {
         PDRectangle caja = doc.getPage(indice).getCropBox();
         float dpi = DPI_IMAGEN;
         double pixeles = (caja.getWidth() * dpi / 72d) * (caja.getHeight() * dpi / 72d);
@@ -167,9 +180,29 @@ public class ExtractorDocumento {
             dpi = (float) (dpi * Math.sqrt(MAX_PIXELES / pixeles));
         }
         BufferedImage imagen = renderizador.renderImageWithDPI(indice, dpi, ImageType.GRAY);
+        return codificarJpeg(imagen);
+    }
+
+    /**
+     * Calidad explícita (el valor por defecto del escritor es 0,75). El flujo es de memoria a
+     * propósito: {@code ImageIO.write} y {@code createImageOutputStream} usan un archivo temporal
+     * como caché de forma predeterminada, y la página es material del documento, no debe tocar disco.
+     */
+    private static byte[] codificarJpeg(BufferedImage imagen) throws IOException {
+        Iterator<ImageWriter> escritores = ImageIO.getImageWritersByFormatName("jpeg");
+        if (!escritores.hasNext()) {
+            throw new IOException("No hay codificador JPEG");
+        }
+        ImageWriter escritor = escritores.next();
+        ImageWriteParam parametros = escritor.getDefaultWriteParam();
+        parametros.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+        parametros.setCompressionQuality(CALIDAD_JPEG);
         ByteArrayOutputStream salida = new ByteArrayOutputStream();
-        if (!ImageIO.write(imagen, "png", salida)) {
-            throw new IOException("No hay codificador PNG");
+        try (ImageOutputStream flujo = new MemoryCacheImageOutputStream(salida)) {
+            escritor.setOutput(flujo);
+            escritor.write(null, new IIOImage(imagen, null, null), parametros);
+        } finally {
+            escritor.dispose();
         }
         return salida.toByteArray();
     }
