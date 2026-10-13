@@ -13,9 +13,12 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import lombok.AllArgsConstructor;
@@ -65,6 +68,19 @@ public class Cuestionario {
      */
     @Column(name = "es_ipsativo", nullable = false)
     private boolean esIpsativo = false;
+
+    /** null = general de ADELA (lo gestiona SUPERADMIN); con valor = personal. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "profesor_email", referencedColumnName = "email")
+    @ToString.Exclude
+    private Profesor profesor;
+
+    /**
+     * Borrado lógico: deja de listarse y de poder asignarse, pero los resultados
+     * ya respondidos y sus reportes se conservan.
+     */
+    @Column(nullable = false)
+    private boolean archivado = false;
 
     /**
      * Opcional: se hace cuando el perfil destaca todos los estilos. null = el
