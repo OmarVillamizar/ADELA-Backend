@@ -238,13 +238,19 @@ public class ResultadoCuestionarioService {
         resultadoCuestionarioRepository.saveAll(asignaciones);
     }
     
+    /**
+     * Solo a estudiantes matriculados en algún grupo del profesor. Uno ajeno se
+     * responde igual que uno inexistente, para no revelar qué correos existen.
+     */
     @Transactional
-    public void asignarCuestionarioAEstudiante(Long cuestionarioId, String estudianteEmail) {
+    public void asignarCuestionarioAEstudiante(Long cuestionarioId, String estudianteEmail, Profesor profesor) {
+        Estudiante estudiante = estudianteRepository.findById(estudianteEmail)
+                .filter(e -> e.getGrupos().stream()
+                        .anyMatch(g -> g.getProfesor().getEmail().equalsIgnoreCase(profesor.getEmail())))
+                .orElseThrow(() -> new EntityNotFoundException("No existe el estudiante con id " + estudianteEmail));
+
         Cuestionario cuestionario = cuestionarioRepository.findById(cuestionarioId)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el cuestionario con id " + cuestionarioId));
-        
-        Estudiante estudiante = estudianteRepository.findById(estudianteEmail)
-                .orElseThrow(() -> new EntityNotFoundException("No existe el estudiante con id " + estudianteEmail));
         if (resultadoCuestionarioRepository
                 .findByCuestionarioAndEstudianteAndFechaResolucionIsNull(cuestionario, estudiante).isEmpty()) {
             ResultadoCuestionario rc = new ResultadoCuestionario();

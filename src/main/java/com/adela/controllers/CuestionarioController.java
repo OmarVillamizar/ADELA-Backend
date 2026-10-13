@@ -111,7 +111,9 @@ public class CuestionarioController {
     @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('PROFESOR')")
     public ResponseEntity<?> asignarCuestionarioAEstudiante(@PathVariable Long idCuestionario,
             @RequestBody RequestEstudianteEmail estudianteEmail) {
-        resultadoCuestionarioService.asignarCuestionarioAEstudiante(idCuestionario, estudianteEmail.getEmail());
+        Profesor profesor = (Profesor) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        resultadoCuestionarioService.asignarCuestionarioAEstudiante(idCuestionario, estudianteEmail.getEmail(),
+                profesor);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
 

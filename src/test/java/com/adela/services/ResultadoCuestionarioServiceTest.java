@@ -27,6 +27,7 @@ import com.adela.entities.Grupo;
 import com.adela.entities.Profesor;
 import com.adela.entities.ResultadoCuestionario;
 import com.adela.repositories.CuestionarioRepository;
+import com.adela.repositories.EstudianteRepository;
 import com.adela.repositories.GrupoRepository;
 import com.adela.repositories.ResultadoCuestionarioRepository;
 
@@ -55,6 +56,9 @@ class ResultadoCuestionarioServiceTest {
 
     @Mock
     private CuestionarioRepository cuestionarioRepository;
+
+    @Mock
+    private EstudianteRepository estudianteRepository;
 
     @InjectMocks
     private ResultadoCuestionarioService service;
@@ -159,6 +163,35 @@ class ResultadoCuestionarioServiceTest {
         service.asignarCuestionarioAGrupo(1L, 7, duenyo);
 
         verify(resultadoCuestionarioRepository).saveAll(argThat(l -> ((List<?>) l).size() == 1));
+    }
+
+    @Test
+    @DisplayName("No se puede asignar un cuestionario a un estudiante que no está en un grupo propio")
+    void asignarAEstudianteAjenoSeDeniega() {
+        Estudiante ajeno = estudiante("alumno@ufps.edu.co");
+        ajeno.setGrupos(Set.of(grupoDe(profesor("propietario@ufps.edu.co"))));
+        when(estudianteRepository.findById("alumno@ufps.edu.co")).thenReturn(Optional.of(ajeno));
+        when(cuestionarioRepository.findById(1L)).thenReturn(Optional.of(new Cuestionario()));
+
+        assertThrows(EntityNotFoundException.class,
+                () -> service.asignarCuestionarioAEstudiante(1L, "alumno@ufps.edu.co", profesor("intruso@ufps.edu.co")));
+        verify(resultadoCuestionarioRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Se puede asignar un cuestionario a un estudiante de un grupo propio")
+    void asignarAEstudianteDeGrupoPropio() {
+        Profesor duenyo = profesor("propietario@ufps.edu.co");
+        Estudiante alumno = estudiante("alumno@ufps.edu.co");
+        alumno.setGrupos(Set.of(grupoDe(duenyo)));
+        when(estudianteRepository.findById("alumno@ufps.edu.co")).thenReturn(Optional.of(alumno));
+        when(cuestionarioRepository.findById(1L)).thenReturn(Optional.of(new Cuestionario()));
+        when(resultadoCuestionarioRepository.findByCuestionarioAndEstudianteAndFechaResolucionIsNull(any(), any()))
+                .thenReturn(List.of());
+
+        service.asignarCuestionarioAEstudiante(1L, "alumno@ufps.edu.co", duenyo);
+
+        verify(resultadoCuestionarioRepository).save(any());
     }
 
     @Test
