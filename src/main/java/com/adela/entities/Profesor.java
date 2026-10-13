@@ -41,7 +41,12 @@ public class Profesor extends Usuario {
     private ProfesorEstado estadoProfesor;
     
     public Profesor() {
-        
+
+    }
+
+    /** Único rol que gestiona los cuestionarios generales y que solo se asigna desde la base de datos. */
+    public boolean esSuperadmin() {
+        return rol != null && "SUPERADMIN".equals(rol.getDescripcion());
     }
     
     /**

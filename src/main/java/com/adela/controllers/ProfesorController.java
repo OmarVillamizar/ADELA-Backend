@@ -181,7 +181,7 @@ public class ProfesorController {
      * administrador podría desactivarlo, cambiarle el rol o rechazarlo desde la UI.
      */
     private static void exigirNoSuperadmin(Profesor profesor) {
-        if (profesor.getRol() != null && "SUPERADMIN".equals(profesor.getRol().getDescripcion())) {
+        if (profesor.esSuperadmin()) {
             throw new AppException(ErrorCode.CUENTA_PROTEGIDA, "La cuenta de " + profesor.getEmail()
                     + " es de superadministrador y solo se gestiona desde la base de datos.");
         }

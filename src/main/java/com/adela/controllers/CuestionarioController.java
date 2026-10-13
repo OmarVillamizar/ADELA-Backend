@@ -30,7 +30,6 @@ import com.adela.entities.Insignia;
 import com.adela.entities.Profesor;
 import com.adela.services.CuestionarioService;
 import com.adela.services.InsigniaService;
-import com.adela.services.InterpretacionService;
 import com.adela.services.ResultadoCuestionarioService;
 
 import lombok.RequiredArgsConstructor;
@@ -51,21 +50,20 @@ public class CuestionarioController {
     private final ResultadoCuestionarioService resultadoCuestionarioService;
 
     private final InsigniaService insigniaService;
-    
-    private final InterpretacionService interpretacionService;
 
     @PostMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<?> crearCuestionario(@RequestBody CuestionarioDTO cuestionarioDTO) {
         // Resumen, no la entidad: devolverla entera arrastraba preguntas, opciones y
         // el baremo completo en la respuesta de creacion.
-        return ResponseEntity.ok(cuestionarioService.crearCuestionarioDTO(cuestionarioDTO));
+        return ResponseEntity.ok(cuestionarioService.crearCuestionarioDTO(cuestionarioDTO, profesor()));
     }
 
+    /** Generales y propios: un profesor base solo tiene generales. */
     @GetMapping
     @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('PROFESOR')")
     public ResponseEntity<?> listarCuestionarios() {
-        return ResponseEntity.ok(cuestionarioService.getCuestionarios());
+        return ResponseEntity.ok(cuestionarioService.getCuestionarios(profesor()));
     }
 
     /**
@@ -76,27 +74,35 @@ public class CuestionarioController {
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('PROFESOR') or hasRole('ESTUDIANTE')")
     public ResponseEntity<?> obtenerCuestionario(@PathVariable Long id) {
-        return ResponseEntity.ok(cuestionarioService.obtenerParaResponder(id));
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        Profesor profesor = principal instanceof Profesor p ? p : null;
+        return ResponseEntity.ok(cuestionarioService.obtenerParaResponder(id, profesor));
     }
 
     /** Baremo y reglas de interpretación: solo el administrador, nunca en el DTO de responder. */
     @GetMapping("/{id}/interpretacion")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<?> obtenerInterpretacion(@PathVariable Long id) {
-        return ResponseEntity.ok(interpretacionService.obtener(id));
+        return ResponseEntity.ok(cuestionarioService.obtenerInterpretacion(id, profesor()));
     }
 
+    /** Un general solo lo cambia SUPERADMIN; un personal, su dueño. */
     @PutMapping("/{id}/interpretacion")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<?> guardarInterpretacion(@PathVariable Long id, @RequestBody InterpretacionDTO dto) {
-        return ResponseEntity.ok(interpretacionService.guardar(id, dto));
+        return ResponseEntity.ok(cuestionarioService.guardarInterpretacion(id, dto, profesor()));
     }
 
+    /** Archiva, no borra: los resultados ya respondidos y sus reportes se conservan. */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
     public ResponseEntity<?> eliminarCuestionario(@PathVariable Long id) {
-        cuestionarioService.eliminarCuestionario(id);
+        cuestionarioService.archivar(id, profesor());
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+    }
+
+    private static Profesor profesor() {
+        return (Profesor) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
     }
 
     @PostMapping("/{idCuestionario}/asignargrupo/{idGrupo}")

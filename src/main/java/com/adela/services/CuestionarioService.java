@@ -16,11 +16,13 @@ import com.adela.dto.EstiloDTO;
 import com.adela.dto.CuestionarioDTO;
 import com.adela.dto.CuestionarioParaResponderDTO;
 import com.adela.dto.CuestionarioResumidoDTO;
+import com.adela.dto.InterpretacionDTO;
 import com.adela.dto.OpcionDTO;
 import com.adela.dto.PreguntaDTO;
 import com.adela.entities.Estilo;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Pregunta;
+import com.adela.entities.Profesor;
 import com.adela.exceptions.AppException;
 import com.adela.exceptions.ErrorCode;
 import com.adela.repositories.CapsulaRepository;
@@ -64,18 +66,30 @@ public class CuestionarioService {
      * de la transacción, donde la colección todavía se puede recorrer.
      */
     @Transactional
-    public CuestionarioResumidoDTO crearCuestionarioDTO(CuestionarioDTO cuestionarioDTO) {
-        return CuestionarioResumidoDTO.from(crearCuestionario(cuestionarioDTO));
+    public CuestionarioResumidoDTO crearCuestionarioDTO(CuestionarioDTO cuestionarioDTO, Profesor profesor) {
+        CuestionarioResumidoDTO res = CuestionarioResumidoDTO.from(crearCuestionario(cuestionarioDTO, profesor));
+        res.setEditable(true);
+        return res;
     }
 
+    /**
+     * general=true lo publica como general de ADELA, sin dueño: solo SUPERADMIN.
+     * Si no, queda personal de quien lo crea.
+     */
     @Transactional
-    public Cuestionario crearCuestionario(CuestionarioDTO cuestionarioDTO) {
+    public Cuestionario crearCuestionario(CuestionarioDTO cuestionarioDTO, Profesor profesor) {
+        boolean general = Boolean.TRUE.equals(cuestionarioDTO.getGeneral());
+        if (general && !profesor.esSuperadmin()) {
+            throw new AppException(ErrorCode.ACCESO_DENEGADO,
+                    "Solo el superadministrador puede publicar cuestionarios generales.");
+        }
         Map<String, String> errores = validarEstructura(cuestionarioDTO);
         if (!errores.isEmpty()) {
             throw new AppException(ErrorCode.VALIDACION, "El cuestionario tiene campos inválidos.", errores);
         }
 
         Cuestionario cuestionarioSave = new Cuestionario();
+        cuestionarioSave.setProfesor(general ? null : profesor);
         cuestionarioSave.setNombre(cuestionarioDTO.getNombre());
         cuestionarioSave.setDescripcion(cuestionarioDTO.getDescripcion());
         cuestionarioSave.setAutor(cuestionarioDTO.getAutor());
@@ -264,37 +278,65 @@ public class CuestionarioService {
         return null;
     }
 
-    public void eliminarCuestionario(Long id) {
-        Cuestionario cuestionario = cuestionarioRepository.findById(id)
+    /**
+     * Borrado lógico. Deja de listarse y de poder aplicarse; se borran las
+     * asignaciones pendientes y se cierran sus cápsulas, pero los resultados ya
+     * respondidos y sus reportes se conservan. El borrado físico se los llevaba
+     * y además fallaba con respuestas guardadas (resultado_pregunta sin ON DELETE).
+     */
+    @Transactional
+    public void archivar(Long id, Profesor profesor) {
+        Cuestionario cuestionario = editable(id, profesor);
+        cuestionario.setArchivado(true);
+        cuestionarioRepository.save(cuestionario);
+        resultadoCuestionarioRepository.borrarPendientes(cuestionario);
+        capsulaRepository.cerrarDeCuestionario(cuestionario);
+    }
+
+    @Transactional(readOnly = true)
+    public InterpretacionDTO obtenerInterpretacion(Long id, Profesor profesor) {
+        return interpretacionService.obtener(visible(id, profesor).getId());
+    }
+
+    @Transactional
+    public InterpretacionDTO guardarInterpretacion(Long id, InterpretacionDTO dto, Profesor profesor) {
+        return interpretacionService.guardar(editable(id, profesor).getId(), dto);
+    }
+
+    /** General o propio; uno ajeno se responde igual que uno inexistente. */
+    private Cuestionario visible(Long id, Profesor profesor) {
+        return cuestionarioRepository.findVisible(id, profesor)
                 .orElseThrow(() -> new EntityNotFoundException("Cuestionario no encontrado con el ID: " + id));
-        
-        eliminarReferenciasAsociadas(cuestionario);
-        
-        for (Pregunta pregunta : cuestionario.getPreguntas()) {
-            preguntaService.eliminarPregunta(pregunta);
-        }
-        cuestionario.getPreguntas().clear();
-        
-        for (Estilo estilo : cuestionario.getEstilos()) {
-            estiloService.eliminarEstilo(estilo);
-        }
-        cuestionario.getEstilos().clear();
-        
-        cuestionarioRepository.delete(cuestionario);
     }
-    
-    private void eliminarReferenciasAsociadas(Cuestionario cuestionario) {
-        resultadoCuestionarioRepository.deleteByCuestionario(cuestionario);
-        capsulaRepository.deleteByCuestionario(cuestionario);
+
+    /** Visible y además modificable por quien llama; si lo ve pero no puede cambiarlo, 403. */
+    private Cuestionario editable(Long id, Profesor profesor) {
+        Cuestionario c = visible(id, profesor);
+        if (!puedeEditar(c, profesor)) {
+            throw new AppException(ErrorCode.ACCESO_DENEGADO,
+                    "Los cuestionarios generales solo los modifica el superadministrador.");
+        }
+        return c;
     }
-    
+
+    /** Un general, solo SUPERADMIN; un personal, solo su dueño. */
+    static boolean puedeEditar(Cuestionario c, Profesor profesor) {
+        if (c.getProfesor() == null) {
+            return profesor.esSuperadmin();
+        }
+        return c.getProfesor().getEmail().equalsIgnoreCase(profesor.getEmail());
+    }
+
     /**
      * Arma el DTO dentro de la transacción. Hacerlo en el controlador recorría
      * preguntas y opciones con la sesión ya cerrada.
+     *
+     * Un profesor solo abre generales y propios. El estudiante no se filtra aquí:
+     * lo necesita para responder lo que tiene asignado.
      */
     @Transactional(readOnly = true)
-    public CuestionarioParaResponderDTO obtenerParaResponder(Long id) {
-        return CuestionarioParaResponderDTO.from(getCuestionarioPorId(id));
+    public CuestionarioParaResponderDTO obtenerParaResponder(Long id, Profesor profesor) {
+        return CuestionarioParaResponderDTO.from(profesor == null ? getCuestionarioPorId(id) : visible(id, profesor));
     }
 
     @Transactional(readOnly = true)
@@ -303,8 +345,11 @@ public class CuestionarioService {
                 .orElseThrow(() -> new EntityNotFoundException("Cuestionario no encontrado con el ID: " + id));
     }
     
-    public List<CuestionarioResumidoDTO> getCuestionarios() {
-        return cuestionarioRepository.resumirTodos();
+    /** Generales y propios, sin archivados, con lo que cada uno permite a quien consulta. */
+    public List<CuestionarioResumidoDTO> getCuestionarios(Profesor profesor) {
+        List<CuestionarioResumidoDTO> lista = cuestionarioRepository.resumirVisibles(profesor);
+        lista.forEach(c -> c.setEditable(!c.isGeneral() || profesor.esSuperadmin()));
+        return lista;
     }
     
 }

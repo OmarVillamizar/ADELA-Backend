@@ -33,6 +33,7 @@ import com.adela.dto.PreguntaDTO;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Estilo;
 import com.adela.entities.Pregunta;
+import com.adela.entities.Profesor;
 import com.adela.exceptions.AppException;
 import com.adela.exceptions.ErrorCode;
 import com.adela.repositories.CapsulaRepository;
@@ -62,6 +63,8 @@ class CreacionCuestionarioTest {
     private InterpretacionService interpretacionService;
     @InjectMocks
     private CuestionarioService service;
+
+    private static final Profesor ADMIN = new Profesor();
 
     @BeforeEach
     void preparar() {
@@ -104,7 +107,7 @@ class CreacionCuestionarioTest {
     void guardaInterpretacion() {
         InterpretacionDTO lectura = new InterpretacionDTO(EsquemaInterpretacion.RELATIVO, 10d, null, null, null);
 
-        service.crearCuestionario(dto(lectura));
+        service.crearCuestionario(dto(lectura), ADMIN);
 
         verify(interpretacionService).guardar(7L, lectura);
     }
@@ -116,7 +119,7 @@ class CreacionCuestionarioTest {
                 new PlanoDTO("Visual", "Auditivo", 6d, 7d, "Convergente", "Asimilador", "Divergente", "Acomodador", null, null),
                 null);
 
-        service.crearCuestionario(dto(lectura));
+        service.crearCuestionario(dto(lectura), ADMIN);
 
         verify(interpretacionService).guardar(7L, lectura);
     }
@@ -124,7 +127,7 @@ class CreacionCuestionarioTest {
     @Test
     @DisplayName("Sin interpretación no la toca")
     void sinInterpretacion() {
-        service.crearCuestionario(dto(null));
+        service.crearCuestionario(dto(null), ADMIN);
 
         verify(interpretacionService, never()).guardar(any(), any());
     }
@@ -136,7 +139,7 @@ class CreacionCuestionarioTest {
         when(interpretacionService.guardar(eq(7L), eq(mala))).thenThrow(
                 new AppException(ErrorCode.VALIDACION, "Revisa los campos marcados.", Map.of("esquema", "x")));
 
-        AppException e = assertThrows(AppException.class, () -> service.crearCuestionario(dto(mala)));
+        AppException e = assertThrows(AppException.class, () -> service.crearCuestionario(dto(mala), ADMIN));
         assertEquals(ErrorCode.VALIDACION, e.getCode());
     }
 }

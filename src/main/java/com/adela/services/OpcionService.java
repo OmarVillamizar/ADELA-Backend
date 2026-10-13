@@ -21,10 +21,6 @@ public class OpcionService {
     private final OpcionRepository opcionRepository;
     
     
-    public void eliminarOpcion(Opcion opcion) {
-        opcionRepository.delete(opcion);
-    }
-    
     /** pesos: estilo primario -> peso. Todos deben ser del cuestionario de la pregunta. */
     public Opcion crearOpcion(Pregunta pregunta, Map<Estilo, Double> pesos, OpcionDTO opcionDTO) {
         Long cuestionarioId = pregunta.getCuestionario().getId();

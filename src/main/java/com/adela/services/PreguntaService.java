@@ -15,7 +15,6 @@ import com.adela.entities.Cuestionario;
 import com.adela.entities.Opcion;
 import com.adela.entities.Pregunta;
 import com.adela.repositories.PreguntaRepository;
-import com.adela.repositories.ResultadoPreguntaRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -25,25 +24,9 @@ import lombok.RequiredArgsConstructor;
 public class PreguntaService {
     
     private final PreguntaRepository preguntaRepository;
-    
-    private final ResultadoPreguntaRepository resultadoPreguntaRepository;
-    
+
     private final OpcionService opcionService;
-    
-    
-    public void eliminarPregunta(Pregunta pregunta) {
-        for (Opcion opcion : pregunta.getOpciones()) {
-            eliminarRespuestasAsociadas(opcion);
-            opcionService.eliminarOpcion(opcion);
-        }
-        pregunta.getOpciones().clear();
-        preguntaRepository.delete(pregunta);
-    }
-    
-    private void eliminarRespuestasAsociadas(Opcion opcion) {
-        resultadoPreguntaRepository.deleteByOpcion(opcion);
-    }
-    
+
     public Pregunta crearPregunta(Cuestionario cuestionario, Map<Integer, Estilo> mapId, PreguntaDTO preguntaDTO) {
         Pregunta preguntaSave = new Pregunta();
         preguntaSave.setCuestionario(cuestionario);

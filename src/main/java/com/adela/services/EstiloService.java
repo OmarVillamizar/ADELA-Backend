@@ -18,10 +18,6 @@ public class EstiloService {
     private final EstiloRepository estiloRepository;
     
     
-    public void eliminarEstilo(Estilo estilo) {
-        estiloRepository.delete(estilo);
-    }
-    
     public void guardarEstilos(Iterable<Estilo> estilos) {
         estiloRepository.saveAll(estilos);
     }

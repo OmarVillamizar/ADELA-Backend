@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -142,7 +143,7 @@ class ResultadoCuestionarioServiceTest {
     @DisplayName("No se puede asignar un cuestionario a un grupo ajeno")
     void asignarAGrupoAjenoSeDeniega() {
         when(grupoRepository.findById(7)).thenReturn(Optional.of(grupoDe(profesor("propietario@ufps.edu.co"))));
-        when(cuestionarioRepository.findById(1L)).thenReturn(Optional.of(new Cuestionario()));
+        when(cuestionarioRepository.findAsignable(eq(1L), any())).thenReturn(Optional.of(new Cuestionario()));
 
         assertThrows(EntityNotFoundException.class,
                 () -> service.asignarCuestionarioAGrupo(1L, 7, profesor("intruso@ufps.edu.co")));
@@ -156,7 +157,7 @@ class ResultadoCuestionarioServiceTest {
         Grupo grupo = grupoDe(duenyo);
         grupo.setEstudiantes(Set.of(estudiante("alumno@ufps.edu.co")));
         when(grupoRepository.findById(7)).thenReturn(Optional.of(grupo));
-        when(cuestionarioRepository.findById(1L)).thenReturn(Optional.of(new Cuestionario()));
+        when(cuestionarioRepository.findAsignable(eq(1L), any())).thenReturn(Optional.of(new Cuestionario()));
         when(resultadoCuestionarioRepository.findByCuestionarioAndEstudianteAndGrupo(any(), any(), any()))
                 .thenReturn(Optional.empty());
 
@@ -171,7 +172,7 @@ class ResultadoCuestionarioServiceTest {
         Estudiante ajeno = estudiante("alumno@ufps.edu.co");
         ajeno.setGrupos(Set.of(grupoDe(profesor("propietario@ufps.edu.co"))));
         when(estudianteRepository.findById("alumno@ufps.edu.co")).thenReturn(Optional.of(ajeno));
-        when(cuestionarioRepository.findById(1L)).thenReturn(Optional.of(new Cuestionario()));
+        when(cuestionarioRepository.findAsignable(eq(1L), any())).thenReturn(Optional.of(new Cuestionario()));
 
         assertThrows(EntityNotFoundException.class,
                 () -> service.asignarCuestionarioAEstudiante(1L, "alumno@ufps.edu.co", profesor("intruso@ufps.edu.co")));
@@ -185,13 +186,38 @@ class ResultadoCuestionarioServiceTest {
         Estudiante alumno = estudiante("alumno@ufps.edu.co");
         alumno.setGrupos(Set.of(grupoDe(duenyo)));
         when(estudianteRepository.findById("alumno@ufps.edu.co")).thenReturn(Optional.of(alumno));
-        when(cuestionarioRepository.findById(1L)).thenReturn(Optional.of(new Cuestionario()));
+        when(cuestionarioRepository.findAsignable(eq(1L), any())).thenReturn(Optional.of(new Cuestionario()));
         when(resultadoCuestionarioRepository.findByCuestionarioAndEstudianteAndFechaResolucionIsNull(any(), any()))
                 .thenReturn(List.of());
 
         service.asignarCuestionarioAEstudiante(1L, "alumno@ufps.edu.co", duenyo);
 
         verify(resultadoCuestionarioRepository).save(any());
+    }
+
+    @Test
+    @DisplayName("Un estudiante nuevo del grupo no recibe los cuestionarios archivados")
+    void estudianteNuevoNoRecibeArchivados() {
+        Grupo grupo = grupoDe(profesor("propietario@ufps.edu.co"));
+        Cuestionario vigente = new Cuestionario();
+        vigente.setId(1L);
+        Cuestionario archivado = new Cuestionario();
+        archivado.setId(2L);
+        archivado.setArchivado(true);
+        ResultadoCuestionario a = new ResultadoCuestionario();
+        a.setCuestionario(vigente);
+        a.setFechaAplicacion(java.sql.Date.valueOf("2026-10-01"));
+        ResultadoCuestionario b = new ResultadoCuestionario();
+        b.setCuestionario(archivado);
+        b.setFechaAplicacion(java.sql.Date.valueOf("2026-10-01"));
+        when(resultadoCuestionarioRepository.findByGrupo(grupo)).thenReturn(List.of(a, b));
+        when(resultadoCuestionarioRepository.findByCuestionarioAndEstudianteAndGrupo(any(), any(), any()))
+                .thenReturn(Optional.empty());
+
+        service.asignarCuestionariosAsignadosAlGrupoAEstudiantesNuevos(grupo, Set.of(estudiante("nuevo@ufps.edu.co")));
+
+        verify(resultadoCuestionarioRepository).save(argThat(rc -> rc.getCuestionario() == vigente));
+        verify(resultadoCuestionarioRepository, never()).save(argThat(rc -> rc.getCuestionario() == archivado));
     }
 
     @Test

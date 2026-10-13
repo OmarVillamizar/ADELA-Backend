@@ -37,11 +37,11 @@ public interface CapsulaRepository extends JpaRepository<Capsula, Long> {
     List<CapsulaDTO> resumirPorProfesor(@Param("profesor") Profesor profesor);
 
     /**
-     * Borrado masivo: las respuestas y sus opciones caen por ON DELETE CASCADE en
-     * la base de datos, sin cargarlas en memoria.
+     * Al archivar el cuestionario sus cápsulas dejan de recibir respuestas, de
+     * cualquier profesor; las ya emitidas siguen consultables.
      */
     @Transactional
     @Modifying
-    @Query("DELETE FROM Capsula c WHERE c.cuestionario = :cuestionario")
-    void deleteByCuestionario(@Param("cuestionario") Cuestionario cuestionario);
+    @Query("UPDATE Capsula c SET c.abierta = false WHERE c.cuestionario = :cuestionario")
+    void cerrarDeCuestionario(@Param("cuestionario") Cuestionario cuestionario);
 }

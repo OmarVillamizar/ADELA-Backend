@@ -108,7 +108,7 @@ public class CapsulaService {
      * abortada y no admite el reintento. Cada saveAndFlush va en la suya.
      */
     public CapsulaDTO crear(CapsulaCrearDTO dto, Profesor profesor) {
-        Cuestionario cuestionario = cuestionarioRepository.findById(dto.cuestionarioId())
+        Cuestionario cuestionario = cuestionarioRepository.findAsignable(dto.cuestionarioId(), profesor)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el cuestionario con id " + dto.cuestionarioId()));
 
         for (int intento = 1;; intento++) {

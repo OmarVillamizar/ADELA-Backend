@@ -167,8 +167,10 @@ public class ResultadoCuestionarioService {
             return;
         }
         
-        // Extraer los cuestionarios únicos del grupo con sus fechas de aplicación
+        // Extraer los cuestionarios únicos del grupo con sus fechas de aplicación.
+        // Un archivado ya no se aplica: el estudiante nuevo no lo recibe.
         Map<Cuestionario, Date> cuestionariosConFecha = asignacionesExistentes.stream()
+            .filter(rc -> !rc.getCuestionario().isArchivado())
             .collect(Collectors.toMap(
                 ResultadoCuestionario::getCuestionario,
                 ResultadoCuestionario::getFechaAplicacion,
@@ -218,7 +220,7 @@ public class ResultadoCuestionarioService {
                 .orElseThrow(() -> new EntityNotFoundException("No existe el grupo con id " + grupoId));
         verificarPropiedad(grupo, profesor);
 
-        Cuestionario cuestionario = cuestionarioRepository.findById(cuestionarioId)
+        Cuestionario cuestionario = cuestionarioRepository.findAsignable(cuestionarioId, profesor)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el cuestionario con id " + cuestionarioId));
 
         Set<Estudiante> estudiantes = grupo.getEstudiantes();
@@ -250,7 +252,7 @@ public class ResultadoCuestionarioService {
                         .anyMatch(g -> g.getProfesor().getEmail().equalsIgnoreCase(profesor.getEmail())))
                 .orElseThrow(() -> new EntityNotFoundException("No existe el estudiante con id " + estudianteEmail));
 
-        Cuestionario cuestionario = cuestionarioRepository.findById(cuestionarioId)
+        Cuestionario cuestionario = cuestionarioRepository.findAsignable(cuestionarioId, profesor)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el cuestionario con id " + cuestionarioId));
         if (resultadoCuestionarioRepository
                 .findByCuestionarioAndEstudianteAndFechaResolucionIsNull(cuestionario, estudiante).isEmpty()) {

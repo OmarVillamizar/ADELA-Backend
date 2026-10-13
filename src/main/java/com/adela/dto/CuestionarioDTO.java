@@ -17,4 +17,6 @@ public class CuestionarioDTO {
     private List<EstiloDTO> estilos;
     /** Opcional: se guarda en la misma transacción; si es inválida no se crea nada. */
     private InterpretacionDTO interpretacion;
+    /** true = general de ADELA, sin dueño (solo SUPERADMIN). null o false = personal de quien lo crea. */
+    private Boolean general;
 }

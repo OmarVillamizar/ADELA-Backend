@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -113,6 +114,7 @@ class CapsulaServiceTest {
         when(capsulaRepository.findByProfesorAndId(intruso, 5L)).thenReturn(Optional.empty());
         when(capsulaRepository.saveAndFlush(any())).thenAnswer(inv -> inv.getArgument(0));
         when(cuestionarioRepository.findById(1L)).thenReturn(Optional.of(cuestionario));
+        when(cuestionarioRepository.findAsignable(eq(1L), any())).thenReturn(Optional.of(cuestionario));
 
         when(capsulaRepository.findByCodigo("ABC234")).thenReturn(Optional.of(capsula));
         when(respuestaCapsulaRepository.findByCapsulaAndIntento(any(), any())).thenReturn(Optional.empty());

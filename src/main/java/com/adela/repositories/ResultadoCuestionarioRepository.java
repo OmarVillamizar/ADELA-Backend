@@ -38,8 +38,12 @@ public interface ResultadoCuestionarioRepository extends JpaRepository<Resultado
  // En ResultadoCuestionarioRepository
     List<ResultadoCuestionario> findByEstudianteAndGrupo(Estudiante estudiante, Grupo grupo);
     
+    /**
+     * Al archivar: una asignación pendiente aún no tiene respuestas, así que se
+     * borra sin tocar resultado_pregunta. Las resueltas se conservan.
+     */
     @Transactional
     @Modifying
-    @Query("DELETE FROM ResultadoCuestionario rc WHERE rc.cuestionario = :cuestionario")
-    void deleteByCuestionario(Cuestionario cuestionario);
+    @Query("DELETE FROM ResultadoCuestionario rc WHERE rc.cuestionario = :cuestionario AND rc.fechaResolucion IS NULL")
+    void borrarPendientes(Cuestionario cuestionario);
 }
