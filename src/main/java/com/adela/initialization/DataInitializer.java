@@ -26,6 +26,8 @@ public class DataInitializer {
             try {
                 createRoleIfNotFound("ADMINISTRADOR");
                 createRoleIfNotFound("PROFESOR");
+                // Se asigna solo desde la base de datos; la UI nunca asciende a SUPERADMIN.
+                createRoleIfNotFound("SUPERADMIN");
                 logger.info("Role initialization completed successfully");
             } catch (Exception e) {
                 logger.error("Error during role initialization", e);
