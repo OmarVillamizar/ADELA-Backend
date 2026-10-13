@@ -2,9 +2,15 @@ package com.adela.services;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,10 +21,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import com.adela.entities.Cuestionario;
 import com.adela.entities.Estudiante;
 import com.adela.entities.Grupo;
 import com.adela.entities.Profesor;
 import com.adela.entities.ResultadoCuestionario;
+import com.adela.repositories.CuestionarioRepository;
 import com.adela.repositories.GrupoRepository;
 import com.adela.repositories.ResultadoCuestionarioRepository;
 
@@ -44,6 +52,9 @@ class ResultadoCuestionarioServiceTest {
 
     @Mock
     private GrupoRepository grupoRepository;
+
+    @Mock
+    private CuestionarioRepository cuestionarioRepository;
 
     @InjectMocks
     private ResultadoCuestionarioService service;
@@ -121,6 +132,33 @@ class ResultadoCuestionarioServiceTest {
                 .thenReturn(java.util.List.of());
 
         assertDoesNotThrow(() -> service.obtenerPorGrupo(7, duenyo));
+    }
+
+    @Test
+    @DisplayName("No se puede asignar un cuestionario a un grupo ajeno")
+    void asignarAGrupoAjenoSeDeniega() {
+        when(grupoRepository.findById(7)).thenReturn(Optional.of(grupoDe(profesor("propietario@ufps.edu.co"))));
+        when(cuestionarioRepository.findById(1L)).thenReturn(Optional.of(new Cuestionario()));
+
+        assertThrows(EntityNotFoundException.class,
+                () -> service.asignarCuestionarioAGrupo(1L, 7, profesor("intruso@ufps.edu.co")));
+        verify(resultadoCuestionarioRepository, never()).saveAll(any());
+    }
+
+    @Test
+    @DisplayName("El propietario del grupo sí puede asignarle un cuestionario")
+    void elPropietarioAsignaASuGrupo() {
+        Profesor duenyo = profesor("propietario@ufps.edu.co");
+        Grupo grupo = grupoDe(duenyo);
+        grupo.setEstudiantes(Set.of(estudiante("alumno@ufps.edu.co")));
+        when(grupoRepository.findById(7)).thenReturn(Optional.of(grupo));
+        when(cuestionarioRepository.findById(1L)).thenReturn(Optional.of(new Cuestionario()));
+        when(resultadoCuestionarioRepository.findByCuestionarioAndEstudianteAndGrupo(any(), any(), any()))
+                .thenReturn(Optional.empty());
+
+        service.asignarCuestionarioAGrupo(1L, 7, duenyo);
+
+        verify(resultadoCuestionarioRepository).saveAll(argThat(l -> ((List<?>) l).size() == 1));
     }
 
     @Test

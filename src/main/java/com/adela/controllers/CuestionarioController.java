@@ -102,7 +102,8 @@ public class CuestionarioController {
     @PostMapping("/{idCuestionario}/asignargrupo/{idGrupo}")
     @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('PROFESOR')")
     public ResponseEntity<?> asignarCuestionarioAGrupo(@PathVariable Long idCuestionario, @PathVariable int idGrupo) {
-        resultadoCuestionarioService.asignarCuestionarioAGrupo(idCuestionario, idGrupo);
+        Profesor profesor = (Profesor) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        resultadoCuestionarioService.asignarCuestionarioAGrupo(idCuestionario, idGrupo, profesor);
         return new ResponseEntity<>(HttpStatus.CREATED);
     }
 

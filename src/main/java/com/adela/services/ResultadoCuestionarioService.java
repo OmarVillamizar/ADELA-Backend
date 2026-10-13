@@ -208,14 +208,17 @@ public class ResultadoCuestionarioService {
      * con dos asignaciones pendientes idénticas, que es justo la condición que hacía
      * fallar la entrega de respuestas con un 400 (ver docs/fixedbugs.md). Los otros
      * dos caminos de asignación ya comprobaban duplicados; este no.
+     *
+     * Solo el propietario del grupo puede asignarle cuestionarios.
      */
     @Transactional
-    public void asignarCuestionarioAGrupo(Long cuestionarioId, Integer grupoId) {
-        Cuestionario cuestionario = cuestionarioRepository.findById(cuestionarioId)
-                .orElseThrow(() -> new EntityNotFoundException("No existe el cuestionario con id " + cuestionarioId));
-
+    public void asignarCuestionarioAGrupo(Long cuestionarioId, Integer grupoId, Profesor profesor) {
         Grupo grupo = grupoRepository.findById(grupoId)
                 .orElseThrow(() -> new EntityNotFoundException("No existe el grupo con id " + grupoId));
+        verificarPropiedad(grupo, profesor);
+
+        Cuestionario cuestionario = cuestionarioRepository.findById(cuestionarioId)
+                .orElseThrow(() -> new EntityNotFoundException("No existe el cuestionario con id " + cuestionarioId));
 
         Set<Estudiante> estudiantes = grupo.getEstudiantes();
         List<ResultadoCuestionario> asignaciones = new LinkedList<>();
