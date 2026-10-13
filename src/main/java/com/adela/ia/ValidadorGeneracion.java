@@ -137,7 +137,7 @@ public class ValidadorGeneracion {
         }
         // Se avisa, nunca se edita el texto: lo decide la persona.
         ContenidoSospechoso.revisar(dto).forEach(m -> agregar(marcas, m));
-        marcasDeOrigen(analisis, lectura, marcas);
+        marcasDeOrigen(analisis, lectura, dto, marcas);
         marcasDelModelo(analisis, dto, marcas);
         if (fuente != null) {
             procedencia.revisar(dto, analisis, fuente).forEach(m -> agregar(marcas, m));
@@ -321,7 +321,8 @@ public class ValidadorGeneracion {
 
     // ---------------------------------------------------------------- Procedencia
 
-    private static void marcasDeOrigen(AnalisisIa analisis, String lectura, List<Candidata> marcas) {
+    private static void marcasDeOrigen(AnalisisIa analisis, String lectura, CuestionarioDTO dto,
+            List<Candidata> marcas) {
         if (analisis == null || analisis.origen() == null) {
             return;
         }
@@ -343,9 +344,13 @@ public class ValidadorGeneracion {
                             "Léelas una a una; un instrumento nuevo necesita validación psicométrica."));
                 }
             }
+            // El instrumento de referencia no se nombra (licencia y regla de la interfaz): se describe
+            // por los estilos del propio cuestionario, que la persona sí reconoce.
             case "CATALOGO" -> agregar(marcas, Marca.validador(Marca.MEDIO, seccion, List.of(),
-                    "La IA dice que lo tomó de un instrumento conocido: compáralo con la fuente.",
-                    "Busca la fuente publicada y confirma que las cifras coinciden."));
+                    "La IA lo tomó de su conocimiento interno: un cuestionario muy parecido" + estilosDe(dto)
+                            + ". Confirma que aplica a tu versión.",
+                    "Si tienes el manual o la hoja de corrección de tu versión, confirma que las cifras "
+                            + "coinciden. Si no, responde el cuestionario de prueba y mira si el resultado tiene sentido."));
             case "CONVENCION" -> convencionSinLectura |= lectura == null;
             default -> {
             }
@@ -357,6 +362,14 @@ public class ValidadorGeneracion {
                             + "las cifras no está claro.",
                     "Elige la lectura en el editor para que ADELA calcule los números con su regla."));
         }
+    }
+
+    /** ", con estilos similares (A, B, C)" o nada si el cuestionario no trae estilos primarios. */
+    private static String estilosDe(CuestionarioDTO dto) {
+        List<String> nombres = dto.getEstilos() == null ? List.of()
+                : dto.getEstilos().stream().filter(e -> e != null && e.getTipo() == TipoEstilo.PRIMARIO)
+                        .map(EstiloDTO::getNombre).filter(n -> n != null && !n.isBlank()).toList();
+        return nombres.isEmpty() ? "" : ", con estilos similares (" + String.join(", ", nombres) + ")";
     }
 
     private static void marcasDelModelo(AnalisisIa analisis, CuestionarioDTO dto, List<Candidata> marcas) {

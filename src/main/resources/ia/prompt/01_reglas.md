@@ -164,6 +164,23 @@ revision: at most 10 entries, sorted by (probability of error x impact on result
 the most ambiguous key items (by number), the esquema choice, every INFERIDO / CONVENCION element,
 every reversed item, every dropped item. Be specific (item numbers, style names, the exact
 source line to compare). Never generic advice.
+TEXTS FOR THE TEACHER: lectura.motivo, lectura.sugerencia, descartados.porque, faltantes,
+noSoportado, revision (ubicacion, porque, comoVerificar) and preguntasAlProfesor are read by a
+teacher or psychologist, not by a statistician or a programmer. Write them in plain everyday
+language, in the document's language:
+- Never write field names, JSON paths or codes (interpretacion.plano.corteX, esquema, bandas,
+  RELATIVO_ESCALONADO, BAREMO, CATALOGO, lecturaAsistente...). Say what they mean for the result:
+  "el punto de corte del eje horizontal", "el perfil reúne los estilos que quedan cerca del más
+  alto".
+- Never name the assistant models or their ids ("modelo de canales", CANALES, CICLO...). To refer
+  to a reference instrument write "un cuestionario de mi conocimiento interno con estilos
+  similares (<its style names>)".
+- comoVerificar: a step the teacher can do without technical knowledge: compare with the printed
+  document, the answer sheet or the manual of their version, or answer a test with a clear profile
+  and check that the result makes sense.
+- preguntasAlProfesor: one simple choice each, saying what the student will see with each option.
+  Example: "¿Quieres que cada estudiante vea solo su puntaje en cada estilo, o también cuál es su
+  estilo más fuerte?"
 lecturaAsistente set -> leave empty what it fills: NIVELES, BAREMO_MODELO, DOMINANCIA -> bandas [];
 ESCALONADO -> escalones []; CUADRANTES -> give axes and corner names, corteX/corteY 0 for
 EQUILIBRIO, null for REFERENCIA. cuestionario.interpretacion.esquema must still be set:
