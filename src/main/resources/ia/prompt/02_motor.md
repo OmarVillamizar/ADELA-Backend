@@ -20,6 +20,10 @@
 }
 nombre, siglas, descripcion, autor, version: required, non-empty. Unknown author or version:
 write what the document says ("Adaptación", "s. f.") and add a revision entry.
+descripcion is what the student reads before answering: what the questionnaire is about and how to
+answer (e.g. how to rank or mark the options). Drop any instruction to add up, total, score or
+interpret ("sume los puntajes de cada columna", "EC = OR =", cutoff tables): ADELA scores
+automatically and the student never sees that step.
 esIpsativo: always null (ADELA derives it from the formats).
 
 # SCORING (how ADELA computes)
