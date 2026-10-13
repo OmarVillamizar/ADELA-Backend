@@ -115,6 +115,20 @@ public class EstudianteController {
         }
 
         Estudiante estudianteExistente = estudianteOptional.get();
+
+        // Una sola edición (ver Estudiante.nombreEditable); después se ignora el del
+        // body, para que el nombre no cambie en los reportes.
+        if (estudianteExistente.nombreEditable()) {
+            String nombre = estudianteDTO.getNombre() == null ? "" : estudianteDTO.getNombre().trim();
+            if (nombre.isEmpty()) {
+                throw new AppException(ErrorCode.VALIDACION,
+                        "El nombre es obligatorio.",
+                        Map.of("nombre", "Escribe tu nombre completo"));
+            }
+            estudianteExistente.setNombre(nombre);
+        }
+        estudianteExistente.setNombreConfirmado(true);
+
         estudianteExistente.setCodigo(codigo);
         estudianteExistente.setGenero(estudianteDTO.getGenero());
         estudianteExistente.setFecha_nacimiento(estudianteDTO.getFechaNacimiento());

@@ -5,6 +5,7 @@ import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
+import com.adela.services.CodigoInstitucional;
 import com.fasterxml.jackson.annotation.JsonBackReference;
 
 import jakarta.annotation.Nullable;
@@ -33,7 +34,11 @@ public class Estudiante extends Usuario {
     private Genero genero;
     
     private Date fecha_nacimiento = Date.valueOf("2000-01-01");
-    
+
+    /** True tras el primer guardado del perfil: desde ahí el nombre queda fijo para los reportes. */
+    @Column(name = "nombre_confirmado", nullable = false)
+    private boolean nombreConfirmado = false;
+
     @ManyToMany
     @JoinTable(name = "matricula", joinColumns = @JoinColumn(name = "estudiante_id"), inverseJoinColumns = @JoinColumn(name = "curso_id"))
     @JsonBackReference
@@ -49,6 +54,17 @@ public class Estudiante extends Usuario {
         this.fecha_nacimiento = fechaNac;
     }
     
+    /**
+     * Una sola edición del nombre, antes de confirmarlo. Sin nombre (preinscrito por
+     * correo) es obligatoria; fuera de la UFPS el nombre de Google puede ser un apodo.
+     */
+    public boolean nombreEditable() {
+        if (nombreConfirmado) {
+            return false;
+        }
+        return getNombre() == null || getNombre().isBlank() || !CodigoInstitucional.requiere(getEmail());
+    }
+
     @Override
     public String toString() {
         return this.getEmail();

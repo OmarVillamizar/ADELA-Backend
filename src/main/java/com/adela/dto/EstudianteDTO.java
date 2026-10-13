@@ -21,7 +21,10 @@ public class EstudianteDTO extends UserDTO {
 
     @NotNull(message = "La fecha de nacimiento es obligatoria")
     private Date fechaNacimiento;
-    
+
+    /** Solo de salida: el servidor decide con Estudiante.nombreEditable e ignora lo que llegue. */
+    private boolean nombreEditable;
+
     public EstudianteDTO(String email, String nombre, String codigo, UsuarioEstado estado, Genero genero,
             Date fechaNacimiento) {
         super(email, nombre, codigo, estado, UserType.ESTUDIANTE);
@@ -37,6 +40,7 @@ public class EstudianteDTO extends UserDTO {
         edt.setFechaNacimiento(e.getFecha_nacimiento());
         edt.setGenero(e.getGenero());
         edt.setNombre(e.getNombre());
+        edt.setNombreEditable(e.nombreEditable());
         edt.setTipoUsuario(UserType.ESTUDIANTE);
         return edt;
     }

@@ -26,6 +26,7 @@ public class UserController {
             Estudiante est = (Estudiante) user;
             userD = new EstudianteDTO(est.getEmail(), est.getNombre(), est.getCodigo(), est.getEstado(),
                     est.getGenero(), est.getFecha_nacimiento());
+            ((EstudianteDTO) userD).setNombreEditable(est.nombreEditable());
         } else {
             Profesor prof = (Profesor) user;
             userD = new ProfesorDTO(prof.getEmail(), prof.getNombre(), prof.getCodigo(), prof.getEstado(),
