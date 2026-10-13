@@ -30,6 +30,7 @@ public enum ErrorCode {
     CUENTA_NO_ACTIVA(HttpStatus.CONFLICT),
     CUENTA_NO_RECHAZABLE(HttpStatus.CONFLICT),
     AUTO_DEGRADACION(HttpStatus.CONFLICT),
+    CUENTA_PROTEGIDA(HttpStatus.FORBIDDEN),
     ROL_NO_CONFIGURADO(HttpStatus.INTERNAL_SERVER_ERROR),
 
     // Grupos

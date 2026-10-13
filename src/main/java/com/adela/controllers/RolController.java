@@ -27,7 +27,7 @@ public class RolController {
     
     // Crear un nuevo rol
     @PostMapping
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('SUPERADMIN')")
     public ResponseEntity<Rol> crearRol(@RequestBody Rol rol) {
         Rol nuevoRol = rolRepository.save(rol);
         return ResponseEntity.ok(nuevoRol);
@@ -35,7 +35,7 @@ public class RolController {
     
     // Ver todos los roles
     @GetMapping
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('SUPERADMIN')")
     public ResponseEntity<List<Rol>> verRoles() {
         List<Rol> roles = rolRepository.findAll();
         if (roles.isEmpty()) {
@@ -46,7 +46,7 @@ public class RolController {
     
     // Borrar rol por ID
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @PreAuthorize("hasRole('SUPERADMIN')")
     public ResponseEntity<Void> borrarRolPorId(@PathVariable int id) {
         Optional<Rol> rolOpt = rolRepository.findById(id);
         if (!rolOpt.isPresent()) {

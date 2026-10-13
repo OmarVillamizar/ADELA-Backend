@@ -77,6 +77,7 @@ public class ProfesorController {
     public ResponseEntity<?> eliminarProfesor(@PathVariable String email) {
         Profesor profesor = profesorRepository.findById(email)
                 .orElseThrow(() -> new EntityNotFoundException("Profesor no encontrado con el correo: " + email));
+        exigirNoSuperadmin(profesor);
 
         if (profesor.getEstadoProfesor() == ProfesorEstado.INACTIVA) {
             throw new AppException(ErrorCode.CUENTA_NO_ACTIVA, "La cuenta de " + email + " ya está inactiva.");
@@ -95,7 +96,8 @@ public class ProfesorController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Profesor no encontrado con el correo: " + email);
         }
         Profesor profesor = profesorOptional.get();
-        
+        exigirNoSuperadmin(profesor);
+
         if (profesor.getEstadoProfesor() == ProfesorEstado.ACTIVA) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body("La cuenta de profesor " + profesor.getEmail() + " ya está activa");
@@ -115,12 +117,13 @@ public class ProfesorController {
         }
         
         Profesor profesor = profesorOptional.get();
-        
+        exigirNoSuperadmin(profesor);
+
         if (profesor.getEstado() != UsuarioEstado.ACTIVA) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body("Cuenta de profesor no está activa, no se puede hacer administrador: " + email);
         }
-        
+
         profesor.setRol(rolPorDescripcion("ADMINISTRADOR"));
         return ResponseEntity.ok(ProfesorDTO.from(profesorRepository.save(profesor)));
     }
@@ -134,6 +137,7 @@ public class ProfesorController {
         }
         
         Profesor profesor = profesorOptional.get();
+        exigirNoSuperadmin(profesor);
         Profesor prof = (Profesor) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         
         if (profesor.getEmail().equalsIgnoreCase(prof.getEmail())) {
@@ -161,6 +165,7 @@ public class ProfesorController {
     public ResponseEntity<?> rechazarSolicitudCuentaProfesor(@PathVariable String email) {
         Profesor profesor = profesorRepository.findById(email)
                 .orElseThrow(() -> new EntityNotFoundException("Profesor no encontrado con el correo: " + email));
+        exigirNoSuperadmin(profesor);
 
         if (profesor.getEstadoProfesor() != ProfesorEstado.INACTIVA) {
             throw new AppException(ErrorCode.CUENTA_NO_RECHAZABLE,
@@ -171,6 +176,17 @@ public class ProfesorController {
         return ResponseEntity.ok("Solicitud de profesor rechazada");
     }
     
+    /**
+     * SUPERADMIN se gestiona solo desde la base de datos. Sin esta guarda un
+     * administrador podría desactivarlo, cambiarle el rol o rechazarlo desde la UI.
+     */
+    private static void exigirNoSuperadmin(Profesor profesor) {
+        if (profesor.getRol() != null && "SUPERADMIN".equals(profesor.getRol().getDescripcion())) {
+            throw new AppException(ErrorCode.CUENTA_PROTEGIDA, "La cuenta de " + profesor.getEmail()
+                    + " es de superadministrador y solo se gestiona desde la base de datos.");
+        }
+    }
+
     private Rol rolPorDescripcion(String descripcion) {
         return rolRepository.findByDescripcion(descripcion)
                 .orElseThrow(() -> new AppException(ErrorCode.ROL_NO_CONFIGURADO,
