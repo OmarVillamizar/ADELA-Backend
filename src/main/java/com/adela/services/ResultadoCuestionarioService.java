@@ -3,6 +3,7 @@ package com.adela.services;
 import java.sql.Date;
 import java.time.LocalDate;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -447,6 +448,11 @@ public class ResultadoCuestionarioService {
                 dto.setDominantes(r.estilos().stream()
                         .filter(e -> e.tipo() == TipoEstilo.PRIMARIO && e.dominante())
                         .map(ResultadoEstilo::nombre).toList());
+                Map<String, String> niveles = new LinkedHashMap<>();
+                r.estilos().stream()
+                        .filter(e -> e.tipo() == TipoEstilo.PRIMARIO && e.banda() != null)
+                        .forEach(e -> niveles.put(e.nombre(), e.banda()));
+                dto.setNiveles(niveles);
                 estudiantesS.add(dto);
             } else {
                 estudiantesUS.add(ResultadoCuestionarioDTO.from(rc));

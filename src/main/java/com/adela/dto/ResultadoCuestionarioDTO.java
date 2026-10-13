@@ -2,6 +2,7 @@ package com.adela.dto;
 
 import java.sql.Date;
 import java.util.List;
+import java.util.Map;
 
 import com.adela.entities.ResultadoCuestionario;
 
@@ -21,6 +22,9 @@ public class ResultadoCuestionarioDTO {
     // por género y edad cruza el perfil de cada estudiante con sus datos.
     private String perfil;
     private List<String> dominantes;
+    // Nivel de cada estilo primario (nombre → banda): con BAREMO es la única
+    // lectura y el resumen la cuenta respetando el filtro.
+    private Map<String, String> niveles;
 
     public static ResultadoCuestionarioDTO from(ResultadoCuestionario rc) {
         ResultadoCuestionarioDTO rcd = new ResultadoCuestionarioDTO();
