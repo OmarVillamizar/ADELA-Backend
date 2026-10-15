@@ -46,13 +46,7 @@ public class EstudianteController {
     private final InsigniaService insigniaService;
 
     private final EstudianteService estudianteService;
-        
-    @GetMapping("/omero")
-    @PreAuthorize("hasRole('ESTUDIANTE')")
-    public String ola() {
-        return "Hola";
-    }
-    
+
     /**
      * Devuelve como mucho una página de estudiantes. Antes esto era findAll() sin
      * paginación y el cliente lo pedía entero al abrir /grupos, para filtrar en
