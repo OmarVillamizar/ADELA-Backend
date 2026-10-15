@@ -55,10 +55,6 @@ spring:
                         token-uri: https://www.googleapis.com/oauth2/v4/token
                         user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
                         user-name-attribute: sub
-            resourceserver:
-                jwt:
-                      issuer-uri: https://accounts.google.com
-                      jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
 cors:
   allowed-origins: ${ALLOWED_ORIGINS}
 # Documentación desactivada por defecto: publica el mapa completo de la API.

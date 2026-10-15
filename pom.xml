@@ -52,10 +52,6 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-oauth2-client</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
-        </dependency>
 
         <!-- jjwt se publica en tres artefactos: la API se compila, las otras dos
              solo hacen falta en ejecucion. El agregado 'jjwt' los arrastra todos
