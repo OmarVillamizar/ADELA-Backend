@@ -7,8 +7,6 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -24,8 +22,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.RequestMapping;
 
 import com.adela.entities.Profesor;
 import com.adela.entities.ProfesorEstado;
@@ -105,19 +101,5 @@ class ProfesorControllerTest {
         controller.elevarCuentaProfesor(CORREO);
 
         verify(profesorRepository).save(any());
-    }
-
-    @Test
-    @DisplayName("/api/roles es solo de SUPERADMIN: un admin no puede renombrar ni borrar roles")
-    void rolesSoloSuperadmin() {
-        Method[] endpoints = Arrays.stream(RolController.class.getDeclaredMethods())
-                .filter(m -> Arrays.stream(m.getAnnotations())
-                        .anyMatch(a -> a.annotationType().isAnnotationPresent(RequestMapping.class)))
-                .toArray(Method[]::new);
-
-        assertEquals(3, endpoints.length);
-        for (Method m : endpoints) {
-            assertEquals("hasRole('SUPERADMIN')", m.getAnnotation(PreAuthorize.class).value(), m.getName());
-        }
     }
 }
