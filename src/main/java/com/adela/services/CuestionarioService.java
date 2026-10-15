@@ -50,18 +50,6 @@ public class CuestionarioService {
 
     private final InterpretacionService interpretacionService;
     
-    public Cuestionario crearCuestionario(String nombre, String descripcion, String autor, String version,
-            String siglas) {
-        Cuestionario cuestionario = new Cuestionario();
-        cuestionario.setNombre(nombre);
-        cuestionario.setDescripcion(descripcion);
-        cuestionario.setAutor(autor);
-        cuestionario.setVersion(version);
-        cuestionario.setSiglas(siglas);
-        
-        return cuestionarioRepository.save(cuestionario);
-    }
-    
     /**
      * Devuelve el resumen, no la entidad: el conteo de preguntas se calcula dentro
      * de la transacción, donde la colección todavía se puede recorrer.
