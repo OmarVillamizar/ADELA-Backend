@@ -39,13 +39,39 @@ migraciones pendientes.
 | `HIBERNATE_DIALECT` | `org.hibernate.dialect.PostgreSQLDialect` | Dialecto |
 | `GOOGLE_CLIENT_ID` | — | Cliente OAuth2 de Google Cloud |
 | `GOOGLE_CLIENT_SECRET` | — | Secreto del mismo cliente |
-| `JWT_SECRET_KEY` | — | Clave HMAC **en Base64**, mínimo 32 bytes decodificados |
-| `ALLOWED_ORIGINS` | `http://localhost:3000` | Orígenes permitidos, separados por coma |
+| `JWT_SECRET_KEY` | `openssl rand -base64 32` | Clave HMAC **en Base64**, mínimo 32 bytes decodificados; si no, la app no arranca |
+| `JWT_EXPIRATION_HOURS` | `4` | Opcional. Vida del token de sesión; no hay refresh |
+| `ALLOWED_ORIGINS` | `http://localhost:3000` | Orígenes exactos, separados por coma. Vacío o con `*` la app no arranca |
+| `FORWARD_HEADERS_STRATEGY` | `none` | `native` detrás de un proxy (Render, nginx, balanceador); `none` sin proxy |
 | `SWAGGER_ENABLED` | `false` | `true` publica `/docs`; déjalo en `false` fuera de desarrollo |
+| `DEV_SIMULACION` | `false` | `true` abre `/api/dev` para poblar grupos con estudiantes ficticios. Solo en local |
 
 `ALLOWED_ORIGINS` no es solo CORS: **también decide a qué direcciones puede
 redirigir el login**. Si falta el origen del frontend, `/auth/login/success/**`
 responde 400 en lugar de redirigir y nadie puede entrar.
+
+`FORWARD_HEADERS_STRATEGY` importa por el límite de tasa de las rutas públicas
+(cápsulas), que cuenta por IP. Detrás de un proxy sin `native`, todas las
+peticiones parecen venir de la IP del proxy y un solo abusador frena a todos.
+Sin proxy deja `none`: con `native` cualquiera podría falsificar su IP.
+
+### Asistente de IA (Nelse)
+
+Todas son opcionales. Sin `AI_API` o con `IA_HABILITADA=false` solo funciona la
+importación de JSON ("Con tu propia IA"), que no llama a ningún proveedor.
+
+| Variable | Por defecto | Para qué |
+|---|---|---|
+| `IA_HABILITADA` | `false` | Interruptor de la generación con el modelo |
+| `AI_API` | — | Llave del proveedor. Solo aquí, nunca en `application.yaml` |
+| `IA_BASE_URL` | `https://api.deepseek.com` | URL del proveedor |
+| `IA_MODELO` | `deepseek-flash` | Modelo |
+| `IA_CATALOGO_DIR` | — | Carpeta del catálogo de instrumentos (licencia de terceros, fuera del repo) |
+| `IA_TIMEOUT` | `180s` | Tope de cada petición al proveedor |
+| `IA_ESFUERZO_GENERAR` / `IA_ESFUERZO_CORREGIR` | `high` | Esfuerzo de razonamiento; distintos invalidan la caché del proveedor |
+| `IA_MAX_SALIDA` | `32000` | Tokens de salida por respuesta |
+| `IA_CUOTA_DIARIA` | `30` | Trabajos por administrador al día |
+| `IA_MAX_MB` / `IA_MAX_PAGINAS` / `IA_MAX_IMAGENES` | `15` / `40` / `12` | Límites del PDF subido |
 
 ## Google Cloud
 
