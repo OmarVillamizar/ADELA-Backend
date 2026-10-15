@@ -16,6 +16,10 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 /**
@@ -65,6 +69,26 @@ class LimiteTasaFilterTest {
         return response;
     }
 
+    /** Como enviar, pero el controlador responde 404: un código que no existe. */
+    private MockHttpServletResponse fallar(String uri, String ip) throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", uri);
+        request.setRemoteAddr(ip);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        filtro.doFilter(request, response, new MockFilterChain(new HttpServlet() {
+            @Override
+            protected void service(HttpServletRequest req, HttpServletResponse res) {
+                res.setStatus(404);
+            }
+        }));
+        return response;
+    }
+
+    private void agotarFallos(String ip) throws Exception {
+        for (int i = 0; i < LimiteTasaFilter.FALLOS_POR_MINUTO; i++) {
+            assertEquals(404, fallar("/api/publico/capsulas/ZZZZZ" + i, ip).getStatus());
+        }
+    }
+
     private void agotarEscrituras(String ip) throws Exception {
         for (int i = 0; i < LimiteTasaFilter.ESCRITURAS_POR_MINUTO; i++) {
             assertEquals(200, enviar("POST", "/api/publico/capsulas/X/respuestas", ip).getStatus());
@@ -102,6 +126,40 @@ class LimiteTasaFilterTest {
         agotarEscrituras("10.0.0.1");
         reloj.adelantar(60);
         assertEquals(200, enviar("POST", "/api/publico/capsulas/X/respuestas", "10.0.0.1").getStatus());
+    }
+
+    @Test
+    @DisplayName("Tras 20 códigos inexistentes la IP queda frenada en toda ruta pública")
+    void fallosFrenanLaEnumeracion() throws Exception {
+        agotarFallos("10.0.0.1");
+
+        assertEquals(429, enviar("GET", "/api/publico/capsulas/ABC234", "10.0.0.1").getStatus());
+        assertEquals(429, enviar("POST", "/api/publico/capsulas/ABC234/respuestas", "10.0.0.1").getStatus());
+        assertEquals(200, enviar("GET", "/api/publico/capsulas/ABC234", "10.0.0.2").getStatus());
+    }
+
+    @Test
+    @DisplayName("Los aciertos no cuentan como fallos y el minuto siguiente perdona")
+    void aciertosNoCuentanYFallosCaducan() throws Exception {
+        for (int i = 0; i < 100; i++) {
+            assertEquals(200, enviar("GET", "/api/publico/capsulas/ABC234", "10.0.0.1").getStatus());
+        }
+        agotarFallos("10.0.0.1");
+        reloj.adelantar(60);
+        assertEquals(200, enviar("GET", "/api/publico/capsulas/ABC234", "10.0.0.1").getStatus());
+    }
+
+    @Test
+    @DisplayName("Una cápsula admite un tope de respuestas por minuto aunque lleguen de muchas IP")
+    void topePorCapsulaEntreIps() throws Exception {
+        for (int i = 0; i < LimiteTasaFilter.RESPUESTAS_POR_CAPSULA_POR_MINUTO; i++) {
+            String ip = "10.1." + (i / 100) + "." + (i % 100);
+            assertEquals(200, enviar("POST", "/api/publico/capsulas/ABC234/respuestas", ip).getStatus());
+        }
+
+        // Variar mayúsculas o meter guiones no abre otro cupo: el código se normaliza.
+        assertEquals(429, enviar("POST", "/api/publico/capsulas/abc-234/respuestas", "10.9.9.9").getStatus());
+        assertEquals(200, enviar("POST", "/api/publico/capsulas/XYZ789/respuestas", "10.9.9.9").getStatus());
     }
 
     @Test

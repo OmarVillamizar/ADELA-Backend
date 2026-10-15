@@ -6,6 +6,8 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +15,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import com.adela.dto.ApiError;
 import com.adela.exceptions.ErrorCode;
+import com.adela.services.CodigoAleatorio;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.servlet.FilterChain;
@@ -28,6 +31,14 @@ import jakarta.servlet.http.HttpServletResponse;
  * Ventana fija de un minuto, en memoria: basta para una sola instancia. Los
  * límites son holgados porque un aula entera sale a internet por la misma IP.
  *
+ * El código de cápsula es corto (6 caracteres, 31^6 ≈ 887 millones) para que se
+ * dicte en clase; lo que impide recorrerlo es el límite de fallos: quien tiene
+ * el código casi nunca recibe un 404 y quien enumera falla casi siempre. Con
+ * 100 cápsulas abiertas, una IP tarda unos 300 días en acertar una.
+ *
+ * Además cada cápsula admite un tope de respuestas por minuto entre todas las
+ * IP, para que repartir el envío de basura en muchas direcciones no sirva.
+ *
  * No es un @Component: Spring Boot registraría también cualquier Filter bean en
  * el contenedor de servlets y lo aplicaría fuera de la cadena de seguridad.
  */
@@ -40,6 +51,14 @@ public class LimiteTasaFilter extends OncePerRequestFilter {
     static final int LECTURAS_POR_MINUTO = 600;
 
     static final int ESCRITURAS_POR_MINUTO = 120;
+
+    /** Códigos inexistentes (404) por IP; alcanzado el tope, toda ruta pública responde 429. */
+    static final int FALLOS_POR_MINUTO = 20;
+
+    /** Respuestas por cápsula sumando todas las IP: varias aulas a la vez caben de sobra. */
+    static final int RESPUESTAS_POR_CAPSULA_POR_MINUTO = 300;
+
+    private static final Pattern RESPONDER_CAPSULA = Pattern.compile("^/api/publico/capsulas/([^/]+)/respuestas$");
 
     /** Por encima de este tamaño se purgan las ventanas de minutos pasados. */
     private static final int MAX_CLAVES = 10_000;
@@ -68,23 +87,45 @@ public class LimiteTasaFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         boolean lectura = "GET".equals(request.getMethod()) || "HEAD".equals(request.getMethod());
-        int limite = lectura ? LECTURAS_POR_MINUTO : ESCRITURAS_POR_MINUTO;
-        String clave = request.getRemoteAddr() + (lectura ? "|L" : "|E");
+        String ip = request.getRemoteAddr();
         long ahora = clock.millis();
         long minuto = ahora / 60_000;
+        long segundos = 60 - (ahora / 1000) % 60;
 
         if (ventanas.size() > MAX_CLAVES) {
             ventanas.values().removeIf(v -> v.minuto() < minuto);
         }
-        Ventana ventana = ventanas.merge(clave, new Ventana(minuto, 1),
-                (actual, nueva) -> actual.minuto() == minuto ? new Ventana(minuto, actual.cuenta() + 1) : nueva);
 
-        if (ventana.cuenta() > limite) {
-            long segundos = 60 - (ahora / 1000) % 60;
+        if (cuenta(ip + "|F", minuto) >= FALLOS_POR_MINUTO
+                || sumar(ip + (lectura ? "|L" : "|E"), minuto) > (lectura ? LECTURAS_POR_MINUTO : ESCRITURAS_POR_MINUTO)) {
             rechazar(request, response, segundos);
             return;
         }
+
+        Matcher responder = RESPONDER_CAPSULA.matcher(request.getRequestURI());
+        if (!lectura && responder.matches() && sumar("capsula:" + CodigoAleatorio.normalizar(responder.group(1)),
+                minuto) > RESPUESTAS_POR_CAPSULA_POR_MINUTO) {
+            rechazar(request, response, segundos);
+            return;
+        }
+
         filterChain.doFilter(request, response);
+
+        if (response.getStatus() == HttpServletResponse.SC_NOT_FOUND) {
+            sumar(ip + "|F", minuto);
+        }
+    }
+
+    /** Suma uno a la ventana del minuto actual y devuelve la cuenta. */
+    private int sumar(String clave, long minuto) {
+        return ventanas.merge(clave, new Ventana(minuto, 1),
+                (actual, nueva) -> actual.minuto() == minuto ? new Ventana(minuto, actual.cuenta() + 1) : nueva)
+                .cuenta();
+    }
+
+    private int cuenta(String clave, long minuto) {
+        Ventana v = ventanas.get(clave);
+        return v == null || v.minuto() != minuto ? 0 : v.cuenta();
     }
 
     /** Mismo cuerpo que GlobalExceptionHandler: un único formato de error en la API. */
