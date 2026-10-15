@@ -13,6 +13,7 @@ import java.util.UUID;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.access.hierarchicalroles.RoleHierarchy;
@@ -221,6 +222,19 @@ public class SecurityConfig {
             }
         }
         return parametros;
+    }
+
+    /**
+     * JwtFilter es un @Component para poder inyectarle repositorios, y Spring Boot
+     * registra todo Filter bean también en el contenedor de servlets: corría dos
+     * veces por petición, recargando el usuario de la base en cada una. Aquí se
+     * apaga ese registro y queda solo en la cadena de seguridad.
+     */
+    @Bean
+    FilterRegistrationBean<JwtFilter> jwtFilterSoloEnLaCadena(JwtFilter filtro) {
+        FilterRegistrationBean<JwtFilter> registro = new FilterRegistrationBean<>(filtro);
+        registro.setEnabled(false);
+        return registro;
     }
     
     /**
