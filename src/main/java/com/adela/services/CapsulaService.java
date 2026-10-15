@@ -60,7 +60,8 @@ public class CapsulaService {
 
     /**
      * Corto para dictarlo o teclearlo, como el PIN de un juego en el aula: 31^6 ≈
-     * 887 millones. Adivinarlo solo deja responder la cápsula, no ver datos, y el
+     * 887 millones. Adivinarlo deja ver el cuestionario y responder la cápsula,
+     * nunca resultados; LimiteTasaFilter frena a quien prueba códigos al azar y el
      * profesor la cierra al terminar.
      */
     static final int LONGITUD_CODIGO_CAPSULA = 6;

@@ -30,7 +30,7 @@ public final class CodigoAleatorio {
 
     /**
      * Acepta el código como lo escriba una persona: minúsculas, guiones o
-     * espacios ("k7qm-2xpa" equivale a "K7QM2XPA").
+     * espacios ("k7q-m2x" equivale a "K7QM2X").
      */
     public static String normalizar(String codigo) {
         return codigo == null ? "" : codigo.toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9]", "");
