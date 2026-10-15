@@ -1,5 +1,8 @@
 package com.adela.security;
 
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;
@@ -140,8 +143,9 @@ public class SecurityConfig {
                         redirectTo = "default";
                     }
                     
-                    // Combinar userType con el estado (state)
-                    String state = "userType=" + userType + "&redirect_to=" + redirectTo;
+                    // Combinar userType con el estado (state). Codificados: un "&" dentro de
+                    // redirect_to se leía como otro parámetro y podía sobrescribir userType.
+                    String state = "userType=" + codificar(userType) + "&redirect_to=" + codificar(redirectTo);
                     
                     // Crear la nueva solicitud con el estado modificado
                     Builder authorizationRequestBuilder = OAuth2AuthorizationRequest.from(authorizationRequest);
@@ -156,44 +160,13 @@ public class SecurityConfig {
     // Custom Success Handler para recibir el estado en la respuesta
     private AuthenticationSuccessHandler customAuthenticationSuccessHandler() {
         return (request, response, authentication) -> {
-            // Obtener el valor del state de la redirección de Google
-            String state = request.getParameter("state");
-            
-            if (state == null) {
-                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-                response.getWriter().write("Error: null state in request");
-            }
-            
-            // Parsear el state para obtener el userType
-            String userType = null, redirectTo = null;
-            
-            Map<String, String> parameters = new HashMap<String, String>();
-            
-            String[] elems = state.split("&");
-            
-            for (String elem : elems) {
-                String[] x = elem.split("=");
-                if (x.length == 1) {
-                    parameters.put(x[0], "");
-                    continue;
-                } else if (x.length == 0) {
-                    continue;
-                }
-                String val = x[1];
-                for (int i = 2; i < x.length; ++i)
-                    val += "=" + x[i];
-                parameters.put(x[0], val);
-            }
-            
-            if (state != null) {
-                userType = parameters.get("userType"); // Extraer el valor de userType
-                redirectTo = parameters.get("redirect_to");
-                if (userType.equals("default"))
-                    userType = null;
-                if (redirectTo.equals("default"))
-                    redirectTo = null;
-            }
-            
+            // Obtener el valor del state de la redirección de Google. Sin state, o sin
+            // alguno de sus parámetros, se responde el 400 de abajo; antes un state
+            // nulo o incompleto terminaba en NullPointerException.
+            Map<String, String> parameters = leerState(request.getParameter("state"));
+            String userType = parameters.get("userType");
+            String redirectTo = parameters.get("redirect_to");
+
             List<String> falta = new LinkedList<String>();
             
             if (userType == null)
@@ -212,16 +185,42 @@ public class SecurityConfig {
             if ("profesor".equals(userType)) {
                 logger.debug("Login OAuth2 de tipo profesor");
                 // Redirigir al dashboard de profesor
-                response.sendRedirect("/auth/login/success/prof?redirect_to=" + redirectTo);
+                response.sendRedirect("/auth/login/success/prof?redirect_to=" + codificar(redirectTo));
             } else if ("estudiante".equals(userType)) {
                 logger.debug("Login OAuth2 de tipo estudiante");
                 // Redirigir al dashboard de estudiante
-                response.sendRedirect("/auth/login/success/estud?redirect_to=" + redirectTo);
+                response.sendRedirect("/auth/login/success/estud?redirect_to=" + codificar(redirectTo));
             } else {
                 // Si no se encuentra userType, redirigir a un dashboard genérico
                 response.sendRedirect("/");
             }
         };
+    }
+
+    private static String codificar(String valor) {
+        return URLEncoder.encode(valor, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Lee el state que armó customizeAuthorizationRequest. Un parámetro ausente,
+     * vacío o "default" no aparece en el mapa; un state nulo da un mapa vacío.
+     */
+    static Map<String, String> leerState(String state) {
+        Map<String, String> parametros = new HashMap<>();
+        if (state == null) {
+            return parametros;
+        }
+        for (String par : state.split("&")) {
+            String[] claveValor = par.split("=", 2);
+            if (claveValor.length < 2) {
+                continue;
+            }
+            String valor = URLDecoder.decode(claveValor[1], StandardCharsets.UTF_8);
+            if (!valor.isEmpty() && !"default".equals(valor)) {
+                parametros.put(claveValor[0], valor);
+            }
+        }
+        return parametros;
     }
     
     /**
