@@ -32,6 +32,7 @@ import com.adela.services.CuestionarioService;
 import com.adela.services.InsigniaService;
 import com.adela.services.ResultadoCuestionarioService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -156,7 +157,7 @@ public class CuestionarioController {
     @PostMapping("/mis-cuestionarios/resuelto/{idResultado}/complementaria")
     @PreAuthorize("hasRole('ESTUDIANTE')")
     public ResponseEntity<?> responderComplementaria(@PathVariable Long idResultado,
-            @RequestBody ComplementariaDTO.Eleccion body) {
+            @Valid @RequestBody ComplementariaDTO.Eleccion body) {
         Estudiante estudiante = (Estudiante) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         return ResponseEntity.ok(
                 resultadoCuestionarioService.responderComplementaria(idResultado, estudiante, body.opcionId()));

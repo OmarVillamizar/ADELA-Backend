@@ -51,7 +51,7 @@ public class CapsulaPublicaController {
 
     @PostMapping("/resultados/{codigo}/complementaria")
     public ResponseEntity<ResultadoCapsulaDTO> responderComplementaria(@PathVariable String codigo,
-            @RequestBody ComplementariaDTO.Eleccion body) {
+            @Valid @RequestBody ComplementariaDTO.Eleccion body) {
         return ResponseEntity.ok(capsulaService.responderComplementaria(codigo, body.opcionId()));
     }
 }

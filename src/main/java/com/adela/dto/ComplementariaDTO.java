@@ -6,6 +6,8 @@ import java.util.Map;
 import com.adela.entities.OpcionComplementaria;
 import com.adela.entities.PreguntaComplementaria;
 
+import jakarta.validation.constraints.NotNull;
+
 /**
  * Vistas de la pregunta complementaria fuera del editor del administrador: la
  * pregunta para responderla, la respuesta en un reporte individual y el
@@ -38,7 +40,7 @@ public final class ComplementariaDTO {
     }
 
     /** Cuerpo de la petición que la responde. */
-    public record Eleccion(Long opcionId) {
+    public record Eleccion(@NotNull(message = "Elige una opción") Long opcionId) {
     }
 
     /** Personas por resultado, en el orden de las opciones, más "Sin declarar". */
