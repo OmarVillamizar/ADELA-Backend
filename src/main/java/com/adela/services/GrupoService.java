@@ -66,6 +66,26 @@ public class GrupoService {
     private static final int LARGO_MAXIMO = 100;
 
     /**
+     * Estudiantes por petición: una lista de clase o la hoja de un curso entero
+     * caben de sobra. Sin tope, un cuerpo enorme se recorría completo, con una
+     * consulta por correo, y además se devolvía entero en el mensaje de error.
+     */
+    static final int MAX_ESTUDIANTES_POR_PETICION = 500;
+
+    /*
+     * La validación de correos y nombres se queda aquí y no en anotaciones del
+     * DTO: primero se normaliza (espacios, mayúsculas de una hoja de cálculo) y
+     * luego se rechaza la lista entera nombrando todos los correos inválidos.
+     * Un @Email por elemento rechazaría " Ana@UFPS.edu.co" antes de limpiarlo.
+     */
+    private static void exigirTamano(Collection<?> lista) {
+        if (lista != null && lista.size() > MAX_ESTUDIANTES_POR_PETICION) {
+            throw new AppException(ErrorCode.VALIDACION, "Se admiten como mucho " + MAX_ESTUDIANTES_POR_PETICION
+                    + " estudiantes por petición; llegaron " + lista.size() + ".");
+        }
+    }
+
+    /**
      * El correo es la clave del estudiante y Google lo entrega en minúsculas: un
      * " Ana@UFPS.edu.co" de una hoja de cálculo no encontraba a la estudiante y
      * creaba otra con ese correo, que nunca podría iniciar sesión.
@@ -93,6 +113,7 @@ public class GrupoService {
      * lista aplicada.
      */
     private Set<Estudiante> resolverOCrear(Collection<EstudianteCrearDTO> solicitados) {
+        exigirTamano(solicitados);
         Map<String, String> nombrePorCorreo = new LinkedHashMap<>();
         List<String> invalidos = new ArrayList<>();
         for (EstudianteCrearDTO dto : solicitados) {
@@ -138,10 +159,11 @@ public class GrupoService {
 
     /** Exige que todos los correos existan antes de tocar nada. */
     private Set<Estudiante> exigirExistentes(List<String> emails) {
+        exigirTamano(emails);
         List<String> noEncontrados = new ArrayList<>();
         Set<Estudiante> estudiantes = new HashSet<>();
         for (String email : emails) {
-            Optional<Estudiante> opt = estudianteRepository.findById(email);
+            Optional<Estudiante> opt = email == null ? Optional.empty() : estudianteRepository.findById(email);
             if (opt.isPresent()) {
                 estudiantes.add(opt.get());
             } else {

@@ -157,4 +157,37 @@ class GrupoServiceTest {
                 any(), argThat(s -> s.size() == 1
                         && s.iterator().next().getEmail().equals("nuevo@ufps.edu.co")));
     }
+
+    @Test
+    @DisplayName("Una lista de más de 500 estudiantes se rechaza sin consultar la base")
+    void listaEnormeRechazada() {
+        List<EstudianteCrearDTO> enorme = new java.util.ArrayList<>();
+        for (int i = 0; i <= GrupoService.MAX_ESTUDIANTES_POR_PETICION; i++) {
+            enorme.add(alta("e" + i + "@ufps.edu.co", null));
+        }
+        Grupo g = new Grupo();
+        g.setId(7);
+        g.setProfesor(profesor);
+        g.setEstudiantes(new HashSet<>());
+        when(grupoRepository.findByProfesorAndId(profesor, 7)).thenReturn(Optional.of(g));
+
+        AppException e = assertThrows(AppException.class, () -> service.agregarEstudiantes(7, enorme, profesor));
+        assertEquals(ErrorCode.VALIDACION, e.getCode());
+        verify(estudianteRepository, never()).findById(anyString());
+    }
+
+    @Test
+    @DisplayName("Quitar con un correo nulo responde no encontrado, no un 500")
+    void quitarCorreoNulo() {
+        Grupo g = new Grupo();
+        g.setId(7);
+        g.setProfesor(profesor);
+        g.setEstudiantes(new HashSet<>());
+        when(grupoRepository.findByProfesorAndId(profesor, 7)).thenReturn(Optional.of(g));
+        List<String> emails = new java.util.ArrayList<>();
+        emails.add(null);
+
+        AppException e = assertThrows(AppException.class, () -> service.eliminarEstudiantes(7, emails, profesor));
+        assertEquals(ErrorCode.ESTUDIANTES_NO_ENCONTRADOS, e.getCode());
+    }
 }
