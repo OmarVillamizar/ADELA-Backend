@@ -21,6 +21,7 @@ import com.adela.dto.OpcionDTO;
 import com.adela.dto.PreguntaDTO;
 import com.adela.entities.Estilo;
 import com.adela.entities.Cuestionario;
+import com.adela.entities.Estudiante;
 import com.adela.entities.Pregunta;
 import com.adela.entities.Profesor;
 import com.adela.exceptions.AppException;
@@ -331,12 +332,24 @@ public class CuestionarioService {
      * Arma el DTO dentro de la transacción. Hacerlo en el controlador recorría
      * preguntas y opciones con la sesión ya cerrada.
      *
-     * Un profesor solo abre generales y propios. El estudiante no se filtra aquí:
-     * lo necesita para responder lo que tiene asignado.
+     * Un profesor solo abre generales y propios.
      */
     @Transactional(readOnly = true)
     public CuestionarioParaResponderDTO obtenerParaResponder(Long id, Profesor profesor) {
-        return CuestionarioParaResponderDTO.from(profesor == null ? getCuestionarioPorId(id) : visible(id, profesor));
+        return CuestionarioParaResponderDTO.from(visible(id, profesor));
+    }
+
+    /**
+     * El estudiante solo abre lo que le asignaron, pendiente o ya resuelto. Sin
+     * esto leía cualquier cuestionario por id, incluidos personales ajenos y
+     * archivados; uno no asignado se responde igual que uno inexistente.
+     */
+    @Transactional(readOnly = true)
+    public CuestionarioParaResponderDTO obtenerParaEstudiante(Long id, Estudiante estudiante) {
+        if (!resultadoCuestionarioRepository.existsByCuestionario_IdAndEstudiante_Email(id, estudiante.getEmail())) {
+            throw new EntityNotFoundException("Cuestionario no encontrado con el ID: " + id);
+        }
+        return CuestionarioParaResponderDTO.from(getCuestionarioPorId(id));
     }
 
     @Transactional(readOnly = true)

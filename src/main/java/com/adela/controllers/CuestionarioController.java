@@ -75,8 +75,10 @@ public class CuestionarioController {
     @PreAuthorize("hasRole('ADMINISTRADOR') or hasRole('PROFESOR') or hasRole('ESTUDIANTE')")
     public ResponseEntity<?> obtenerCuestionario(@PathVariable Long id) {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        Profesor profesor = principal instanceof Profesor p ? p : null;
-        return ResponseEntity.ok(cuestionarioService.obtenerParaResponder(id, profesor));
+        if (principal instanceof Profesor p) {
+            return ResponseEntity.ok(cuestionarioService.obtenerParaResponder(id, p));
+        }
+        return ResponseEntity.ok(cuestionarioService.obtenerParaEstudiante(id, (Estudiante) principal));
     }
 
     /** Baremo y reglas de interpretación: solo el administrador, nunca en el DTO de responder. */

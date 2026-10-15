@@ -14,7 +14,10 @@ import com.adela.entities.Grupo;
 import com.adela.entities.ResultadoCuestionario;
 
 public interface ResultadoCuestionarioRepository extends JpaRepository<ResultadoCuestionario, Long> {
-    
+
+    /** Si el cuestionario se le asignó al estudiante alguna vez, pendiente o resuelto. */
+    boolean existsByCuestionario_IdAndEstudiante_Email(Long cuestionarioId, String email);
+
 	// Método para encontrar las asignaciones pendientes de un Cuestionario para un
     // Estudiante. Devuelve una lista porque el mismo cuestionario puede estar
     // asignado al estudiante en varios grupos a la vez.

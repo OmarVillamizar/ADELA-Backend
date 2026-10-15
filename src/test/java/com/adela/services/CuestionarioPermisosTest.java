@@ -37,6 +37,7 @@ import com.adela.dto.OpcionDTO.PesoDTO;
 import com.adela.dto.PreguntaDTO;
 import com.adela.entities.Cuestionario;
 import com.adela.entities.Estilo;
+import com.adela.entities.Estudiante;
 import com.adela.entities.Pregunta;
 import com.adela.entities.Profesor;
 import com.adela.entities.Rol;
@@ -244,13 +245,35 @@ class CuestionarioPermisosTest {
     }
 
     @Test
-    @DisplayName("Un profesor solo abre generales y propios; el estudiante no se filtra")
-    void verFiltraProfesorNoEstudiante() {
+    @DisplayName("Un profesor solo abre generales y propios")
+    void verFiltraProfesor() {
         when(cuestionarioRepository.findVisible(3L, admin)).thenReturn(Optional.empty());
         assertThrows(EntityNotFoundException.class, () -> service.obtenerParaResponder(3L, admin));
+    }
 
+    @Test
+    @DisplayName("Un estudiante sin asignación no abre el cuestionario: 404")
+    void estudianteSinAsignacionNoAbre() {
+        Estudiante estudiante = new Estudiante();
+        estudiante.setEmail("ana@ufps.edu.co");
         when(cuestionarioRepository.findById(3L)).thenReturn(Optional.of(cuestionario(3L, otroAdmin)));
-        service.obtenerParaResponder(3L, null);
+        when(resultadoCuestionarioRepository.existsByCuestionario_IdAndEstudiante_Email(3L, "ana@ufps.edu.co"))
+                .thenReturn(false);
+
+        assertThrows(EntityNotFoundException.class, () -> service.obtenerParaEstudiante(3L, estudiante));
+        verify(cuestionarioRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("Un estudiante abre lo que tiene asignado")
+    void estudianteConAsignacionAbre() {
+        Estudiante estudiante = new Estudiante();
+        estudiante.setEmail("ana@ufps.edu.co");
+        when(cuestionarioRepository.findById(3L)).thenReturn(Optional.of(cuestionario(3L, otroAdmin)));
+        when(resultadoCuestionarioRepository.existsByCuestionario_IdAndEstudiante_Email(3L, "ana@ufps.edu.co"))
+                .thenReturn(true);
+
+        service.obtenerParaEstudiante(3L, estudiante);
         ArgumentCaptor<Long> id = ArgumentCaptor.forClass(Long.class);
         verify(cuestionarioRepository).findById(id.capture());
         assertEquals(3L, id.getValue());
