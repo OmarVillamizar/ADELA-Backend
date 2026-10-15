@@ -1,5 +1,7 @@
 jwt:
     secret: ${JWT_SECRET_KEY}
+    # Vida del token de sesión. No hay refresh: al vencer, el usuario vuelve a entrar.
+    expiration-hours: ${JWT_EXPIRATION_HOURS:4}
 spring:
     datasource:
         url: ${DATABASE_URL}

@@ -15,14 +15,42 @@ import com.adela.entities.Usuario;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import jakarta.annotation.PostConstruct;
 
 @Component
 public class JwtUtil {
     
+    /** HS256 exige una clave de al menos 256 bits. */
+    static final int BYTES_MINIMOS_SECRETO = 32;
+
     @Value("${jwt.secret}")
     private String SECRET; // Generación de la clave segura
-    private final int HOURS = 4;
-    
+
+    @Value("${jwt.expiration-hours:4}")
+    private int HOURS;
+
+    /**
+     * Falla al arrancar con un secreto inválido o corto. Antes se descubría en el
+     * primer login, como un 500 al firmar el token.
+     */
+    @PostConstruct
+    void validarSecreto() {
+        validar(SECRET);
+    }
+
+    static void validar(String secreto) {
+        byte[] bytes;
+        try {
+            bytes = Base64.getDecoder().decode(secreto == null ? "" : secreto);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("JWT_SECRET_KEY no es Base64 válido.");
+        }
+        if (bytes.length < BYTES_MINIMOS_SECRETO) {
+            throw new IllegalStateException("JWT_SECRET_KEY debe tener al menos " + BYTES_MINIMOS_SECRETO
+                    + " bytes en Base64 (openssl rand -base64 32); tiene " + bytes.length + ".");
+        }
+    }
+
     // Extraer email del token
     public String extractEmail(String token) {
         return extractClaim(token, Claims::getSubject);
