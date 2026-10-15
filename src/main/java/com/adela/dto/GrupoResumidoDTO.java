@@ -14,7 +14,8 @@ public class GrupoResumidoDTO {
     private String nombre;
     private String profesorNombre;
     private String profesorEmail;
-    private int numEstudiantes;
+    /** Solo lo llena la proyección de la lista de grupos; en el resto va null. */
+    private Integer numEstudiantes;
     
     /**
      * Constructor para la proyección JPQL de GrupoRepository.resumirPorProfesor.
@@ -29,15 +30,19 @@ public class GrupoResumidoDTO {
         this.numEstudiantes = (int) numEstudiantes;
     }
 
+    /**
+     * Sin conteo de estudiantes (PERF-02): se usa dentro de resultados y reportes,
+     * donde nadie lo lee, y getEstudiantes().size() cargaba la colección LAZY
+     * entera una vez por resultado. La lista de grupos cuenta en la consulta.
+     */
     public static GrupoResumidoDTO from(Grupo g) {
-        
+
         GrupoResumidoDTO gt = new GrupoResumidoDTO();
         if (g == null) {
             return gt;
         }
         gt.setId(g.getId());
         gt.setNombre(g.getNombre());
-        gt.setNumEstudiantes(g.getEstudiantes().size());
         gt.setProfesorEmail(g.getProfesor().getEmail());
         gt.setProfesorNombre(g.getProfesor().getNombre());
         return gt;
