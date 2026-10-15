@@ -12,9 +12,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -22,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.adela.dto.EstudianteDTO;
 import com.adela.entities.Estudiante;
 import com.adela.entities.Insignia;
+import com.adela.entities.Profesor;
 import com.adela.entities.Usuario;
 import com.adela.entities.UsuarioEstado;
 import com.adela.exceptions.AppException;
@@ -29,6 +27,7 @@ import com.adela.exceptions.ErrorCode;
 import com.adela.repositories.EstudianteRepository;
 import com.adela.repositories.UsuarioRepository;
 import com.adela.services.CodigoInstitucional;
+import com.adela.services.EstudianteService;
 import com.adela.services.InsigniaService;
 
 import jakarta.validation.Valid;
@@ -45,6 +44,8 @@ public class EstudianteController {
     private final UsuarioRepository usuarioRepository;
 
     private final InsigniaService insigniaService;
+
+    private final EstudianteService estudianteService;
         
     @GetMapping("/omero")
     @PreAuthorize("hasRole('ESTUDIANTE')")
@@ -58,36 +59,25 @@ public class EstudianteController {
      * memoria un autocompletado: con la matrícula de una facultad eso es
      * descargar toda la tabla en cada visita.
      *
-     * `q` filtra por correo o nombre. Sin `q` se devuelve la primera página, que
-     * mantiene el contrato anterior para quien no pagine.
+     * `q` filtra por correo o nombre. Lo que ve cada rol lo decide EstudianteService.
      */
     @GetMapping
     @PreAuthorize("hasRole('PROFESOR') or hasRole('ADMINISTRADOR')")
-    public ResponseEntity<List<EstudianteDTO>> listarEstudiantes(
+    public ResponseEntity<List<?>> listarEstudiantes(
             @RequestParam(required = false, defaultValue = "") String q,
             @RequestParam(required = false, defaultValue = "20") int size) {
-        Pageable pagina = PageRequest.of(0, Math.min(Math.max(size, 1), TAM_PAGINA_MAX), Sort.by("email"));
-        List<EstudianteDTO> resultado = estudianteRepository
-                .findByEmailContainingIgnoreCaseOrNombreContainingIgnoreCase(q, q, pagina).getContent().stream()
-                .map(EstudianteDTO::from).toList();
-        return ResponseEntity.ok(resultado);
+        return ResponseEntity.ok(estudianteService.buscar(q, size, profesorActual()));
     }
-    
+
     @GetMapping("/{email}")
     @PreAuthorize("hasRole('PROFESOR') or hasRole('ADMINISTRADOR')")
-    public ResponseEntity<?> consultarPorCorreo(@PathVariable String email) {
-        
-        Optional<Estudiante> estudianteOptional = estudianteRepository.findById(email);
-        if (!estudianteOptional.isPresent()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Estudiante no encontrado con el correo: " + email);
-        }
-        
-        return ResponseEntity.ok(EstudianteDTO.from(estudianteOptional.get()));
+    public ResponseEntity<EstudianteDTO> consultarPorCorreo(@PathVariable String email) {
+        return ResponseEntity.ok(estudianteService.consultar(email, profesorActual()));
     }
-    
-    
-    /** Tope duro: el cliente no puede pedir la tabla entera subiendo `size`. */
-    private static final int TAM_PAGINA_MAX = 100;
+
+    private static Profesor profesorActual() {
+        return (Profesor) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+    }
 
     @PutMapping
     @PreAuthorize("hasRole('ESTUDIANTE') or hasRole('ESTUDIANTE_INCOMPLETO')")

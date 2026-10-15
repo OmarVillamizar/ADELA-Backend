@@ -48,6 +48,11 @@ public class Profesor extends Usuario {
     public boolean esSuperadmin() {
         return rol != null && "SUPERADMIN".equals(rol.getDescripcion());
     }
+
+    /** ADMINISTRADOR o SUPERADMIN, que lo hereda. */
+    public boolean esAdmin() {
+        return esSuperadmin() || (rol != null && "ADMINISTRADOR".equals(rol.getDescripcion()));
+    }
     
     /**
      * BUG-08: @EqualsAndHashCode(callSuper = false) excluia el @Id heredado, asi

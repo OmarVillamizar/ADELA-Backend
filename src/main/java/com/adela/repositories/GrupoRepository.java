@@ -19,6 +19,9 @@ public interface GrupoRepository extends JpaRepository<Grupo, Integer> {
     
     Optional<Grupo> findByProfesorAndId(Profesor profesor, int id);
 
+    /** Si el estudiante está matriculado en algún grupo del profesor. */
+    boolean existsByProfesorAndEstudiantes_Email(Profesor profesor, String email);
+
     /**
      * Cuenta los estudiantes en la propia consulta. Recorrer los grupos llamando a
      * getEstudiantes().size() disparaba una consulta por grupo sobre una relación
