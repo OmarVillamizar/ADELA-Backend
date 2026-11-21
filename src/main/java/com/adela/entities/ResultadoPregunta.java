@@ -28,7 +28,7 @@ public class ResultadoPregunta {
     @ManyToOne
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
-    @JoinColumn(name = "cuestionario_id", referencedColumnName = "id", nullable = false)
+    @JoinColumn(name = "resultado_cuestionario_id", referencedColumnName = "id", nullable = false)
     private ResultadoCuestionario cuestionario;
     
     @ManyToOne

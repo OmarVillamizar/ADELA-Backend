@@ -29,7 +29,7 @@ public class Grupo {
     private String nombre;
     
     @ManyToOne
-    @JoinColumn(name = "profesor_id", nullable = false)
+    @JoinColumn(name = "profesor_email", nullable = false)
     private Profesor profesor;
     
     @ManyToMany(mappedBy = "grupos")

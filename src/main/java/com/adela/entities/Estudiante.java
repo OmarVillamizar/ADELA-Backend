@@ -40,7 +40,7 @@ public class Estudiante extends Usuario {
     private boolean nombreConfirmado = false;
 
     @ManyToMany
-    @JoinTable(name = "matricula", joinColumns = @JoinColumn(name = "estudiante_id"), inverseJoinColumns = @JoinColumn(name = "curso_id"))
+    @JoinTable(name = "matricula", joinColumns = @JoinColumn(name = "estudiante_email"), inverseJoinColumns = @JoinColumn(name = "grupo_id"))
     @JsonBackReference
     private Set<Grupo> grupos = new HashSet<Grupo>();
     
