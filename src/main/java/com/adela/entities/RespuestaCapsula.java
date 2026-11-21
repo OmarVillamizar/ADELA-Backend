@@ -53,7 +53,7 @@ public class RespuestaCapsula {
 
     /** Id de la opción elegida -> cantidad (1, el rango en jerarquía o los puntos en reparto). */
     @ElementCollection
-    @CollectionTable(name = "respuesta_capsula_opcion", joinColumns = @JoinColumn(name = "respuesta_id"))
+    @CollectionTable(name = "respuesta_capsula_opcion", joinColumns = @JoinColumn(name = "respuesta_capsula_id"))
     @MapKeyColumn(name = "opcion_id")
     @Column(name = "cantidad", nullable = false)
     private Map<Long, Double> cantidades = new HashMap<>();
